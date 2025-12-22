@@ -38,6 +38,7 @@ Przygotowaliśmy gotowe skrypty instalacyjne ("One-Click"), które stawiają us�
 | **Listmonk** | Mailchimp / ActiveCampaign | System newsletterowy. Wysyłaj miliony maili za grosze (przez Amazon SES lub inny SMTP). |
 | **Typebot** | Typeform | Interaktywne formularze i chatboty. Zbieraj leady, rób ankiety, sprzedawaj w rozmowie. |
 | **Umami** | Google Analytics | Statystyki WWW. Proste, czytelne, szanujące prywatność (bez RODO-paniki). |
+| **Cookie Hub** | Cookiebot / CookieYes | Centralny serwer zgód RODO (Klaro!). Zarządzaj ciasteczkami na wszystkich stronach z jednego miejsca. |
 
 ### 🏢 Biuro & Produktywność
 | Narzędzie | Zastępuje | Opis |
