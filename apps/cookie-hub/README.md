@@ -13,7 +13,7 @@ Podczas instalacji zostaniesz poproszony o podanie domeny (np. `assets.twojadome
 ## 💡 Idea "Centralizacji" (Lazy Engineer Style)
 Zamiast konfigurować wtyczki do cookies na każdej stronie (WordPress, GateFlow, Landing Page) z osobna:
 1. Stawiasz **jeden** Cookie Hub.
-2. Definiujesz usługi (Google Analytics, Pixel FB, Umami) w **jednym pliku** na serwerze.
+2. Definujesz usługi (Google Analytics, Pixel FB, Umami) w **jednym pliku** na serwerze.
 3. Wklejasz ten sam kod HTML na wszystkie swoje strony.
 
 Gdy zmieni się prawo lub dodasz nowe narzędzie śledzące, aktualizujesz tylko plik na Mikrusie, a zmiany pojawiają się wszędzie natychmiastowo.
@@ -29,6 +29,54 @@ Klaro! to świetne narzędzie Open Source, ale ma swoje granice. Bądź ich świ
 
 2.  **Google Consent Mode v2 (Zaawansowany):**
     W naszej konfiguracji Klaro działa w trybie "twardym" – całkowicie blokuje skrypty Google Ads/GA4 do momentu zgody. Nie wysyła "pingów" do Google w trybie anonimowym (Basic Consent Mode). Jeśli potrzebujesz zaawansowanego modelowania konwersji w Google Ads przy braku zgody, musisz ręcznie skonfigurować wywołania `gtag('consent', ...)` w pliku `config.js` (wymaga wiedzy JS).
+
+## 🛡️ PRO: Rejestrowanie Zgód (RODO Log)
+
+Wersja darmowa Klaro zapisuje zgodę tylko w przeglądarce użytkownika. Jeśli chcesz mieć "dowód" w bazie danych (dla świętego spokoju przy kontroli), możesz wysłać informację o zgodzie do swojego **n8n**.
+
+### 1. Kod do `config.js`
+Edytuj plik konfiguracyjny i dodaj funkcję `callback`.
+
+```javascript
+var klaroConfig = {
+    // ... reszta konfiguracji ...
+    
+    // Funkcja uruchamiana po zmianie zgody
+    callback: function(consent, app) {
+        // Wysyłamy tylko jeśli to ostateczna decyzja (np. zamknięcie modala)
+        // Możesz tu dodać logikę debounce, żeby nie wysyłać przy każdym kliknięciu
+        
+        var payload = {
+            timestamp: new Date().toISOString(),
+            consents: consent, // Obiekt np. { googleAnalytics: true, marketing: false }
+            url: window.location.href
+        };
+
+        // Wyślij do Twojego n8n (Webhook)
+        // Używamy navigator.sendBeacon dla pewności wysyłki przy zamykaniu strony
+        var webhookUrl = "https://n8n.twojadomena.pl/webhook/cookie-consent-log";
+        var blob = new Blob([JSON.stringify(payload)], {type : 'application/json'});
+        navigator.sendBeacon(webhookUrl, blob);
+    },
+    
+    // ... reszta konfiguracji ...
+};
+```
+
+### 2. Logika w n8n (Wizualizacja)
+Stwórz prosty workflow:
+
+```mermaid
+graph LR
+    A[Webhook Node<br/>(POST)] --> B[Set Node<br/>(Formatowanie Danych)]
+    B --> C[Postgres / NocoDB<br/>(Insert Row)]
+```
+
+**Co zapisywać w bazie?**
+- `timestamp` (Kiedy?)
+- `consents` (Na co się zgodził? JSON)
+- `url` (Na jakiej stronie?)
+- **Nie zapisuj IP** (chyba że masz ważny powód i RODO to dopuszcza). Anonimowy log statystyczny jest bezpieczniejszy prawnie.
 
 ## 🛠️ Integracja (Krok po kroku)
 
