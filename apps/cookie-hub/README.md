@@ -13,7 +13,7 @@ Podczas instalacji zostaniesz poproszony o podanie domeny (np. `assets.twojadome
 ## 💡 Idea "Centralizacji" (Lazy Engineer Style)
 Zamiast konfigurować wtyczki do cookies na każdej stronie (WordPress, GateFlow, Landing Page) z osobna:
 1. Stawiasz **jeden** Cookie Hub.
-2. Definiujesz usługi (Google Analytics, Pixel FB, Umami) w **jednym pliku** na serwerze.
+2. Definujesz usługi (Google Analytics, Pixel FB, Umami) w **jednym pliku** na serwerze.
 3. Wklejasz ten sam kod HTML na wszystkie swoje strony.
 
 Gdy zmieni się prawo lub dodasz nowe narzędzie śledzące, aktualizujesz tylko plik na Mikrusie, a zmiany pojawiają się wszędzie natychmiastowo.
@@ -36,7 +36,23 @@ Wklej poniższy kod do sekcji `<head>` na każdej swojej stronie:
 Aby Klaro działało, musisz zmienić sposób wklejania kodów śledzących.
 Zasada: Zmieniasz `type="text/javascript"` na `type="text/plain"` i dodajesz `data-name="nazwaUslugi"`.
 
-### Google Analytics 4 (GA4)
+### Google Tag Manager (GTM) - Najprostsza metoda
+Jeśli używasz GTM, najłatwiej jest zablokować wczytywanie całego kontenera do czasu zgody.
+Wymaga zdefiniowania usługi `googleTagManager` w `config.js`.
+
+```html
+<!-- Google Tag Manager -->
+<script type="text/plain" data-type="application/javascript" data-name="googleTagManager">
+(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-XXXXXXX');
+</script>
+<!-- End Google Tag Manager -->
+```
+
+### Google Analytics 4 (GA4) - Bezpośrednio
 Wymaga zdefiniowania usługi `googleAnalytics` w `config.js`.
 
 ```html
@@ -68,7 +84,6 @@ fbq('track', 'PageView');
 ```
 
 ### Umami (Twoja własna analityka)
-Umami jest prywatne z natury, ale jeśli chcesz dać użytkownikowi wybór.
 Wymaga usługi `umami` w `config.js`.
 
 ```html
@@ -95,10 +110,10 @@ Wymaga usługi `clarity` w `config.js`.
 ```
 
 ### YouTube Embed (Blokowanie filmów)
-Możesz blokować filmy na stronie, dopóki użytkownik nie zaakceptuje ciasteczek marketingowych. Zastąp `src` przez `data-src`.
+Zastąp `src` przez `data-src` i dodaj `data-name="youtube"`.
 
 ```html
-<!-- Film zablokowany -->
+<!-- Film zablokowany do czasu zgody -->
 <iframe 
   width="560" height="315" 
   data-name="youtube" 
