@@ -13,10 +13,22 @@ Podczas instalacji zostaniesz poproszony o podanie domeny (np. `assets.twojadome
 ## 💡 Idea "Centralizacji" (Lazy Engineer Style)
 Zamiast konfigurować wtyczki do cookies na każdej stronie (WordPress, GateFlow, Landing Page) z osobna:
 1. Stawiasz **jeden** Cookie Hub.
-2. Definujesz usługi (Google Analytics, Pixel FB, Umami) w **jednym pliku** na serwerze.
+2. Definiujesz usługi (Google Analytics, Pixel FB, Umami) w **jednym pliku** na serwerze.
 3. Wklejasz ten sam kod HTML na wszystkie swoje strony.
 
 Gdy zmieni się prawo lub dodasz nowe narzędzie śledzące, aktualizujesz tylko plik na Mikrusie, a zmiany pojawiają się wszędzie natychmiastowo.
+
+## ⚠️ Kiedy NIE używać Cookie Hub? (Ważne!)
+
+Klaro! to świetne narzędzie Open Source, ale ma swoje granice. Bądź ich świadomy:
+
+1.  **Google AdSense / Reklamy Programmatic:**
+    Klaro **NIE JEST** certyfikowanym partnerem IAB TCF v2.2. Jeśli Twój model biznesowy opiera się na **wyświetlaniu reklam** na swojej stronie (zarabiasz na AdSense na blogu), Google wymaga certyfikowanego CMP (np. Cookiebot, Quantcast). W przeciwnym razie reklamy mogą zostać zablokowane.
+    *   **Werdykt:** Zarabiasz na AdSense? ➡️ Kup płatne CMP.
+    *   **Werdykt:** Sprzedajesz swoje produkty (GateFlow, E-booki)? ➡️ Cookie Hub jest idealny.
+
+2.  **Google Consent Mode v2 (Zaawansowany):**
+    W naszej konfiguracji Klaro działa w trybie "twardym" – całkowicie blokuje skrypty Google Ads/GA4 do momentu zgody. Nie wysyła "pingów" do Google w trybie anonimowym (Basic Consent Mode). Jeśli potrzebujesz zaawansowanego modelowania konwersji w Google Ads przy braku zgody, musisz ręcznie skonfigurować wywołania `gtag('consent', ...)` w pliku `config.js` (wymaga wiedzy JS).
 
 ## 🛠️ Integracja (Krok po kroku)
 
