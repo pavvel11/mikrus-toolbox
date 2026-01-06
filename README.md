@@ -29,6 +29,9 @@ Przygotowaliśmy gotowe skrypty instalacyjne ("One-Click"), które stawiają us�
 | **n8n** | Make / Zapier | Mózg Twojej firmy. Łączy wszystko ze wszystkim. Wersja zoptymalizowana pod zewnętrzną bazę danych (oszczędza RAM). |
 | **Dockge** | Portainer | Panel sterowania. Zarządzaj wszystkimi usługami przez przeglądarkę, widząc pliki konfiguracyjne. |
 | **Uptime Kuma** | UptimeRobot | Twój stróż nocny. Sprawdza czy Twoje strony działają i wysyła alarm, gdy coś padnie. |
+| **ntfy** | Pushover | Serwer powiadomień PUSH. Wysyłaj alerty z n8n prosto na telefon. |
+| **Redis** | - | Pamięć podręczna (cache). Przyspiesza n8n i inne aplikacje. |
+| **MCP Docker** | - | Most AI ↔ Serwer. Pozwól Claude/Cursor zarządzać kontenerami przez SSH. |
 | **Power Tools** | - | Zestaw CLI (`yt-dlp`, `ffmpeg`, `pup`) do zaawansowanej automatyzacji na serwerze. |
 
 ### 💰 Marketing & Sprzedaż
@@ -37,6 +40,7 @@ Przygotowaliśmy gotowe skrypty instalacyjne ("One-Click"), które stawiają us�
 | **GateFlow** | Kajabi / Teachable | **Twój własny system sprzedaży.** Kursy, e-booki, paywalle. Zintegrowany ze Stripe i Supabase. |
 | **Listmonk** | Mailchimp / ActiveCampaign | System newsletterowy. Wysyłaj miliony maili za grosze (przez Amazon SES lub inny SMTP). |
 | **Typebot** | Typeform | Interaktywne formularze i chatboty. Zbieraj leady, rób ankiety, sprzedawaj w rozmowie. |
+| **Cap** | Loom | Nagrywaj ekran i udostępniaj wideo. Idealny do tutoriali i komunikacji asynchronicznej. |
 | **Umami** | Google Analytics | Statystyki WWW. Proste, czytelne, szanujące prywatność (bez RODO-paniki). |
 | **Cookie Hub** | Cookiebot / CookieYes | Centralny serwer zgód RODO (Klaro!). Zarządzaj ciasteczkami na wszystkich stronach z jednego miejsca. |
 | **FileBrowser** | Tiiny.host / Dropbox | Prywatny Google Drive + Hosting (Tiiny.host Killer). Wrzucaj PDF-y i Landing Page przez WWW. |
@@ -47,7 +51,8 @@ Przygotowaliśmy gotowe skrypty instalacyjne ("One-Click"), które stawiają us�
 | **NocoDB** | Airtable | Twoja baza danych jako Arkusz Kalkulacyjny. Trzymaj tu dane klientów, zamówienia, projekty. |
 | **Stirling-PDF** | Adobe Acrobat Pro | Edytuj, łącz, dziel i podpisuj PDF-y w przeglądarce. Bez wysyłania plików w świat. |
 | **Vaultwarden** | 1Password / LastPass | Bezpieczny sejf na hasła dla całej firmy. |
-| **LinkStack** | Linktree | Twoja wizytówka "Link in Bio". |
+| **LinkStack** | Linktree | Twoja wizytówka "Link in Bio" z panelem admina. |
+| **LittleLink** | Linktree | Wizytówka "Link in Bio" – wersja ultra-lekka (czysty HTML). |
 
 ---
 
