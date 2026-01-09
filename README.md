@@ -83,59 +83,205 @@ Wszystko dzieje się automatycznie, na Twoim serwerze, bez miesięcznych opłat.
 
 ### Krok 0: Przygotowanie (Na Twoim komputerze)
 Musisz mieć skonfigurowany dostęp SSH do serwera (alias `mikrus`).
+
+**Skopiuj i wklej w terminalu:**
 ```bash
-# Uruchom ten skrypt, aby skonfigurować dostęp w 30 sekund:
-curl -s https://raw.githubusercontent.com/pavvel11/mikrus-n8n-manager/main/setup_mikrus.sh | bash
+bash <(curl -s https://raw.githubusercontent.com/pavvel11/mikrus-n8n-manager/main/setup_mikrus.sh)
 ```
+Skrypt zapyta o dane z maila od Mikrusa (host, port, hasło) i skonfiguruje połączenie SSH.
+
 Upewnij się też, że masz zainstalowanego **Gita** i **Rclone** (do backupów).
 
 ### Krok 1: Pobierz Toolbox (Na Twoim komputerze)
 ```bash
-git clone https://github.com/TwojUser/mikrus-toolbox.git
+git clone https://github.com/pavvel11/mikrus-toolbox.git
 cd mikrus-toolbox
 ```
 
 ### Krok 2: Instalacja Fundamentów (Na Serwerze)
 Użyjemy naszego magicznego skryptu `local/deploy.sh`, który wysyła instrukcje na serwer.
 
-1.  **Docker & Optymalizacja:** (Zapobiega zapchaniu dysku logami)
+1.  **Docker & Optymalizacja:**
     ```bash
     ./local/deploy.sh system/docker-setup.sh
     ```
-2.  **Caddy Server:** (Daje automatyczne kłódki SSL - HTTPS)
+    > 💡 **Czym to się różni od standardowego skryptu Mikrusa?**
+    > Nasz skrypt używa oficjalnego NOOBS od Mikrusa, ale **dodaje rotację logów** (max 30MB na kontener). Bez tego logi Dockera mogą zapchać Ci dysk w kilka tygodni. Dodaje też `live-restore` - kontenery przeżyją restart Dockera.
+2.  **Caddy Server:** (Reverse proxy z automatycznym HTTPS)
     ```bash
     ./local/deploy.sh system/caddy-install.sh
     ```
 
-### Krok 3: Instalacja Aplikacji (Przykłady)
-Każda aplikacja zapyta Cię o niezbędne dane (Domenę, Hasła do bazy).
+    > 💡 **Co to robi?**
+    > Caddy to serwer WWW który automatycznie załatwia certyfikaty SSL (Let's Encrypt).
+    > Po instalacji dostajesz komendę `mikrus-expose` do łatwego wystawiania aplikacji:
+    > ```bash
+    > # Na serwerze (ssh mikrus):
+    > mikrus-expose n8n.mojadomena.pl 5678
+    > ```
+    > To wszystko! Caddy automatycznie:
+    > - Pobiera certyfikat SSL dla domeny
+    > - Przekierowuje ruch z `https://n8n.mojadomena.pl` na `localhost:5678`
+    > - Odnawia certyfikaty automatycznie
+    >
+    > 💡 **Dwie drogi do HTTPS na Mikrusie:**
+    >
+    > **Opcja A: Cytrus (łatwiejsza, bez instalacji)**
+    > Mikrus ma wbudowany serwer WWW "Cytrus" który załatwia SSL za Ciebie:
+    > 1. Rekord DNS: `A` → `135.181.95.85` (IP Cytrusa)
+    > 2. W [Panelu Mikrus](https://mikr.us/panel/?a=hosting_domeny) dodaj domenę i przekieruj na port, np. `srv34.mikr.us:5678`
+    > 3. Gotowe! SSL automatyczny.
+    > 📖 [Wiki Mikrus - Cytrus](https://wiki.mikr.us/cytrus/)
+    >
+    > **Opcja B: Caddy (więcej kontroli, nasz skrypt)**
+    > Jeśli chcesz własny reverse proxy:
+    > 1. Rekord DNS: `A` → IP serwera (lub `AAAA` → IPv6 przez Cloudflare)
+    > 2. Na serwerze: `mikrus-expose n8n.domena.pl 5678`
+    > 3. Caddy pobiera SSL z Let's Encrypt
+    > 📖 [Wiki Mikrus - Cloudflare](https://wiki.mikr.us/podpiecie_domeny_przez_cloudflare/) | [Dokumentacja Caddy](https://caddyserver.com/docs/)
+    >
+    > **Kiedy Cytrus, kiedy Caddy?**
+    > | | Cytrus | Caddy |
+    > |---|---|---|
+    > | Konfiguracja | Panel Mikrusa (klik) | Terminal (`mikrus-expose`) |
+    > | Wymagana wiedza | Minimalna | Podstawowa |
+    > | Niezależność | Współdzielony serwer Mikrusa | Twój własny proces |
+    >
+    > *Tip: Na start Cytrus wystarczy. Caddy daje więcej kontroli i jest w pełni na Twoim serwerze.*
 
-**Instalacja n8n:**
+### Krok 3: Backup - ZRÓB TO OD RAZU!
+
+Nie pozwól, żeby awaria zniszczyła Twój biznes. Skonfiguruj backup **zanim** zaczniesz instalować aplikacje.
+
+#### Opcja A: Backup Mikrusa (darmowy, 200MB)
+
+Najprostszy start - wbudowany serwer backupowy Mikrusa (`strych.mikr.us`).
+
+**Co jest backupowane:**
+- `/etc/` - konfiguracje systemowe
+- `/home/` - pliki użytkowników
+- `/var/log/` - logi
+
+**Kiedy to wystarczy:**
+- Masz tylko konfiguracje aplikacji (docker-compose, nginx, cron)
+- Dane trzymasz w zewnętrznej bazie (PostgreSQL Mikrusa/Cloud)
+- Pliki użytkowników są małe
+
+**Kiedy potrzebujesz więcej (Opcja B):**
+- Masz duże pliki w `/opt/stacks/` (uploady, media)
+- Baza danych jest lokalna (SQLite, pliki)
+- Chcesz szyfrowany backup poza infrastrukturą Mikrusa
+
+**Instalacja:**
+1. Aktywuj backup w [Panelu Mikrus → Backup](https://mikr.us/panel/?a=backup)
+2. Uruchom konfigurację:
+   ```bash
+   ./local/deploy.sh system/setup-backup-mikrus.sh
+   ```
+3. Gotowe! Codziennie backup leci na `strych.mikr.us`.
+
+**Restore:**
 ```bash
-./local/deploy.sh apps/n8n.sh
-```
-*Tip: Skrypt zapyta o dane do bazy Postgres. Użyj zewnętrznej bazy (np. Mikrusowej lub ElephantSQL), żeby oszczędzać RAM!*
+# 1. Zaloguj się na serwer
+ssh mikrus
 
-**Instalacja Panelu Sterowania (Dockge):**
+# 2. Zobacz co masz na strychu
+ssh -i /backup_key $(whoami)@strych.mikr.us "ls ~/backup/"
+
+# 3. Skopiuj potrzebne pliki
+scp -i /backup_key $(whoami)@strych.mikr.us:~/backup/etc/plik.conf /etc/
+rsync -av -e 'ssh -i /backup_key' $(whoami)@strych.mikr.us:~/backup/opt/ /opt/
+```
+
+> ⚠️ Limit 200MB. Dla większych danych lub szyfrowanego backupu użyj Opcji B.
+
+#### Opcja B: Backup do chmury (Google Drive / Dropbox)
+
+Szyfrowany backup do własnej chmury - bez limitu, pełna kontrola.
+
+**Co jest backupowane:**
+- `/opt/stacks/` - wszystkie aplikacje Docker (n8n, Listmonk, dane)
+- `/opt/dockge/` - panel zarządzania kontenerami
+
+**Kiedy wybrać tę opcję:**
+- Masz dużo danych (uploady, media, lokalne bazy)
+- Chcesz szyfrowany backup (hasło znasz tylko Ty)
+- Potrzebujesz backup poza infrastrukturą Mikrusa (disaster recovery)
+- Masz już Google Drive / Dropbox z wolnym miejscem
+
+**Wspierani providerzy:**
+- Google Drive (zalecany - 15GB free)
+- Dropbox
+- OneDrive
+- Amazon S3 / Wasabi / MinIO
+- Mega
+
+**Wymagania lokalne:**
+- Git Bash / Terminal z SSH
+- Rclone (do autoryzacji OAuth przez przeglądarkę):
+  - Mac: `brew install rclone`
+  - Linux: `curl https://rclone.org/install.sh | sudo bash`
+  - Windows: `winget install rclone` lub [pobierz](https://rclone.org/downloads/)
+
+**Instalacja:**
+1. Uruchom kreator na swoim komputerze:
+   ```bash
+   ./local/setup-backup.sh           # domyślnie 'mikrus'
+   ./local/setup-backup.sh hanna     # lub inny serwer
+   ```
+2. Wybierz provider (Google Drive, Dropbox, OneDrive, S3...)
+3. Zaloguj się w przeglądarce
+4. Włącz szyfrowanie (zalecane) - **zapamiętaj hasło!**
+5. Gotowe! Serwer co noc o 3:00 wysyła dane do chmury.
+
+**Restore:**
 ```bash
-./local/deploy.sh apps/dockge.sh
+# Pełne przywracanie (zatrzymuje Docker, nadpisuje dane)
+./local/restore.sh           # domyślnie 'mikrus'
+./local/restore.sh hanna     # lub inny serwer
 ```
 
-**Instalacja Newslettera (Listmonk):**
+**Ręczny backup / sprawdzenie:**
 ```bash
-./local/deploy.sh apps/listmonk.sh
+ssh mikrus '~/backup-core.sh'              # uruchom backup teraz
+ssh mikrus 'tail -50 /var/log/mikrus-backup.log'  # sprawdź logi
 ```
 
-### Krok 4: Bezpieczeństwo (Backup) - OBOWIĄZKOWE!
-Nie pozwól, żeby awaria zniszczyła Twój biznes. Skonfiguruj szyfrowany backup do Google Drive.
+**Zmiana backupowanych katalogów:**
+```bash
+ssh mikrus 'nano ~/backup-core.sh'
+```
+Znajdź sekcję `SOURCE_DIRS` i dodaj/usuń katalogi:
+```bash
+SOURCE_DIRS=(
+    "/opt/dockge"
+    "/opt/stacks"
+    "/home"           # <- dodaj np. katalog home
+    "/etc/caddy"      # <- lub konfigurację Caddy
+)
+```
 
-1.  Uruchom kreator na swoim Macu:
-    ```bash
-    ./local/setup-backup.sh
-    ```
-2.  Wybierz "Google Drive". Zaloguj się w przeglądarce.
-3.  Zaznacz "YES" przy szyfrowaniu.
-4.  Gotowe! Twój serwer co noc wysyła zaszyfrowane dane w bezpieczne miejsce.
+> 💡 Backup jest szyfrowany na serwerze przed wysłaniem. Nawet Google nie widzi Twoich danych.
+
+### Krok 4: Instalacja Aplikacji
+
+**Panel Sterowania (Dockge)** - zacznij od tego:
+```bash
+./local/deploy.sh dockge
+```
+Dockge pozwala zarządzać kontenerami przez przeglądarkę. Nie wymaga bazy danych.
+
+**Inne aplikacje:**
+Każda aplikacja ma swój folder w `apps/` z pełną dokumentacją:
+
+| Aplikacja | Wymaga PostgreSQL | Dokumentacja |
+|---|---|---|
+| **n8n** | Tak | [apps/n8n/README.md](apps/n8n/README.md) |
+| **Listmonk** | Tak | [apps/listmonk/README.md](apps/listmonk/README.md) |
+| **Uptime Kuma** | Nie | [apps/uptime-kuma/README.md](apps/uptime-kuma/README.md) |
+| **Umami** | Tak | [apps/umami/README.md](apps/umami/README.md) |
+
+> 💡 **PostgreSQL na Mikrusie:** Darmowa współdzielona baza (200MB) w [Panelu](https://mikr.us/panel/?a=postgres) lub dedykowana 10GB za 29 zł/rok w [Cloud](https://mikr.us/panel/?a=cloud).
 
 ---
 
@@ -154,10 +300,10 @@ n8n działa w kontenerze, a te narzędzia są na serwerze (hoście).
 2.  Jako komendę wpisz: `ssh user@172.17.0.1 "yt-dlp https://youtube.com/..."` (połącz się z kontenera do hosta).
 3.  *Tip:* Możesz zapytać AI (Claude/Gemini) o inne przydatne paczki apt i zainstalować je ręcznie przez SSH.
 
-### 📦 Pełny Backup n8n (`apps/n8n-export.sh`)
+### 📦 Pełny Backup n8n
 Zwykły backup plików to za mało. Ten skrypt eksportuje Twoje workflowy do JSON i szyfruje credentiale.
 ```bash
-./local/deploy.sh apps/n8n-export.sh
+./local/deploy.sh apps/n8n/backup.sh
 ```
 Uruchamiaj go przed każdą dużą zmianą lub dodaj do Crona.
 
@@ -165,7 +311,7 @@ Uruchamiaj go przed każdą dużą zmianą lub dodaj do Crona.
 
 ## 💡 Przydatne Komendy
 
-### Synchronizacja Plików (Mac <-> Mikrus)
+### Synchronizacja Plików (Lokalny komputer <-> Mikrus)
 Chcesz wrzucić pliki strony na serwer? Albo pobrać logi?
 ```bash
 # Wyślij na serwer (UP)

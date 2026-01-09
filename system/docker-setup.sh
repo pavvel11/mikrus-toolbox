@@ -28,4 +28,12 @@ EOF
 echo "--- 3. Restarting Docker to apply changes ---"
 sudo systemctl restart docker
 
+echo "--- 4. Weryfikacja ustawień ---"
+echo "Konfiguracja Docker (/etc/docker/daemon.json):"
+cat /etc/docker/daemon.json
+echo ""
+echo "Logging Driver: $(docker info --format '{{.LoggingDriver}}')"
+echo "Live Restore: $(docker info --format '{{.LiveRestoreEnabled}}')"
+
+echo ""
 echo "✅ Docker is installed (via NOOBS) and optimized for Mikrus!"

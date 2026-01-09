@@ -13,7 +13,7 @@ sudo apt install -y -q debian-keyring debian-archive-keyring apt-transport-https
 
 # Add Key & Repo
 curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg --yes
-curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list > /dev/null
 
 # Install
 sudo apt update
@@ -22,7 +22,7 @@ sudo apt install caddy -y
 echo "--- 2. Installing 'mikrus-expose' Helper Tool ---"
 
 # Creating a lazy wrapper script to add domains easily
-cat <<'EOF' | sudo tee /usr/local/bin/mikrus-expose
+cat <<'EOF' | sudo tee /usr/local/bin/mikrus-expose > /dev/null
 #!/bin/bash
 # Usage: mikrus-expose <domain> <internal_port>
 # Example: mikrus-expose n8n.kamil.pl 5678

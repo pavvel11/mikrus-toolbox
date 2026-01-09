@@ -44,6 +44,10 @@ EOF
 echo "--- 4. Starting Dockge ---"
 sudo docker compose up -d
 
-echo "✅ Dockge is running!"
-echo "🔗 Access it at: http://your-mikrus-ip:$PORT"
-echo "📂 Your stacks will be stored in: $STACKS_DIR"
+echo "✅ Dockge is running on port $PORT!"
+echo ""
+echo "📂 Stacks: $STACKS_DIR"
+echo ""
+echo "🔗 Następne kroki - wystaw aplikację przez HTTPS:"
+echo "   Caddy:  mikrus-expose dockge.twojadomena.pl $PORT"
+echo "   Cytrus: Panel Mikrus → Domeny → przekieruj na port $PORT"

@@ -1,17 +1,130 @@
 # 📧 Listmonk - Twój system newsletterowy
 
-Listmonk to lekki i potężny system do wysyłania newsletterów. Zapomnij o limitach subskrybentów w Mailchimp.
+**Alternatywa dla Mailchimp / MailerLite / ActiveCampaign.**
+Wysyłaj maile do tysięcy subskrybentów bez miesięcznych opłat za bazę.
 
-## 🚀 Jak zacząć?
+> 🔗 **Oficjalna strona:** https://listmonk.app
 
-1. **Baza danych:** Listmonk wymaga PostgreSQL. Użyj współdzielonej bazy Mikrusa (tak jak w n8n).
-2. **Instalacja:**
-   ```bash
-   ./local/deploy.sh listmonk
-   ```
-3. **Konfiguracja SMTP:** Po wejściu do panelu musisz podać dane serwera SMTP (np. Amazon SES, Mailgun lub własny serwer pocztowy), przez który będą wychodzić maile.
+---
 
-## 💡 Dlaczego Kamil go kocha?
-- **Zero opłat za bazę:** Masz 10 000 subskrybentów? Płacisz tyle samo, co za 10.
-- **Wydajność:** Napisany w Go, zajmuje ułamek RAM-u Mikrusa.
-- **Integracja z n8n:** Możesz automatycznie dodawać osoby do Listmonka po zakupie w GateFlow lub rozmowie w Typebocie.
+## 💸 Dlaczego Listmonk?
+
+| | Mailchimp | MailerLite | **Listmonk** |
+|---|---|---|---|
+| 1000 subskrybentów | 0 zł | 0 zł | **0 zł** |
+| 10 000 subskrybentów | ~200 zł/mies | ~100 zł/mies | **0 zł** |
+| 50 000 subskrybentów | ~800 zł/mies | ~300 zł/mies | **0 zł** |
+
+Płacisz tylko za hosting (~16 zł/mies) i wysyłkę maili przez SMTP (np. Amazon SES: ~$1 za 10 000 maili).
+
+---
+
+## 📋 Wymagania
+
+### PostgreSQL (obowiązkowe)
+
+Listmonk wymaga bazy PostgreSQL. Na Mikrusie masz dwie opcje:
+
+#### Opcja A: Darmowa baza współdzielona (do 200MB)
+
+Idealna na start i małe listy mailingowe.
+
+1. Wejdź w [Panel Mikrus → PostgreSQL](https://mikr.us/panel/?a=postgres)
+2. Kliknij **"Poproszę o nowe dane dostępowe"**
+3. Zapisz dane (host, user, password, database)
+
+> ⚠️ Limit 200MB. Używaj rozsądnie. Założenie bazy na nowo zmienia hasło, ale nie usuwa danych.
+
+#### Opcja B: Dedykowana baza w chmurze (zalecane)
+
+Dla większych list lub wielu aplikacji (n8n + Listmonk + Umami).
+
+| RAM | Dysk | Połączenia | Cena/rok |
+|---|---|---|---|
+| 512 MB | 10 GB | 100 | **29 zł** |
+| 1024 MB | 50 GB | 100 | 119 zł |
+
+👉 [Kup bazę w Panel Mikrus → Cloud](https://mikr.us/panel/?a=cloud)
+
+> 💡 **Rekomendacja:** Baza 10GB za 29 zł/rok wystarczy na lata. Koszt minimalny, a masz pewność że dane są bezpieczne i nie dzielisz zasobów z innymi.
+
+---
+
+## 🚀 Instalacja
+
+### Krok 1: Przygotuj dane do bazy
+
+Z panelu Mikrusa (opcja A lub B powyżej) potrzebujesz:
+- **Host** - np. `srv34.mikr.us` lub adres z chmury
+- **Database** - nazwa bazy
+- **User** - nazwa użytkownika
+- **Password** - hasło
+
+### Krok 2: Uruchom instalator
+
+```bash
+./local/deploy.sh listmonk
+```
+
+Skrypt zapyta o:
+- Dane bazy PostgreSQL (host, database, user, password)
+- Domenę (np. `newsletter.mojafirma.pl`)
+
+### Krok 3: Skonfiguruj domenę
+
+Po instalacji wystaw aplikację przez HTTPS:
+
+**Caddy:**
+```bash
+mikrus-expose newsletter.mojafirma.pl 9000
+```
+
+**Cytrus:** Panel Mikrus → Domeny → przekieruj na port 9000
+
+### Krok 4: Zaloguj się i skonfiguruj SMTP
+
+1. Wejdź na `https://newsletter.mojafirma.pl`
+2. Zaloguj się: **admin** / **listmonk**
+3. **Zmień hasło!**
+4. Idź do Settings → SMTP i skonfiguruj serwer mailowy
+
+---
+
+## 📬 Konfiguracja SMTP
+
+Listmonk sam nie wysyła maili - potrzebujesz serwera SMTP:
+
+| Usługa | Koszt | Limit |
+|---|---|---|
+| **Amazon SES** | ~$1 / 10 000 maili | Praktycznie bez limitu |
+| **Mailgun** | $0 (3 mies.) potem $35/mies | 5000/mies free |
+| **Resend** | $0 | 3000/mies free |
+| **Własny serwer** | 0 zł | Ryzyko blacklisty |
+
+> 💡 **Rekomendacja:** Amazon SES - najtańszy przy skali, wymaga weryfikacji domeny.
+
+---
+
+## 🔗 Integracja z n8n
+
+Po zakupie w GateFlow lub rozmowie w Typebocie możesz automatycznie dodawać osoby do Listmonka.
+
+**Przykład workflow n8n:**
+```
+[Webhook z GateFlow] → [HTTP Request do Listmonk API] → [Dodaj do listy "Klienci"]
+```
+
+Listmonk API: `https://listmonk.app/docs/apis/subscribers/`
+
+---
+
+## ❓ FAQ
+
+**Q: Ile RAM-u zużywa Listmonk?**
+A: ~50-100MB. Napisany w Go, bardzo lekki.
+
+**Q: Mogę importować subskrybentów z Mailchimp?**
+A: Tak! Eksportuj CSV z Mailchimp i zaimportuj w Listmonk → Subscribers → Import.
+
+**Q: Jak uniknąć spamu?**
+A: Skonfiguruj SPF, DKIM i DMARC dla swojej domeny. Listmonk ma wbudowaną obsługę double opt-in.

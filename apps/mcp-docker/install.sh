@@ -37,7 +37,7 @@ sudo docker compose up -d
 
 echo "✅ Docker MCP Server is running!"
 echo ""
-echo "💡 How to use with your local AI Agent (on your Mac):"
+echo "💡 How to use with your local AI Agent:"
 echo "   Add this to your Claude/Cursor/Agent config:"
 echo ""
 echo "   {"

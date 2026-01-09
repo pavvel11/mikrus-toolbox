@@ -7,18 +7,42 @@
 set -e
 
 # Configuration
-MIKRUS_HOST="mikrus" # SSH alias
+MIKRUS_HOST="${1:-mikrus}" # First argument or default to 'mikrus'
 REMOTE_NAME="backup_remote"
 TEMP_CONF="/tmp/rclone_mikrus_setup.conf"
 
-echo "=== 🛡️  Mikrus Backup Setup Wizard ==="
-echo "This tool will configure automatic backups from your Mikrus server to a cloud provider."
+# Get remote server info for confirmation
+REMOTE_HOST=$(ssh -G "$MIKRUS_HOST" 2>/dev/null | grep "^hostname " | cut -d' ' -f2)
+REMOTE_USER=$(ssh -G "$MIKRUS_HOST" 2>/dev/null | grep "^user " | cut -d' ' -f2)
+
+echo ""
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║  🛡️  Mikrus Backup Setup Wizard                                ║"
+echo "╠════════════════════════════════════════════════════════════════╣"
+echo "║  Serwer:  $REMOTE_USER@$REMOTE_HOST"
+echo "╚════════════════════════════════════════════════════════════════╝"
+echo ""
+echo "This tool will configure automatic backups to a cloud provider."
+read -p "Kontynuować na tym serwerze? (t/N) " -n 1 -r
+echo ""
+if [[ ! $REPLY =~ ^[TtYy]$ ]]; then
+    echo "Anulowano."
+    exit 1
+fi
 
 # 1. Check Local Prerequisites
 if ! command -v rclone &> /dev/null; then
-    echo "❌ Rclone is not installed on your Mac."
-    echo "   Please install it: brew install rclone"
-    echo "   Or download from: https://rclone.org/downloads/"
+    echo "❌ Rclone nie jest zainstalowany na tym komputerze."
+    echo ""
+    echo "   Rclone jest potrzebny LOKALNIE do autoryzacji OAuth - Google/Dropbox"
+    echo "   wymagają logowania przez przeglądarkę, a serwer nie ma GUI."
+    echo ""
+    echo "   Instalacja:"
+    echo "   - Mac:     brew install rclone"
+    echo "   - Linux:   curl https://rclone.org/install.sh | sudo bash"
+    echo "   - Windows: https://rclone.org/downloads/ (lub winget install rclone)"
+    echo ""
+    echo "   Po instalacji uruchom ten skrypt ponownie."
     exit 1
 fi
 
@@ -114,7 +138,7 @@ ssh "$MIKRUS_HOST" "mkdir -p ~/.config/rclone && echo '$CONF_CONTENT' > ~/.confi
 echo "Installing backup script..."
 # Using our deploy mechanism logic inline
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
-cat "$REPO_ROOT/mikrus-toolbox/system/backup-core.sh" | ssh "$MIKRUS_HOST" "cat > ~/backup-core.sh && chmod +x ~/backup-core.sh"
+cat "$REPO_ROOT/system/backup-core.sh" | ssh "$MIKRUS_HOST" "cat > ~/backup-core.sh && chmod +x ~/backup-core.sh"
 
 # 4d. Setup Cron
 echo "Setting up Cron job (Daily at 3:00 AM)..."
@@ -126,6 +150,22 @@ ssh "$MIKRUS_HOST" "crontab -l | grep -v 'backup-core.sh' | { cat; echo '$CRON_C
 rm -f "$TEMP_CONF"
 
 echo ""
-echo "✅ Setup Complete!"
-echo "Your Mikrus server will now backup /opt/stacks daily to your $TYPE."
-echo "First backup scheduled for 3:00 AM. Run manually with: ssh $MIKRUS_HOST ~/backup-core.sh"
+echo "✅ Backup do chmury skonfigurowany!"
+echo ""
+echo "📋 Co się dzieje automatycznie:"
+echo "   - Codziennie o 3:00 backup jest wysyłany do $TYPE"
+echo "   - Backupowane katalogi: /opt/stacks, /opt/dockge"
+echo ""
+echo "🚀 Uruchom pierwszy backup TERAZ:"
+echo "   ssh $MIKRUS_HOST '~/backup-core.sh'"
+echo ""
+echo "🔍 Jak sprawdzić czy działa?"
+echo "   ssh $MIKRUS_HOST 'tail -20 /var/log/mikrus-backup.log'"
+echo ""
+echo "🔄 Jak przywrócić dane?"
+echo "   ./local/restore.sh $MIKRUS_HOST"
+echo ""
+if [[ "$ENCRYPT_CHOICE" =~ ^[Yy]$ ]]; then
+    echo "🔐 Szyfrowanie włączone - nazwy folderów w chmurze będą zaszyfrowane."
+    echo "   To normalne! Dane są bezpieczne i odszyfrowują się przy restore."
+fi

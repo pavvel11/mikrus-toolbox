@@ -1,18 +1,23 @@
 #!/bin/bash
 
 # Mikrus Toolbox - Remote Deployer
-# Usage: ./local/deploy.sh <script_path_relative_to_repo_root>
+# Usage: ./local/deploy.sh <script_or_app> [ssh_alias]
 # Example: ./local/deploy.sh system/docker-setup.sh
+# Example: ./local/deploy.sh n8n hanna          # deploy to 'hanna' server
 
-TARGET="mikrus" # Assumes you have 'ssh mikrus' configured via setup_mikrus.sh
 SCRIPT_PATH="$1"
+TARGET="${2:-mikrus}" # Second argument or default to 'mikrus'
 
 # 1. Validate input
 if [ -z "$SCRIPT_PATH" ]; then
   echo "❌ Error: No script or app name specified."
-  echo "Usage: $0 <app_name> OR <path/to/script.sh>"
-  echo "Example: $0 n8n"
-  echo "Example: $0 apps/n8n/backup.sh"
+  echo ""
+  echo "Usage: $0 <app_or_script> [serwer]"
+  echo ""
+  echo "Przykłady:"
+  echo "  $0 n8n                    # instaluje n8n na 'mikrus' (domyślny)"
+  echo "  $0 n8n hanna              # instaluje n8n na 'hanna'"
+  echo "  $0 system/docker-setup.sh # uruchamia skrypt na 'mikrus'"
   exit 1
 fi
 
@@ -36,17 +41,33 @@ else
     exit 1
 fi
 
-# 2. Confirm action
-echo "🚀 Deploying '$SCRIPT_PATH' to remote '$TARGET'..."
-read -p "Are you sure? (y/N) " -n 1 -r
+# 2. Get remote server info for confirmation
+REMOTE_HOST=$(ssh -G "$TARGET" 2>/dev/null | grep "^hostname " | cut -d' ' -f2)
+REMOTE_USER=$(ssh -G "$TARGET" 2>/dev/null | grep "^user " | cut -d' ' -f2)
+
+# 3. Big warning and confirmation
+echo ""
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║  ⚠️   UWAGA: INSTALACJA NA ZDALNYM SERWERZE!                   ║"
+echo "╠════════════════════════════════════════════════════════════════╣"
+echo "║  Serwer:  $REMOTE_USER@$REMOTE_HOST"
+echo "║  Skrypt:  $(basename "$SCRIPT_PATH")"
+echo "╚════════════════════════════════════════════════════════════════╝"
+echo ""
+read -p "Czy na pewno chcesz uruchomić ten skrypt na ZDALNYM serwerze? (t/N) " -n 1 -r
 echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "Aborted."
+if [[ ! $REPLY =~ ^[TtYy]$ ]]; then
+    echo "Anulowano."
     exit 1
 fi
 
-# 3. Execute remotely via SSH pipe
+# 4. Execute remotely via SSH pipe
 # Using 'bash -s' allows passing arguments if we ever need them
-cat "$SCRIPT_PATH" | ssh "$TARGET" "bash -s"
-
-echo "✅ Deployment finished."
+if cat "$SCRIPT_PATH" | ssh "$TARGET" "bash -s"; then
+    echo ""
+    echo "✅ Deployment finished."
+else
+    echo ""
+    echo "❌ Deployment FAILED! Sprawdź błędy powyżej."
+    exit 1
+fi
