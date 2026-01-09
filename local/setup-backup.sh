@@ -132,7 +132,7 @@ ssh "$MIKRUS_HOST" "command -v rclone >/dev/null || (curl https://rclone.org/ins
 echo "Uploading configuration..."
 # We read the config content and write it to the server securely
 CONF_CONTENT=$(cat "$TEMP_CONF")
-ssh "$MIKRUS_HOST" "mkdir -p ~/.config/rclone && echo '$CONF_CONTENT' > ~/.config/rclone/rclone.conf"
+ssh "$MIKRUS_HOST" "mkdir -p ~/.config/rclone && echo '$CONF_CONTENT' > ~/.config/rclone/rclone.conf && chmod 600 ~/.config/rclone/rclone.conf"
 
 # 4c. Upload Backup Script
 echo "Installing backup script..."
