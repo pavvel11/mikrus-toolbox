@@ -4,6 +4,12 @@
 # Nagrywaj, edytuj i udostępniaj wideo w sekundy.
 # https://github.com/CapSoftware/Cap
 # Author: Paweł (Lazy Engineer)
+#
+# IMAGE_SIZE_MB=1500  # cap-web ~1.5GB (z MinIO/MySQL może być więcej)
+# UWAGA: Cap wymaga MySQL + S3/MinIO. Z lokalnymi kontenerami potrzebuje:
+#        - ~1.5GB+ RAM (cap 512MB + MySQL 512MB + MinIO 256MB)
+#        - ~4GB dysku na obrazy
+#        Zalecany plan: Mikrus 2.0+ (2GB RAM)
 
 set -e
 

@@ -5,6 +5,10 @@
 # Requires External PostgreSQL.
 # Author: Paweł (Lazy Engineer)
 #
+# IMAGE_SIZE_MB=3000  # 2x obrazy Next.js (~1.5GB każdy)
+# UWAGA: Typebot wymaga minimum ~12GB dysku i 600MB RAM.
+#        Zalecany plan: Mikrus 2.0+ lub VPS z większym dyskiem.
+#
 # Wymagane zmienne środowiskowe (przekazywane przez deploy.sh):
 #   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS
 #   DOMAIN (opcjonalne - używane do generowania builder.$DOMAIN i $DOMAIN)

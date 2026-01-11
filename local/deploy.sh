@@ -533,4 +533,15 @@ elif [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
     echo -e "🌐 Aplikacja dostępna pod: ${BLUE}https://$DOMAIN${NC}"
 fi
 
+# Sugestia backupu dla aplikacji z bazą danych
+if [ "$NEEDS_DB" = true ]; then
+    echo ""
+    echo -e "${YELLOW}💾 WAŻNE: Twoje dane są przechowywane w bazie danych!${NC}"
+    echo "   Jeśli nie masz skonfigurowanego backupu bazy, rozważ:"
+    echo ""
+    echo "   Konfiguracja automatycznego backupu:"
+    echo -e "      ${BLUE}ssh $SSH_ALIAS \"bash /opt/mikrus-toolbox/system/setup-db-backup.sh\"${NC}"
+    echo ""
+fi
+
 echo ""
