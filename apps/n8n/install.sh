@@ -34,7 +34,11 @@ echo "✅ Dane bazy danych:"
 echo "   Host: $DB_HOST | User: $DB_USER | DB: $DB_NAME"
 
 DB_PORT=${DB_PORT:-5432}
-DB_SCHEMA=${DB_SCHEMA:-public}
+DB_SCHEMA=${DB_SCHEMA:-n8n}
+
+if [ "$DB_SCHEMA" != "public" ]; then
+    echo "   Schemat: $DB_SCHEMA"
+fi
 
 # 2. Domain and webhook URL
 if [ -n "$DOMAIN" ]; then

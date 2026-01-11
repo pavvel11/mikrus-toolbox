@@ -34,6 +34,15 @@ echo "✅ Dane bazy danych:"
 echo "   Host: $DB_HOST | User: $DB_USER | DB: $DB_NAME"
 
 DB_PORT=${DB_PORT:-5432}
+DB_SCHEMA=${DB_SCHEMA:-typebot}
+
+# Build DATABASE_URL with schema support
+if [ "$DB_SCHEMA" = "public" ]; then
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
+else
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?schema=$DB_SCHEMA"
+    echo "   Schemat: $DB_SCHEMA"
+fi
 
 # Domain configuration
 # Typebot requires 2 domains: Builder and Viewer
@@ -79,7 +88,7 @@ services:
     ports:
       - "$PORT_BUILDER:3000"
     environment:
-      - DATABASE_URL=postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME
+      - DATABASE_URL=$DATABASE_URL
       - NEXTAUTH_URL=$NEXTAUTH_URL
       - NEXT_PUBLIC_VIEWER_URL=$VIEWER_URL
       - ENCRYPTION_SECRET=$ENCRYPTION_SECRET
@@ -97,7 +106,7 @@ services:
     ports:
       - "$PORT_VIEWER:3000"
     environment:
-      - DATABASE_URL=postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME
+      - DATABASE_URL=$DATABASE_URL
       - NEXTAUTH_URL=$NEXTAUTH_URL
       - NEXT_PUBLIC_VIEWER_URL=$VIEWER_URL
       - ENCRYPTION_SECRET=$ENCRYPTION_SECRET

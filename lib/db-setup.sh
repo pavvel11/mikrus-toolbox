@@ -44,6 +44,73 @@ export DB_SOURCE="${DB_SOURCE:-}"
 REQUIRES_PGCRYPTO="umami n8n"
 
 # =============================================================================
+# REKOMENDACJE BAZY DANYCH DLA APLIKACJI
+# =============================================================================
+# Format: APP_NAME="rekomendacja|typ_domyślny"
+# typ_domyślny: shared (darmowa), custom (płatna)
+#
+# Rekomendacje są wyświetlane użytkownikowi podczas wyboru bazy danych.
+# Pomagają podjąć świadomą decyzję czy użyć darmowej bazy czy płatnej.
+# =============================================================================
+
+declare -A DB_RECOMMENDATIONS
+DB_RECOMMENDATIONS=(
+    # n8n - wymaga pgcrypto (BLOCKED for shared)
+    ["n8n"]="Wymaga dedykowanej bazy PostgreSQL z rozszerzeniem pgcrypto.
+   Darmowa baza Mikrusa NIE obsługuje tej aplikacji.
+   ➜ Wykup PostgreSQL: https://mikr.us/panel/?a=cloud|custom"
+
+    # umami - wymaga pgcrypto (BLOCKED for shared)
+    ["umami"]="Wymaga dedykowanej bazy PostgreSQL z rozszerzeniem pgcrypto.
+   Darmowa baza Mikrusa NIE obsługuje tej aplikacji.
+   ➜ Wykup PostgreSQL: https://mikr.us/panel/?a=cloud|custom"
+
+    # listmonk - lekka aplikacja, działa z shared
+    ["listmonk"]="Listmonk to lekka aplikacja (Go), przechowuje tylko:
+   • listy mailingowe i subskrybentów
+   • kampanie i szablony
+   ➜ Darmowa baza Mikrusa w zupełności wystarczy!
+   ➜ Płatna: tylko jeśli planujesz >100k subskrybentów|shared"
+
+    # nocodb - lekka aplikacja, działa z shared
+    ["nocodb"]="NocoDB przechowuje tylko metadane tabel i widoków.
+   Właściwe dane możesz trzymać w zewnętrznej bazie.
+   ➜ Darmowa baza Mikrusa wystarczy dla typowego użycia.
+   ➜ Płatna: jeśli masz dużo tabel/współpracowników|shared"
+
+    # cap - lekka aplikacja MySQL, tylko metadane
+    ["cap"]="Cap przechowuje tylko metadane nagrań (linki do S3).
+   Właściwe pliki wideo są w S3/MinIO.
+   ➜ Darmowa baza Mikrusa w zupełności wystarczy!
+   ➜ Płatna: tylko przy bardzo dużej ilości nagrań|shared"
+
+    # typebot - średnie obciążenie
+    ["typebot"]="Typebot przechowuje boty, wyniki i analitykę.
+   ➜ Darmowa baza OK dla małych/średnich botów.
+   ➜ Płatna: jeśli planujesz >10k konwersacji/mies.|shared"
+)
+
+# Pobierz rekomendację dla aplikacji
+get_db_recommendation() {
+    local APP_NAME="$1"
+    local rec="${DB_RECOMMENDATIONS[$APP_NAME]:-}"
+    if [ -n "$rec" ]; then
+        echo "${rec%|*}"  # Usuń typ domyślny (po |)
+    fi
+}
+
+# Pobierz domyślny typ bazy dla aplikacji
+get_default_db_type() {
+    local APP_NAME="$1"
+    local rec="${DB_RECOMMENDATIONS[$APP_NAME]:-}"
+    if [ -n "$rec" ]; then
+        echo "${rec##*|}"  # Weź tylko typ (po |)
+    else
+        echo "shared"  # Domyślnie shared
+    fi
+}
+
+# =============================================================================
 # FAZA 1: Zbieranie informacji (respektuje flagi CLI)
 # =============================================================================
 
@@ -51,10 +118,22 @@ ask_database() {
     local DB_TYPE="${1:-postgres}"
     local APP_NAME="${2:-}"
 
+    # Ustaw domyślny schemat na nazwę aplikacji (jeśli nie podano)
+    if [ -z "$DB_SCHEMA" ] && [ -n "$APP_NAME" ]; then
+        DB_SCHEMA="$APP_NAME"
+    fi
+    DB_SCHEMA="${DB_SCHEMA:-public}"
+
     # Sprawdź czy aplikacja wymaga pgcrypto
     local SHARED_BLOCKED=false
     if [[ " $REQUIRES_PGCRYPTO " == *" $APP_NAME "* ]]; then
         SHARED_BLOCKED=true
+    fi
+
+    # Pobierz rekomendację dla tej aplikacji
+    local RECOMMENDATION=""
+    if [ -n "$APP_NAME" ]; then
+        RECOMMENDATION=$(get_db_recommendation "$APP_NAME")
     fi
 
     # Jeśli DB_SOURCE już ustawione z CLI
@@ -75,12 +154,12 @@ ask_database() {
                     return 1
                 fi
                 # Tryb interaktywny - dopytaj o brakujące
-                ask_custom_db "$DB_TYPE"
+                ask_custom_db "$DB_TYPE" "$APP_NAME"
                 return $?
             fi
         fi
 
-        echo -e "${GREEN}✅ Baza danych: $DB_SOURCE${NC}"
+        echo -e "${GREEN}✅ Baza danych: $DB_SOURCE (schemat: $DB_SCHEMA)${NC}"
         return 0
     fi
 
@@ -95,6 +174,14 @@ ask_database() {
     echo "╔════════════════════════════════════════════════════════════════╗"
     echo "║  🗄️  Konfiguracja bazy danych ($DB_TYPE)"
     echo "╚════════════════════════════════════════════════════════════════╝"
+
+    # Pokaż rekomendację dla aplikacji
+    if [ -n "$RECOMMENDATION" ]; then
+        echo ""
+        echo -e "${YELLOW}💡 Rekomendacja dla $APP_NAME:${NC}"
+        echo "$RECOMMENDATION"
+    fi
+
     echo ""
     echo "Gdzie ma być baza danych?"
     echo ""
@@ -106,16 +193,23 @@ ask_database() {
     else
         echo "  1) 🆓 Współdzielona baza Mikrus (darmowa)"
         echo "     Automatycznie pobierze dane z API Mikrusa"
-        echo "     ➜ Wystarczająca dla większości zastosowań"
         echo ""
     fi
 
     echo "  2) 💰 Własna/wykupiona baza"
     echo "     Podasz własne dane połączenia"
-    echo "     ➜ Zalecane dla produkcji: https://mikr.us/panel/?a=cloud"
+    echo "     ➜ Kup w: https://mikr.us/panel/?a=cloud"
     echo ""
 
-    read -p "Wybierz opcję [1-2]: " DB_CHOICE
+    # Ustaw domyślny wybór na podstawie rekomendacji
+    local DEFAULT_TYPE=$(get_default_db_type "$APP_NAME")
+    local DEFAULT_CHOICE="1"
+    if [ "$DEFAULT_TYPE" = "custom" ] || [ "$SHARED_BLOCKED" = true ]; then
+        DEFAULT_CHOICE="2"
+    fi
+
+    read -p "Wybierz opcję [1-2, domyślnie $DEFAULT_CHOICE]: " DB_CHOICE
+    DB_CHOICE="${DB_CHOICE:-$DEFAULT_CHOICE}"
 
     case $DB_CHOICE in
         1)
@@ -131,11 +225,12 @@ ask_database() {
             export DB_SOURCE="shared"
             echo ""
             echo -e "${GREEN}✅ Wybrano: współdzielona baza Mikrus${NC}"
+            echo -e "${BLUE}ℹ️  Schemat: $DB_SCHEMA${NC}"
             return 0
             ;;
         2)
             export DB_SOURCE="custom"
-            ask_custom_db "$DB_TYPE"
+            ask_custom_db "$DB_TYPE" "$APP_NAME"
             return $?
             ;;
         *)
@@ -147,16 +242,20 @@ ask_database() {
 
 ask_custom_db() {
     local DB_TYPE="$1"
+    local APP_NAME="${2:-}"
 
     echo ""
     echo -e "${YELLOW}📝 Podaj dane własnej bazy danych${NC}"
     echo ""
 
+    # Domyślny schemat = nazwa aplikacji
+    local DEFAULT_SCHEMA="${APP_NAME:-public}"
+
     if [ "$DB_TYPE" = "postgres" ]; then
         ask_if_empty DB_HOST "Host (np. mws02.mikr.us)"
         ask_if_empty DB_PORT "Port" "5432"
         ask_if_empty DB_NAME "Nazwa bazy"
-        ask_if_empty DB_SCHEMA "Schemat" "public"
+        ask_if_empty DB_SCHEMA "Schemat" "$DEFAULT_SCHEMA"
         ask_if_empty DB_USER "Użytkownik"
         ask_if_empty DB_PASS "Hasło" "" true
 
@@ -187,11 +286,94 @@ ask_custom_db() {
 
     echo ""
     echo -e "${GREEN}✅ Dane zapisane${NC}"
+    if [ "$DB_TYPE" = "postgres" ] && [ -n "$DB_SCHEMA" ] && [ "$DB_SCHEMA" != "public" ]; then
+        echo -e "${BLUE}ℹ️  Schemat: $DB_SCHEMA${NC}"
+    fi
 
     # Eksportuj zmienne
     export DB_HOST DB_PORT DB_NAME DB_SCHEMA DB_USER DB_PASS
 
     return 0
+}
+
+# =============================================================================
+# SPRAWDZANIE ISTNIEJĄCYCH SCHEMATÓW
+# =============================================================================
+
+# Sprawdź czy schemat istnieje i zawiera tabele (PostgreSQL)
+# Użycie: check_schema_exists SSH_ALIAS APP_NAME
+# Zwraca: 0 jeśli schemat istnieje i ma tabele, 1 w przeciwnym razie
+check_schema_exists() {
+    local SSH_ALIAS="${1:-${SSH_ALIAS:-mikrus}}"
+    local APP_NAME="${2:-}"
+    local SCHEMA="${DB_SCHEMA:-$APP_NAME}"
+
+    # Pomiń dla dry-run
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${BLUE}[dry-run] Sprawdzam schemat '$SCHEMA' w bazie${NC}"
+        return 1
+    fi
+
+    # Potrzebujemy danych DB
+    if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ] || [ -z "$DB_NAME" ]; then
+        return 1
+    fi
+
+    # Sprawdź przez SSH czy schemat istnieje i ma tabele
+    local TABLE_COUNT=$(ssh "$SSH_ALIAS" "PGPASSWORD='$DB_PASS' psql -h '$DB_HOST' -p '${DB_PORT:-5432}' -U '$DB_USER' -d '$DB_NAME' -t -c \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$SCHEMA';\"" 2>/dev/null | tr -d ' ')
+
+    if [ -n "$TABLE_COUNT" ] && [ "$TABLE_COUNT" -gt 0 ]; then
+        return 0  # Schemat istnieje i ma tabele
+    fi
+
+    return 1  # Schemat nie istnieje lub jest pusty
+}
+
+# Ostrzeż użytkownika jeśli schemat istnieje
+# Użycie: warn_if_schema_exists SSH_ALIAS APP_NAME
+# Zwraca: 0 jeśli użytkownik potwierdził lub schemat nie istnieje, 1 jeśli anulował
+warn_if_schema_exists() {
+    local SSH_ALIAS="${1:-${SSH_ALIAS:-mikrus}}"
+    local APP_NAME="${2:-}"
+    local SCHEMA="${DB_SCHEMA:-$APP_NAME}"
+
+    # Pomiń dla trybu --yes (automatycznie kontynuuj)
+    if [ "$YES_MODE" = true ]; then
+        return 0
+    fi
+
+    # Pomiń dla dry-run
+    if [ "$DRY_RUN" = true ]; then
+        return 0
+    fi
+
+    # Sprawdź czy schemat istnieje
+    if ! check_schema_exists "$SSH_ALIAS" "$APP_NAME"; then
+        return 0  # Schemat nie istnieje - OK
+    fi
+
+    # Schemat istnieje - ostrzeż użytkownika
+    echo ""
+    echo -e "${YELLOW}╔════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${YELLOW}║  ⚠️   UWAGA: Schemat '$SCHEMA' już istnieje w bazie!            ${NC}"
+    echo -e "${YELLOW}╠════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${YELLOW}║  Schemat zawiera dane z poprzedniej instalacji.                ${NC}"
+    echo -e "${YELLOW}║  Kontynuacja może NADPISAĆ istniejące dane!                    ${NC}"
+    echo -e "${YELLOW}╚════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+
+    read -p "Czy na pewno chcesz kontynuować? (t/N): " CONFIRM
+    case "$CONFIRM" in
+        [tTyY]|[tT][aA][kK])
+            echo -e "${YELLOW}⚠️  Kontynuuję instalację - istniejące dane mogą zostać zmodyfikowane${NC}"
+            return 0
+            ;;
+        *)
+            echo -e "${RED}❌ Anulowano instalację${NC}"
+            echo "   Możesz użyć --db-schema=INNA_NAZWA aby zainstalować w nowym schemacie."
+            return 1
+            ;;
+    esac
 }
 
 # =============================================================================
@@ -385,6 +567,16 @@ setup_custom_db() {
 
 # Helper do generowania connection string
 get_postgres_url() {
+    local SCHEMA="${DB_SCHEMA:-public}"
+    if [ "$SCHEMA" = "public" ]; then
+        echo "postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+    else
+        echo "postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=${SCHEMA}"
+    fi
+}
+
+# Wersja bez schematu w URL (dla aplikacji które nie obsługują schematu w URL)
+get_postgres_url_simple() {
     echo "postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 }
 
@@ -397,8 +589,12 @@ get_mysql_url() {
 }
 
 # Eksportuj funkcje
+export -f get_db_recommendation
+export -f get_default_db_type
 export -f ask_database
 export -f ask_custom_db
+export -f check_schema_exists
+export -f warn_if_schema_exists
 export -f fetch_database
 export -f fetch_shared_db
 export -f show_db_summary
@@ -406,5 +602,6 @@ export -f setup_database
 export -f setup_shared_db
 export -f setup_custom_db
 export -f get_postgres_url
+export -f get_postgres_url_simple
 export -f get_mongo_url
 export -f get_mysql_url

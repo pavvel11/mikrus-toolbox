@@ -30,6 +30,15 @@ echo "✅ Dane bazy danych:"
 echo "   Host: $DB_HOST | User: $DB_USER | DB: $DB_NAME"
 
 DB_PORT=${DB_PORT:-5432}
+DB_SCHEMA=${DB_SCHEMA:-listmonk}
+
+# UWAGA: Listmonk domyślnie używa schematu 'public' i tworzy własne tabele.
+# Nie obsługuje custom schematów w konfiguracji env.
+# Schemat jest zachowany dla spójności z innymi aplikacjami.
+if [ "$DB_SCHEMA" != "public" ] && [ "$DB_SCHEMA" != "listmonk" ]; then
+    echo "⚠️  Listmonk używa własnego schematu tabel (public)."
+    echo "   Ustawienie --db-schema=$DB_SCHEMA zostanie zignorowane."
+fi
 
 # Domain
 if [ -n "$DOMAIN" ]; then

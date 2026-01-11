@@ -21,9 +21,19 @@ echo "--- 📅 NocoDB Setup ---"
 DB_URL=""
 if [ -n "$DB_HOST" ] && [ -n "$DB_USER" ] && [ -n "$DB_PASS" ] && [ -n "$DB_NAME" ]; then
     DB_PORT=${DB_PORT:-5432}
-    DB_URL="pg://$DB_HOST:$DB_PORT?u=$DB_USER&p=$DB_PASS&d=$DB_NAME"
+    DB_SCHEMA=${DB_SCHEMA:-nocodb}
+    # NocoDB używa własnego formatu URL (pg://...)
+    # Schema jest obsługiwana przez parametr 's' (jeśli aplikacja to wspiera)
+    if [ "$DB_SCHEMA" = "public" ]; then
+        DB_URL="pg://$DB_HOST:$DB_PORT?u=$DB_USER&p=$DB_PASS&d=$DB_NAME"
+    else
+        DB_URL="pg://$DB_HOST:$DB_PORT?u=$DB_USER&p=$DB_PASS&d=$DB_NAME&search_path=$DB_SCHEMA"
+    fi
     echo "✅ Dane bazy danych:"
     echo "   Host: $DB_HOST | User: $DB_USER | DB: $DB_NAME"
+    if [ "$DB_SCHEMA" != "public" ]; then
+        echo "   Schemat: $DB_SCHEMA"
+    fi
 else
     echo "⚠️  Brak danych bazy - używam wbudowanego SQLite"
     echo "   (Wyższe zużycie RAM, dane lokalne w kontenerze)"

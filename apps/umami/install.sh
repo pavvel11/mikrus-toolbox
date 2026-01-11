@@ -33,7 +33,11 @@ echo "✅ Dane bazy danych:"
 echo "   Host: $DB_HOST | User: $DB_USER | DB: $DB_NAME"
 
 DB_PORT=${DB_PORT:-5432}
-DB_SCHEMA=${DB_SCHEMA:-public}
+DB_SCHEMA=${DB_SCHEMA:-umami}
+
+if [ "$DB_SCHEMA" != "public" ]; then
+    echo "   Schemat: $DB_SCHEMA"
+fi
 
 # Check for shared Mikrus DB (doesn't support pgcrypto)
 if [[ "$DB_HOST" == psql*.mikr.us ]]; then

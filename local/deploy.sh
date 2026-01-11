@@ -406,6 +406,14 @@ if [ "$NEEDS_DB" = true ]; then
         exit 1
     fi
 
+    # Sprawdź czy schemat już istnieje (ostrzeżenie dla użytkownika)
+    if [ "$DB_TYPE" = "postgres" ]; then
+        if ! warn_if_schema_exists "$SSH_ALIAS" "$APP_NAME"; then
+            echo "Instalacja anulowana przez użytkownika."
+            exit 1
+        fi
+    fi
+
     # Przygotuj zmienne środowiskowe
     DB_ENV_VARS="DB_HOST='$DB_HOST' DB_PORT='$DB_PORT' DB_NAME='$DB_NAME' DB_SCHEMA='$DB_SCHEMA' DB_USER='$DB_USER' DB_PASS='$DB_PASS'"
 
@@ -413,6 +421,9 @@ if [ "$NEEDS_DB" = true ]; then
     echo "📋 Baza danych:"
     echo "   Host: $DB_HOST"
     echo "   Baza: $DB_NAME"
+    if [ -n "$DB_SCHEMA" ] && [ "$DB_SCHEMA" != "public" ]; then
+        echo "   Schemat: $DB_SCHEMA"
+    fi
     echo ""
 fi
 
