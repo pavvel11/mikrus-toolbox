@@ -2,8 +2,11 @@
 
 # Mikrus Toolbox - n8n (External Database Optimized)
 # Installs n8n optimized for low-RAM environment, connecting to external PostgreSQL.
-# Perfect for Mikrus + Shared DB or "Cegła" DB.
 # Author: Paweł (Lazy Engineer)
+#
+# WYMAGANIA: PostgreSQL z rozszerzeniem pgcrypto!
+#     Współdzielona baza Mikrusa NIE działa (brak uprawnień do tworzenia rozszerzeń).
+#     Użyj: płatny PostgreSQL z https://mikr.us/panel/?a=cloud
 #
 # IMAGE_SIZE_MB=800  # n8nio/n8n:latest
 #
@@ -35,6 +38,22 @@ echo "   Host: $DB_HOST | User: $DB_USER | DB: $DB_NAME"
 
 DB_PORT=${DB_PORT:-5432}
 DB_SCHEMA=${DB_SCHEMA:-n8n}
+
+# Check for shared Mikrus DB (doesn't support pgcrypto)
+if [[ "$DB_HOST" == psql*.mikr.us ]]; then
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║  ❌ BŁĄD: n8n NIE działa ze współdzieloną bazą Mikrusa!        ║"
+    echo "╠════════════════════════════════════════════════════════════════╣"
+    echo "║  n8n wymaga rozszerzenia 'pgcrypto' (gen_random_uuid),         ║"
+    echo "║  które nie jest dostępne w darmowej bazie Mikrusa.             ║"
+    echo "║                                                                ║"
+    echo "║  Rozwiązanie: Kup dedykowany PostgreSQL                        ║"
+    echo "║  https://mikr.us/panel/?a=cloud                                ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+fi
 
 if [ "$DB_SCHEMA" != "public" ]; then
     echo "   Schemat: $DB_SCHEMA"
