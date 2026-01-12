@@ -448,11 +448,23 @@ if [ -n "$PORT_OVERRIDE" ]; then
     APP_PORT="$PORT_OVERRIDE"
 fi
 
+# Przekaż dodatkowe zmienne środowiskowe (dla specjalnych aplikacji jak Cap)
+EXTRA_ENV=""
+[ -n "$USE_LOCAL_MINIO" ] && EXTRA_ENV="$EXTRA_ENV USE_LOCAL_MINIO='$USE_LOCAL_MINIO'"
+[ -n "$S3_ENDPOINT" ] && EXTRA_ENV="$EXTRA_ENV S3_ENDPOINT='$S3_ENDPOINT'"
+[ -n "$S3_ACCESS_KEY" ] && EXTRA_ENV="$EXTRA_ENV S3_ACCESS_KEY='$S3_ACCESS_KEY'"
+[ -n "$S3_SECRET_KEY" ] && EXTRA_ENV="$EXTRA_ENV S3_SECRET_KEY='$S3_SECRET_KEY'"
+[ -n "$S3_BUCKET" ] && EXTRA_ENV="$EXTRA_ENV S3_BUCKET='$S3_BUCKET'"
+[ -n "$S3_REGION" ] && EXTRA_ENV="$EXTRA_ENV S3_REGION='$S3_REGION'"
+[ -n "$S3_PUBLIC_URL" ] && EXTRA_ENV="$EXTRA_ENV S3_PUBLIC_URL='$S3_PUBLIC_URL'"
+[ -n "$MYSQL_ROOT_PASS" ] && EXTRA_ENV="$EXTRA_ENV MYSQL_ROOT_PASS='$MYSQL_ROOT_PASS'"
+[ -n "$DOMAIN_PUBLIC" ] && EXTRA_ENV="$EXTRA_ENV DOMAIN_PUBLIC='$DOMAIN_PUBLIC'"
+
 # Dry-run mode
 if [ "$DRY_RUN" = true ]; then
     echo -e "${BLUE}[dry-run] Symulacja wykonania:${NC}"
     echo "  scp $SCRIPT_PATH $SSH_ALIAS:/tmp/mikrus-deploy-$$.sh"
-    echo "  ssh -t $SSH_ALIAS \"export DEPLOY_SSH_ALIAS='$SSH_ALIAS' $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV; bash '/tmp/mikrus-deploy-$$.sh'\""
+    echo "  ssh -t $SSH_ALIAS \"export DEPLOY_SSH_ALIAS='$SSH_ALIAS' $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV $EXTRA_ENV; bash '/tmp/mikrus-deploy-$$.sh'\""
     echo ""
     echo -e "${BLUE}[dry-run] Po instalacji:${NC}"
     if [ "$NEEDS_DOMAIN" = true ]; then
@@ -470,7 +482,7 @@ echo ""
 REMOTE_SCRIPT="/tmp/mikrus-deploy-$$.sh"
 scp -q "$SCRIPT_PATH" "$SSH_ALIAS:$REMOTE_SCRIPT"
 
-if ssh -t "$SSH_ALIAS" "export DEPLOY_SSH_ALIAS='$SSH_ALIAS' SSH_ALIAS='$SSH_ALIAS' $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV; bash '$REMOTE_SCRIPT'; EXIT_CODE=\$?; rm -f '$REMOTE_SCRIPT'; exit \$EXIT_CODE"; then
+if ssh -t "$SSH_ALIAS" "export DEPLOY_SSH_ALIAS='$SSH_ALIAS' SSH_ALIAS='$SSH_ALIAS' $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV $EXTRA_ENV; bash '$REMOTE_SCRIPT'; EXIT_CODE=\$?; rm -f '$REMOTE_SCRIPT'; exit \$EXIT_CODE"; then
     echo ""
     echo -e "${GREEN}✅ Instalacja zakończona pomyślnie${NC}"
 else
@@ -511,6 +523,43 @@ if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ]; then
         echo ""
         echo -e "${YELLOW}⚠️  Usługa działa, ale konfiguracja domeny nie powiodła się.${NC}"
         echo "   Możesz skonfigurować domenę ręcznie później."
+    fi
+fi
+
+# Konfiguracja DOMAIN_PUBLIC (dla FileBrowser i podobnych)
+if [ -n "$DOMAIN_PUBLIC" ]; then
+    echo ""
+    echo "🌍 Konfiguruję domenę publiczną: $DOMAIN_PUBLIC"
+
+    # Sprawdź typ domeny
+    is_cytrus_domain() {
+        case "$1" in
+            *.byst.re|*.bieda.it|*.toadres.pl|*.tojest.dev|*.mikr.us|*.srv24.pl|*.vxm.pl) return 0 ;;
+            *) return 1 ;;
+        esac
+    }
+
+    # Pobierz port dla public (domyślnie 8096)
+    PUBLIC_PORT=$(ssh "$SSH_ALIAS" "cat /tmp/app_public_port 2>/dev/null || echo 8096")
+
+    if is_cytrus_domain "$DOMAIN_PUBLIC"; then
+        # Cytrus: rejestruj domenę przez API
+        echo "   🍊 Rejestruję w Cytrus na porcie $PUBLIC_PORT..."
+        "$REPO_ROOT/local/cytrus-domain.sh" "$DOMAIN_PUBLIC" "$PUBLIC_PORT" "$SSH_ALIAS"
+    else
+        # Cloudflare: skonfiguruj DNS i Caddy file_server
+        echo "   ☁️  Konfiguruję przez Cloudflare..."
+        WEBROOT=$(ssh "$SSH_ALIAS" "cat /tmp/domain_public_webroot 2>/dev/null || echo /var/www/public")
+        # DNS może już istnieć - to OK, kontynuujemy z Caddy
+        "$REPO_ROOT/local/dns-add.sh" "$DOMAIN_PUBLIC" "$SSH_ALIAS" || echo "   DNS już skonfigurowany lub błąd - kontynuuję"
+        # Konfiguruj Caddy file_server
+        if ssh "$SSH_ALIAS" "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN_PUBLIC' '$WEBROOT' static"; then
+            echo -e "   ${GREEN}✅ Static hosting skonfigurowany: https://$DOMAIN_PUBLIC${NC}"
+        else
+            echo -e "   ${YELLOW}⚠️  Nie udało się skonfigurować Caddy dla $DOMAIN_PUBLIC${NC}"
+        fi
+        # Cleanup
+        ssh "$SSH_ALIAS" "rm -f /tmp/domain_public_webroot" 2>/dev/null
     fi
 fi
 

@@ -416,9 +416,10 @@ configure_domain_cytrus() {
         echo -e "${GREEN}✅ Domena skonfigurowana: https://$DOMAIN${NC}"
         return 0
 
-    elif echo "$RESPONSE" | grep -qiE "już istnieje|ju.*istnieje"; then
-        echo -e "${YELLOW}⚠️  Domena $DOMAIN jest zajęta!${NC}"
-        echo "   Spróbuj: ${DOMAIN%%.*}-2.${DOMAIN#*.}"
+    elif echo "$RESPONSE" | grep -qiE "już istnieje|ju.*istnieje|niepoprawna nazwa domeny"; then
+        # API zwraca "Niepoprawna nazwa domeny" gdy domena jest zajęta
+        echo -e "${YELLOW}⚠️  Domena $DOMAIN jest zajęta lub nieprawidłowa!${NC}"
+        echo "   Spróbuj inną nazwę, np.: ${DOMAIN%%.*}-2.${DOMAIN#*.}"
         return 1
 
     else
@@ -437,31 +438,33 @@ configure_domain_cloudflare() {
     echo ""
     echo "☁️  Konfiguruję DNS w Cloudflare..."
 
+    local DNS_OK=false
     if [ -f "$DNS_SCRIPT" ]; then
         if bash "$DNS_SCRIPT" "$DOMAIN" "$SSH_ALIAS"; then
             echo -e "${GREEN}✅ DNS skonfigurowany: $DOMAIN${NC}"
+            DNS_OK=true
         else
-            echo -e "${RED}❌ Błąd konfiguracji DNS${NC}"
-            return 1
+            echo -e "${YELLOW}⚠️  DNS już istnieje lub błąd - kontynuuję konfigurację Caddy${NC}"
         fi
     else
         echo -e "${YELLOW}⚠️  Nie znaleziono dns-add.sh${NC}"
     fi
 
-    # Konfiguruj Caddy na serwerze
+    # Konfiguruj Caddy na serwerze (nawet jeśli DNS nie wymagał zmian)
     echo ""
     echo "🔒 Konfiguruję HTTPS (Caddy)..."
 
-    # Sprawdź czy to static site (szukamy pliku /tmp/*_webroot na serwerze)
-    local WEBROOT=$(ssh "$SSH_ALIAS" "cat /tmp/*_webroot 2>/dev/null | head -1" 2>/dev/null)
+    # Sprawdź czy to static site (szukamy pliku /tmp/APP_webroot, nie domain_public_webroot)
+    # domain_public_webroot jest dla DOMAIN_PUBLIC, obsługiwane osobno w deploy.sh
+    local WEBROOT=$(ssh "$SSH_ALIAS" "ls /tmp/*_webroot 2>/dev/null | grep -v domain_public_webroot | head -1 | xargs cat 2>/dev/null" 2>/dev/null)
 
     if [ -n "$WEBROOT" ]; then
-        # Static site - użyj trybu file_server
+        # Static site (littlelink, etc.) - użyj trybu file_server
         echo "   Wykryto static site: $WEBROOT"
         if ssh "$SSH_ALIAS" "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$WEBROOT' static"; then
             echo -e "${GREEN}✅ HTTPS skonfigurowany (file_server)${NC}"
-            # Usuń marker
-            ssh "$SSH_ALIAS" "rm -f /tmp/*_webroot" 2>/dev/null
+            # Usuń marker (nie usuwaj domain_public_webroot!)
+            ssh "$SSH_ALIAS" "ls /tmp/*_webroot 2>/dev/null | grep -v domain_public_webroot | xargs rm -f" 2>/dev/null
         else
             echo -e "${YELLOW}⚠️  mikrus-expose niedostępny${NC}"
         fi

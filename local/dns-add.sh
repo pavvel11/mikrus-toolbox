@@ -112,9 +112,22 @@ if [ -n "$EXISTING_ID" ]; then
     echo "⚠️  Rekord $RECORD_TYPE dla $FULL_DOMAIN już istnieje!"
     EXISTING_IP=$(echo "$EXISTING" | grep -o '"content":"[^"]*"' | head -1 | sed 's/"content":"//g' | sed 's/"//g')
     echo "   Obecny IP: $EXISTING_IP"
-    echo ""
-    read -p "Zaktualizować na $IP_ADDRESS? (t/N) " -n 1 -r
-    echo ""
+
+    # Jeśli IP jest takie samo - nic nie rób, sukces
+    if [ "$EXISTING_IP" = "$IP_ADDRESS" ]; then
+        echo "✅ DNS już skonfigurowany poprawnie!"
+        exit 0
+    fi
+
+    # Pytaj tylko gdy terminal jest interaktywny
+    if [ -t 0 ]; then
+        echo ""
+        read -p "Zaktualizować na $IP_ADDRESS? (t/N) " -n 1 -r
+        echo ""
+    else
+        echo "   Tryb nieinteraktywny - pomijam aktualizację"
+        exit 0
+    fi
 
     if [[ $REPLY =~ ^[TtYy]$ ]]; then
         UPDATE_RESPONSE=$(curl -s -X PUT "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records/$EXISTING_ID" \
