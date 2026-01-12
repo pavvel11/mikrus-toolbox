@@ -593,9 +593,11 @@ NODESCRIPT
             echo ""
             echo "   Krok po kroku:"
             echo "   1. Za chwilę otworzy się strona z tokenami Supabase"
-            echo "   2. Znajdź token z nazwą: $TOKEN_NAME"
-            echo "   3. Kliknij ikonę kopiowania obok tokena (sbp_...)"
-            echo "   4. Wklej token tutaj"
+            echo "   2. Kliknij 'Generate new token'"
+            echo "   3. Nadaj mu nazwę (np. mikrus) i kliknij 'Generate token'"
+            echo "   4. Skopiuj wygenerowany token (sbp_...) i wklej tutaj"
+            echo ""
+            echo "   UWAGA: Istniejących tokenów nie można skopiować - trzeba wygenerować nowy!"
             echo ""
             read -p "   Naciśnij Enter aby otworzyć stronę z tokenami..." _
             if command -v open &>/dev/null; then
@@ -611,13 +613,16 @@ NODESCRIPT
             echo "   ✅ Token odszyfrowany!"
         fi
     elif echo "$TOKEN_RESPONSE" | grep -q "Cloudflare"; then
-        echo "⚠️  Cloudflare blokuje request. Token został utworzony w przeglądarce."
+        echo "⚠️  Cloudflare blokuje request. Wygeneruj token ręcznie."
+        echo ""
+        echo "   1. Kliknij 'Generate new token'"
+        echo "   2. Nadaj mu nazwę (np. mikrus) i kliknij 'Generate token'"
+        echo "   3. Skopiuj wygenerowany token (sbp_...)"
         echo ""
         if command -v open &>/dev/null; then
             open "https://supabase.com/dashboard/account/tokens"
         fi
-        echo "   Skopiuj najnowszy token (sbp_...):"
-        read -p "Token: " SUPABASE_TOKEN
+        read -p "Wklej token (sbp_...): " SUPABASE_TOKEN
     else
         echo "❌ Błąd: $TOKEN_RESPONSE"
         rm -rf "$TEMP_DIR"
