@@ -18,6 +18,15 @@ echo "--- 🔔 ntfy Setup ---"
 sudo mkdir -p "$STACK_DIR"
 cd "$STACK_DIR"
 
+# Domain for BASE_URL
+if [ -n "$DOMAIN" ]; then
+    NTFY_BASE_URL="https://$DOMAIN"
+    echo "✅ Domena: $DOMAIN"
+else
+    NTFY_BASE_URL="https://notify.example.com"
+    echo "⚠️  Brak domeny - użyj --domain=... lub zaktualizuj BASE_URL później"
+fi
+
 # Basic config with cache enabled
 cat <<EOF | sudo tee docker-compose.yaml > /dev/null
 services:
@@ -26,7 +35,7 @@ services:
     restart: always
     command: serve
     environment:
-      - NTFY_BASE_URL=https://notify.example.com
+      - NTFY_BASE_URL=$NTFY_BASE_URL
       - NTFY_CACHE_FILE=/var/cache/ntfy/cache.db
       - NTFY_AUTH_FILE=/var/cache/ntfy/user.db
       - NTFY_AUTH_DEFAULT_ACCESS=deny-all
@@ -56,9 +65,12 @@ else
     fi
 fi
 echo ""
-echo "⚠️  Po skonfigurowaniu domeny zaktualizuj NTFY_BASE_URL:"
-echo "   ssh $SSH_ALIAS \"sed -i 's|notify.example.com|TWOJA_DOMENA|' $STACK_DIR/docker-compose.yaml && cd $STACK_DIR && docker compose up -d\""
+if [ -n "$DOMAIN" ]; then
+    echo "🔗 Open https://$DOMAIN"
+else
+    echo "🔗 Access via SSH tunnel: ssh -L $PORT:localhost:$PORT <server>"
+fi
 echo ""
 echo "👤 Utwórz użytkownika do logowania w ntfy:"
-echo "   ssh $SSH_ALIAS 'docker exec -it ntfy-ntfy-1 ntfy user add --role=admin TWOJ_USER'"
+echo "   ssh \$SSH_ALIAS 'docker exec -it ntfy-ntfy-1 ntfy user add --role=admin TWOJ_USER'"
 echo "   (to nowy user wewnętrzny ntfy, nie systemowy)"
