@@ -206,8 +206,14 @@ echo "📋 Konfiguruję standalone server..."
 STANDALONE_DIR="$INSTALL_DIR/admin-panel/.next/standalone/admin-panel"
 
 if [ -d "$STANDALONE_DIR" ]; then
+    # Kopiuj konfigurację
     cp "$ENV_FILE" "$STANDALONE_DIR/.env.local"
-    echo "✅ Konfiguracja skopiowana do standalone"
+
+    # Kopiuj pliki statyczne (wymagane dla standalone mode)
+    cp -r "$INSTALL_DIR/admin-panel/.next/static" "$STANDALONE_DIR/.next/" 2>/dev/null || true
+    cp -r "$INSTALL_DIR/admin-panel/public" "$STANDALONE_DIR/" 2>/dev/null || true
+
+    echo "✅ Standalone skonfigurowany (env + static files)"
 else
     echo "⚠️  Brak folderu standalone - używam standardowego startu"
 fi

@@ -72,3 +72,93 @@ Gdy tworzysz `apps/<newapp>/install.sh`:
 - `lib/db-setup.sh` - `ask_database()` + `fetch_database()`
 - `lib/domain-setup.sh` - `ask_domain()` + `configure_domain()`
 - `lib/health-check.sh` - weryfikacja czy kontener działa
+
+## Skrypty do użycia (ZAWSZE używaj zamiast ręcznych komend!)
+
+**WAŻNE:** Nigdy nie konstruuj ręcznie komend curl do API Mikrusa! Zawsze używaj gotowych skryptów:
+
+### deploy.sh - Instalacja aplikacji
+
+```bash
+./local/deploy.sh APP [opcje]
+
+# Opcje:
+#   --ssh=ALIAS           SSH alias (domyślnie: mikrus)
+#   --domain-type=TYPE    cytrus | cloudflare | local
+#   --domain=DOMAIN       Domena lub "auto" dla Cytrus
+#   --db-source=SOURCE    shared | custom (bazy danych)
+#   --yes, -y             Pomiń wszystkie potwierdzenia
+
+# Przykłady:
+./local/deploy.sh n8n --ssh=hanna --domain-type=cytrus --domain=auto
+./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=local --yes
+./local/deploy.sh gateflow --ssh=hanna --domain-type=cytrus --domain=auto
+```
+
+### cytrus-domain.sh - Dodanie domeny Cytrus
+
+```bash
+./local/cytrus-domain.sh <domena|-> <port> [ssh_alias]
+
+# Przykłady:
+./local/cytrus-domain.sh - 3333 hanna              # automatyczna domena
+./local/cytrus-domain.sh myapp.byst.re 3333 hanna  # własna subdomena
+./local/cytrus-domain.sh myapp.bieda.it 8080       # inna domena Mikrusa
+```
+
+### dns-add.sh - Dodanie DNS Cloudflare
+
+```bash
+./local/dns-add.sh <subdomena.domena.pl> [ssh_alias] [mode]
+
+# Wymaga: ./local/setup-cloudflare.sh (wcześniejsza konfiguracja)
+# Przykłady:
+./local/dns-add.sh app.example.com hanna
+./local/dns-add.sh api.mojadomena.pl mikrus ipv6
+```
+
+### add-static-hosting.sh - Hosting plików statycznych
+
+```bash
+./local/add-static-hosting.sh DOMENA [SSH_ALIAS] [KATALOG] [PORT]
+
+# Przykłady:
+./local/add-static-hosting.sh static.byst.re
+./local/add-static-hosting.sh cdn.example.com hanna /var/www/assets 8097
+```
+
+### setup-backup.sh - Konfiguracja backupów
+
+```bash
+./local/setup-backup.sh [ssh_alias]
+
+# Interaktywny wizard - konfiguruje backup do chmury
+./local/setup-backup.sh hanna
+```
+
+### restore.sh - Przywracanie backupu
+
+```bash
+./local/restore.sh [ssh_alias]
+
+# Przywraca z ostatniego backupu w chmurze
+./local/restore.sh hanna
+```
+
+### setup-cloudflare.sh - Konfiguracja Cloudflare
+
+```bash
+./local/setup-cloudflare.sh
+
+# Interaktywny - zapisuje token API lokalnie
+# Wymagane przed użyciem dns-add.sh
+```
+
+### sync.sh - Synchronizacja plików
+
+```bash
+./local/sync.sh up <local_path> <remote_path>
+./local/sync.sh down <remote_path> <local_path>
+
+# Wrapper na rsync
+```

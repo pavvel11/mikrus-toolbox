@@ -83,18 +83,38 @@ Aplikacje znajdują się w `apps/<nazwa>/install.sh`:
 
 ## Komendy deployment
 
-### Główny skrypt: `deploy.sh`
+### Wszystkie skrypty lokalne (`local/`)
+
+| Skrypt | Opis | Użycie |
+|--------|------|--------|
+| `deploy.sh` | Instalacja aplikacji | `./local/deploy.sh APP [opcje]` |
+| `cytrus-domain.sh` | Dodanie domeny Cytrus | `./local/cytrus-domain.sh DOMENA PORT [SSH]` |
+| `dns-add.sh` | Dodanie DNS Cloudflare | `./local/dns-add.sh DOMENA [SSH]` |
+| `add-static-hosting.sh` | Hosting plików statycznych | `./local/add-static-hosting.sh DOMENA [SSH] [DIR] [PORT]` |
+| `setup-backup.sh` | Konfiguracja backupów | `./local/setup-backup.sh [SSH]` |
+| `restore.sh` | Przywracanie backupu | `./local/restore.sh [SSH]` |
+| `setup-cloudflare.sh` | Konfiguracja Cloudflare API | `./local/setup-cloudflare.sh` |
+| `sync.sh` | Synchronizacja plików | `./local/sync.sh up/down SRC DEST` |
+
+---
+
+### deploy.sh - Instalacja aplikacji
 
 ```bash
-# Instalacja aplikacji (Smart Mode)
-./local/deploy.sh <app_name> [ssh_alias]
+./local/deploy.sh APP [opcje]
+
+# Opcje:
+#   --ssh=ALIAS           SSH alias (domyślnie: mikrus)
+#   --domain-type=TYPE    cytrus | cloudflare | local
+#   --domain=DOMAIN       Domena lub "auto" dla Cytrus
+#   --db-source=SOURCE    shared | custom (bazy danych)
+#   --yes, -y             Pomiń wszystkie potwierdzenia
+#   --dry-run             Tylko pokaż co zostanie zrobione
 
 # Przykłady:
-./local/deploy.sh n8n              # na domyślnym serwerze 'mikrus'
-./local/deploy.sh uptime-kuma hanna  # na serwerze 'hanna'
-
-# Uruchomienie dowolnego skryptu
-./local/deploy.sh system/docker-setup.sh
+./local/deploy.sh n8n --ssh=hanna --domain-type=cytrus --domain=auto
+./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=local --yes
+./local/deploy.sh gateflow --ssh=hanna --domain-type=cloudflare --domain=gateflow.example.com
 ```
 
 **Flow deploy.sh:**
@@ -106,21 +126,17 @@ Aplikacje znajdują się w `apps/<nazwa>/install.sh`:
 6. Konfiguruje domenę (po uruchomieniu usługi!)
 7. Pokazuje podsumowanie
 
-### Synchronizacja plików: `sync.sh`
+---
+
+### cytrus-domain.sh - Domeny Mikrusa
 
 ```bash
-./local/sync.sh up ./local-folder /remote/path    # Upload
-./local/sync.sh down /remote/path ./local-folder  # Download
-```
+./local/cytrus-domain.sh <domena|-> <port> [ssh_alias]
 
-### Konfiguracja domeny Cytrus: `cytrus-domain.sh`
-
-```bash
-# Automatyczna domena (np. xyz123.byst.re)
-./local/cytrus-domain.sh - 3001 mikrus
-
-# Własna subdomena
-./local/cytrus-domain.sh mojapp.byst.re 3001 mikrus
+# Przykłady:
+./local/cytrus-domain.sh - 3001 mikrus              # automatyczna (xyz123.byst.re)
+./local/cytrus-domain.sh mojapp.byst.re 3001 mikrus # własna subdomena
+./local/cytrus-domain.sh app.bieda.it 8080 hanna    # inna domena Mikrusa
 ```
 
 Obsługiwane domeny Cytrus:
@@ -129,12 +145,49 @@ Obsługiwane domeny Cytrus:
 - `*.toadres.pl`
 - `*.tojest.dev`
 
+---
+
+### dns-add.sh - DNS Cloudflare
+
+```bash
+./local/dns-add.sh <subdomena.domena.pl> [ssh_alias] [mode]
+
+# Wymaga: ./local/setup-cloudflare.sh (jednorazowa konfiguracja)
+# Przykłady:
+./local/dns-add.sh app.example.com hanna        # rekord AAAA (IPv6)
+./local/dns-add.sh api.mojadomena.pl mikrus ipv4  # rekord A (IPv4)
+```
+
+---
+
+### add-static-hosting.sh - Hosting statyczny
+
+```bash
+./local/add-static-hosting.sh DOMENA [SSH_ALIAS] [KATALOG] [PORT]
+
+# Przykłady:
+./local/add-static-hosting.sh static.byst.re
+./local/add-static-hosting.sh cdn.example.com hanna /var/www/assets 8097
+```
+
+---
+
+### sync.sh - Synchronizacja plików
+
+```bash
+./local/sync.sh up ./local-folder /remote/path    # Upload
+./local/sync.sh down /remote/path ./local-folder  # Download
+```
+
+---
+
 ### Skrypty systemowe: `system/`
 
 ```bash
 ./local/deploy.sh system/docker-setup.sh   # Instalacja Docker
 ./local/deploy.sh system/caddy-install.sh  # Instalacja Caddy (reverse proxy)
 ./local/deploy.sh system/power-tools.sh    # CLI tools (yt-dlp, ffmpeg, pup)
+./local/deploy.sh system/bun-setup.sh      # Instalacja Bun + PM2
 ```
 
 ---
