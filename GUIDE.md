@@ -94,6 +94,7 @@ Aplikacje znajdują się w `apps/<nazwa>/install.sh`:
 | `setup-backup.sh` | Konfiguracja backupów | `./local/setup-backup.sh [SSH]` |
 | `restore.sh` | Przywracanie backupu | `./local/restore.sh [SSH]` |
 | `setup-cloudflare.sh` | Konfiguracja Cloudflare API | `./local/setup-cloudflare.sh` |
+| `setup-turnstile.sh` | Konfiguracja Turnstile (CAPTCHA) | `./local/setup-turnstile.sh DOMENA [SSH]` |
 | `sync.sh` | Synchronizacja plików | `./local/sync.sh up/down SRC DEST` |
 
 ---

@@ -162,3 +162,15 @@ Gdy tworzysz `apps/<newapp>/install.sh`:
 
 # Wrapper na rsync
 ```
+
+### setup-turnstile.sh - Cloudflare CAPTCHA
+
+```bash
+./local/setup-turnstile.sh <domena> [ssh_alias]
+
+# Automatycznie tworzy widget Turnstile przez API
+# Jeśli token nie ma uprawnień - prowadzi przez utworzenie nowego
+# Przykłady:
+./local/setup-turnstile.sh gf.automagicznie.pl hanna
+./local/setup-turnstile.sh myapp.example.com
+```
