@@ -27,12 +27,35 @@ fi
 sudo mkdir -p "$STACK_DIR"
 cd "$STACK_DIR"
 
-# LinkStack wymaga katalogu data z odpowiednimi uprawnieniami
-sudo mkdir -p data
-sudo chown -R 100:101 data  # Apache user (uid=100, gid=101) w kontenerze
+# Sprawdź czy to pierwsza instalacja (brak plików w data/)
+if [ ! -f "./data/index.php" ]; then
+    echo "📦 Pierwsza instalacja - pobieram pliki aplikacji..."
 
+    # Tymczasowy kontener bez wolumenu
+    cat <<EOF | sudo tee docker-compose.yaml > /dev/null
+services:
+  linkstack:
+    image: linkstackorg/linkstack
+    restart: "no"
+EOF
+
+    # Uruchom tymczasowo aby skopiować pliki
+    sudo docker compose up -d
+    sleep 5
+
+    # Skopiuj pliki z kontenera do hosta
+    sudo mkdir -p data
+    CONTAINER_ID=$(sudo docker compose ps -q linkstack)
+    sudo docker cp "$CONTAINER_ID:/htdocs/." ./data/
+    sudo docker compose down
+
+    # Ustaw uprawnienia dla Apache
+    sudo chown -R 100:101 data
+    echo "✅ Pliki aplikacji skopiowane"
+fi
+
+# Właściwy docker-compose z bind mount
 cat <<EOF | sudo tee docker-compose.yaml > /dev/null
-
 services:
   linkstack:
     image: linkstackorg/linkstack
@@ -48,7 +71,6 @@ services:
       resources:
         limits:
           memory: 256M
-
 EOF
 
 sudo docker compose up -d
@@ -75,9 +97,24 @@ fi
 
 echo ""
 echo "✅ LinkStack started!"
+echo ""
 if [ -n "$DOMAIN" ]; then
-    echo "🔗 Open https://$DOMAIN"
+    echo "🔗 Otwórz: https://$DOMAIN"
 else
-    echo "🔗 Access via SSH tunnel: ssh -L $PORT:localhost:$PORT <server>"
+    echo "🔗 Dostęp przez tunel SSH: ssh -L $PORT:localhost:$PORT <server>"
+    echo "   Potem otwórz: http://localhost:$PORT"
 fi
-echo "Open the URL to finalize installation wizard."
+echo ""
+echo "════════════════════════════════════════════════════════════════"
+echo "📋 SETUP WIZARD - co wybrać?"
+echo "════════════════════════════════════════════════════════════════"
+echo ""
+echo "   🎯 Jesteś soloprenerem / masz jeden profil?"
+echo "      → Wybierz SQLite i nie myśl więcej"
+echo ""
+echo "   🏢 Robisz to dla firmy z wieloma pracownikami?"
+echo "      → MySQL (dane: ssh \$SSH_ALIAS 'curl -s -d"
+echo "        \"srv=\\\$(hostname)&key=\\\$(cat /klucz_api)\" https://api.mikr.us/db.bash')"
+echo ""
+echo "   📝 Zapisz dane logowania admina - będą potrzebne później!"
+echo ""
