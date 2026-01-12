@@ -114,14 +114,11 @@ else
         CONFIGURE_STRIPE=true
     elif [ -t 0 ]; then
         echo "GateFlow potrzebuje kluczy Stripe do obsługi płatności."
+        echo "Możesz je skonfigurować teraz lub później w panelu GateFlow."
         echo ""
-        echo "Masz dwie opcje:"
-        echo "   1) Skonfiguruj teraz - podasz klucze z dashboard.stripe.com"
-        echo "   2) Skonfiguruj później - klucze ustawisz w panelu GateFlow"
-        echo ""
-        read -p "Czy chcesz skonfigurować Stripe teraz? [t/N]: " STRIPE_CHOICE
+        read -p "Skonfigurować Stripe teraz? [t/N]: " STRIPE_CHOICE
 
-        if [[ "$STRIPE_CHOICE" =~ ^[TtYy]$ ]]; then
+        if [[ "$STRIPE_CHOICE" =~ ^[TtYy1]$ ]]; then
             echo ""
             echo "   1. Otwórz: https://dashboard.stripe.com/apikeys"
             echo "   2. Skopiuj 'Publishable key' (pk_live_... lub pk_test_...)"
