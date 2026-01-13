@@ -249,7 +249,18 @@ fi
 # 5. KONFIGURACJA DOMENY I URL
 # =============================================================================
 
-if grep -q "SITE_URL=https://" "$ENV_FILE" 2>/dev/null; then
+# Dla auto-Cytrus (DOMAIN="-"), pomiń konfigurację URL - deploy.sh zaktualizuje po otrzymaniu domeny
+if [ "$DOMAIN" = "-" ]; then
+    echo "⏳ Domena zostanie skonfigurowana po przydzieleniu przez Cytrus"
+    # Ustaw tylko PORT i HOSTNAME żeby serwer wystartował
+    cat >> "$ENV_FILE" <<ENVEOF
+
+# Production (domena zostanie dodana przez deploy.sh)
+NODE_ENV=production
+PORT=$PORT
+HOSTNAME=::
+ENVEOF
+elif grep -q "SITE_URL=https://" "$ENV_FILE" 2>/dev/null; then
     echo "✅ Konfiguracja URL już istnieje"
 else
     if [ -n "$DOMAIN" ]; then
@@ -260,6 +271,7 @@ else
         SITE_URL="https://$DOMAIN"
     else
         SITE_URL="https://localhost:$PORT"
+        DOMAIN="localhost"
     fi
 
     # Sprawdź czy to domena Cytrus (reverse proxy z SSL termination)
@@ -274,7 +286,7 @@ else
 
 # Site URLs (runtime)
 SITE_URL=$SITE_URL
-MAIN_DOMAIN=${DOMAIN:-localhost}
+MAIN_DOMAIN=$DOMAIN
 
 # Legacy (dla kompatybilności)
 NEXT_PUBLIC_SITE_URL=$SITE_URL

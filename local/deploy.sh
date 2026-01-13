@@ -865,29 +865,38 @@ if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ]; then
 
         # Dla GateFlow z Cytrus - zaktualizuj .env.local, Supabase i zapytaj o Turnstile
         if [ "$APP_NAME" = "gateflow" ] && [ "$ORIGINAL_DOMAIN" = "-" ] && [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
-            # 1. Zaktualizuj .env.local na serwerze (zastąp placeholder prawdziwą domeną)
+            # 1. Dodaj konfigurację domeny do .env.local (install.sh pominął dla DOMAIN="-")
             echo "📝 Aktualizuję .env.local z prawdziwą domeną..."
             ssh "$SSH_ALIAS" "
-                cd /root/gateflow/admin-panel
-                sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' .env.local
+                cd /opt/stacks/gateflow/admin-panel
+                # Dodaj konfigurację domeny
+                cat >> .env.local <<'DOMAIN_EOF'
+
+# Site URLs (dodane po przydzieleniu domeny Cytrus)
+SITE_URL=https://$DOMAIN
+MAIN_DOMAIN=$DOMAIN
+NEXT_PUBLIC_SITE_URL=https://$DOMAIN
+NEXT_PUBLIC_BASE_URL=https://$DOMAIN
+DISABLE_HSTS=true
+DOMAIN_EOF
                 # Skopiuj do standalone
                 if [ -d '.next/standalone/admin-panel' ]; then
                     cp .env.local .next/standalone/admin-panel/.env.local
                 fi
             " 2>/dev/null || true
 
-            # 2. Restart PM2 żeby załadować nową konfigurację (delete + start z env)
+            # 2. Restart PM2 żeby załadować nową konfigurację
+            # Dla auto-cytrus początkowa instalacja używa PM2_NAME="gateflow"
+            # Po poznaniu domeny możemy zachować tę nazwę (single instance)
             echo "🔄 Restartuję GateFlow..."
-            # Dla auto-Cytrus (ORIGINAL_DOMAIN="-") używamy domyślnych ścieżek
-            # bo instalacja była zrobiona przed poznaniem domeny
             ssh "$SSH_ALIAS" "
                 export PATH=\"\$HOME/.bun/bin:\$PATH\"
-                cd /root/gateflow/admin-panel/.next/standalone/admin-panel
-                pm2 delete gateflow-admin 2>/dev/null || true
+                cd /opt/stacks/gateflow/admin-panel/.next/standalone/admin-panel
+                pm2 delete gateflow 2>/dev/null || true
                 set -a && source .env.local && set +a
                 export PORT=\${PORT:-3333}
                 export HOSTNAME=\${HOSTNAME:-::}
-                pm2 start server.js --name gateflow-admin --interpreter node
+                pm2 start server.js --name gateflow --interpreter node
                 pm2 save
             " 2>/dev/null || true
 
