@@ -129,6 +129,7 @@ SSH_ALIAS="${SSH_ALIAS:-mikrus}"
 GATEFLOW_CONFIG="$HOME/.config/gateflow/deploy-config.env"
 if [ -f "$GATEFLOW_CONFIG" ] && [[ "$SCRIPT_PATH" == "gateflow" ]]; then
     # Zachowaj wartości z CLI (mają priorytet nad configiem)
+    CLI_SSH_ALIAS="$SSH_ALIAS"
     CLI_DOMAIN="$DOMAIN"
     CLI_DOMAIN_TYPE="$DOMAIN_TYPE"
     CLI_SUPABASE_PROJECT="$SUPABASE_PROJECT"
@@ -137,6 +138,7 @@ if [ -f "$GATEFLOW_CONFIG" ] && [[ "$SCRIPT_PATH" == "gateflow" ]]; then
     source "$GATEFLOW_CONFIG"
 
     # Przywróć wartości CLI jeśli były podane (CLI > config)
+    [ -n "$CLI_SSH_ALIAS" ] && SSH_ALIAS="$CLI_SSH_ALIAS"
     [ -n "$CLI_DOMAIN" ] && DOMAIN="$CLI_DOMAIN"
     [ -n "$CLI_DOMAIN_TYPE" ] && DOMAIN_TYPE="$CLI_DOMAIN_TYPE"
     [ -n "$CLI_SUPABASE_PROJECT" ] && SUPABASE_PROJECT="$CLI_SUPABASE_PROJECT"

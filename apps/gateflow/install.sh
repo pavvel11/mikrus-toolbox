@@ -40,7 +40,7 @@ if [ -n "$INSTANCE_NAME" ]; then
     PM2_NAME="gateflow-${INSTANCE_NAME}"
 else
     INSTALL_DIR="/opt/stacks/gateflow"
-    PM2_NAME="$PM2_NAME"
+    PM2_NAME="gateflow"
 fi
 
 PORT=${PORT:-3333}
