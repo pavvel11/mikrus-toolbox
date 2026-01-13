@@ -100,22 +100,18 @@ Skrypt uruchomi 'bun run setup' który:
 2. Skopiuj: Publishable key (pk_...) i Secret key (sk_...)
 ```
 
-### Migracje bazy danych
+### Przygotowanie bazy danych
 
-Migracje wykonują się automatycznie przez Docker na serwerze:
+Przy instalacji skrypt automatycznie tworzy potrzebne tabele w Supabase.
+Potrzebujesz tylko "Database URL" (adres połączenia z bazą).
 
-```bash
-# Przy pierwszej instalacji - razem z setup-supabase-gateflow.sh
-./local/setup-supabase-gateflow.sh hanna
+**Gdzie go znaleźć:**
+1. Otwórz https://supabase.com/dashboard
+2. Wybierz projekt → Settings → Database
+3. Sekcja "Connection string" → URI
+4. Skopiuj (zaczyna się od `postgresql://`)
 
-# Lub osobno
-DATABASE_URL="postgresql://..." ./local/setup-supabase-migrations.sh hanna
-```
-
-Skrypt:
-- Pobiera pliki migracji z GitHub
-- Sprawdza które są już wykonane (tabela `schema_migrations`)
-- Wykonuje brakujące przez Docker `postgres:15-alpine`
+Skrypt zapamięta ten adres na przyszłość (aktualizacje).
 
 ---
 
@@ -196,17 +192,14 @@ pm2 restart gateflow-admin
 ### Aktualizacja
 
 ```bash
-# Z lokalnej maszyny (przez SSH)
-ssh hanna 'bash -s' < apps/gateflow/update.sh
-
-# Lub bezpośrednio na serwerze
-./apps/gateflow/update.sh
+# Prosta komenda (tak jak instalacja, ale z --update)
+./local/deploy.sh gateflow --ssh=hanna --update
 ```
 
-Skrypt update.sh:
-1. Pobiera najnowszą wersję z GitHub Releases
-2. Zachowuje konfigurację (.env.local)
-3. Pyta o DATABASE_URL i wykonuje migracje (opcjonalnie)
+Co robi:
+1. Pobiera najnowszą wersję aplikacji
+2. Zachowuje Twoją konfigurację
+3. Aktualizuje bazę danych jeśli trzeba (pyta o adres)
 4. Restartuje aplikację
 
 ---

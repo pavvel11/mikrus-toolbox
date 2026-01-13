@@ -150,6 +150,7 @@ parse_args() {
             # Modes
             --yes|-y) YES_MODE=true ;;
             --dry-run) DRY_RUN=true ;;
+            --update) UPDATE_MODE=true ;;
             --help|-h) show_help; exit 0 ;;
 
             # Unknown options
@@ -169,7 +170,7 @@ parse_args() {
 
     # Eksportuj zmienne
     export SSH_ALIAS DB_SOURCE DB_HOST DB_PORT DB_NAME DB_SCHEMA DB_USER DB_PASS
-    export DOMAIN DOMAIN_TYPE YES_MODE DRY_RUN
+    export DOMAIN DOMAIN_TYPE YES_MODE DRY_RUN UPDATE_MODE
 }
 
 # =============================================================================

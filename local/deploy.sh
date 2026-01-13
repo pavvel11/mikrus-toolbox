@@ -64,6 +64,7 @@ Opcje domeny:
 Tryby:
   --yes, -y            Pomiń wszystkie potwierdzenia
   --dry-run            Pokaż co się wykona bez wykonania
+  --update             Aktualizuj istniejącą aplikację (zamiast instalować)
   --help, -h           Pokaż tę pomoc
 
 Przykłady:
@@ -84,6 +85,9 @@ Przykłady:
 
   # Dry-run (podgląd bez wykonania)
   ./local/deploy.sh n8n --ssh=hanna --dry-run
+
+  # Aktualizacja istniejącej aplikacji
+  ./local/deploy.sh gateflow --ssh=hanna --update
 
 EOF
 }
@@ -112,6 +116,77 @@ fi
 
 # SSH_ALIAS z --ssh lub default
 SSH_ALIAS="${SSH_ALIAS:-mikrus}"
+
+# =============================================================================
+# TRYB AKTUALIZACJI (--update)
+# =============================================================================
+
+if [ "$UPDATE_MODE" = true ]; then
+    APP_NAME="$SCRIPT_PATH"
+
+    # Sprawdź czy aplikacja ma skrypt update.sh
+    UPDATE_SCRIPT="$REPO_ROOT/apps/$APP_NAME/update.sh"
+    if [ ! -f "$UPDATE_SCRIPT" ]; then
+        echo -e "${RED}❌ Aplikacja '$APP_NAME' nie ma skryptu aktualizacji${NC}"
+        echo "   Brak: apps/$APP_NAME/update.sh"
+        exit 1
+    fi
+
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║  🔄 AKTUALIZACJA: $APP_NAME"
+    echo "╠════════════════════════════════════════════════════════════════╣"
+    echo "║  Serwer: $SSH_ALIAS"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo ""
+
+    if ! confirm "Zaktualizować $APP_NAME na serwerze $SSH_ALIAS?"; then
+        echo "Anulowano."
+        exit 0
+    fi
+
+    # Dla GateFlow - sprawdź DATABASE_URL
+    if [ "$APP_NAME" = "gateflow" ]; then
+        if [ -z "$DATABASE_URL" ]; then
+            SUPABASE_CONFIG="$HOME/.config/gateflow/supabase.env"
+            if [ -f "$SUPABASE_CONFIG" ]; then
+                source "$SUPABASE_CONFIG"
+            fi
+        fi
+
+        if [ -z "$DATABASE_URL" ] && [ "$YES_MODE" != true ]; then
+            echo ""
+            echo "Potrzebuję adres bazy danych do aktualizacji struktury."
+            echo "(Jeśli nie było zmian w bazie, możesz pominąć)"
+            echo ""
+            read -p "Database URL (postgresql://...) lub Enter aby pominąć: " DATABASE_URL
+        fi
+    fi
+
+    echo ""
+    echo "🚀 Uruchamiam aktualizację..."
+
+    # Skopiuj skrypt na serwer i uruchom
+    REMOTE_SCRIPT="/tmp/mikrus-update-$$.sh"
+    scp -q "$UPDATE_SCRIPT" "$SSH_ALIAS:$REMOTE_SCRIPT"
+
+    # Przekaż DATABASE_URL jeśli mamy
+    ENV_VARS=""
+    if [ -n "$DATABASE_URL" ]; then
+        ENV_VARS="DATABASE_URL='$DATABASE_URL'"
+    fi
+
+    if ssh -t "$SSH_ALIAS" "export $ENV_VARS; bash '$REMOTE_SCRIPT'; rm -f '$REMOTE_SCRIPT'"; then
+        echo ""
+        echo -e "${GREEN}✅ Aktualizacja zakończona!${NC}"
+    else
+        echo ""
+        echo -e "${RED}❌ Aktualizacja nie powiodła się${NC}"
+        exit 1
+    fi
+
+    exit 0
+fi
 
 # =============================================================================
 # RESOLVE APP/SCRIPT PATH
@@ -773,12 +848,13 @@ else
 fi
 
 # =============================================================================
-# MIGRACJE SUPABASE (dla GateFlow)
+# PRZYGOTOWANIE BAZY DANYCH (dla GateFlow)
 # =============================================================================
 
 if [ "$APP_NAME" = "gateflow" ]; then
     echo ""
-    echo "🗄️  Migracje bazy danych..."
+    echo "🗄️  Przygotowanie bazy danych..."
+    echo "   (tworzenie tabel potrzebnych do działania aplikacji)"
 
     # Sprawdź czy mamy DATABASE_URL
     if [ -z "$DATABASE_URL" ]; then
@@ -791,16 +867,17 @@ if [ "$APP_NAME" = "gateflow" ]; then
 
     if [ -z "$DATABASE_URL" ]; then
         if [ "$YES_MODE" = true ]; then
-            echo -e "${YELLOW}⚠️  Brak DATABASE_URL - pominięto migracje${NC}"
+            echo -e "${YELLOW}⚠️  Brak DATABASE_URL - pominięto przygotowanie bazy${NC}"
             echo "   Uruchom później: DATABASE_URL=... ./local/setup-supabase-migrations.sh $SSH_ALIAS"
         else
             echo ""
-            echo "Potrzebuję Database URL do uruchomienia migracji."
+            echo "Potrzebuję adres połączenia z bazą danych."
             echo ""
             echo "Gdzie go znaleźć:"
             echo "   1. Otwórz: https://supabase.com/dashboard"
             echo "   2. Wybierz projekt → Settings → Database"
             echo "   3. Sekcja 'Connection string' → URI"
+            echo "   4. Skopiuj (zaczyna się od postgresql://)"
             echo ""
             read -p "Wklej Database URL (postgresql://...) lub Enter aby pominąć: " DATABASE_URL
         fi
@@ -814,15 +891,15 @@ if [ "$APP_NAME" = "gateflow" ]; then
             chmod 600 "$SUPABASE_CONFIG"
         fi
 
-        # Uruchom migracje
+        # Uruchom przygotowanie bazy
         if [ -f "$REPO_ROOT/local/setup-supabase-migrations.sh" ]; then
             DATABASE_URL="$DATABASE_URL" "$REPO_ROOT/local/setup-supabase-migrations.sh" "$SSH_ALIAS"
         else
-            echo -e "${YELLOW}⚠️  Brak skryptu migracji${NC}"
+            echo -e "${YELLOW}⚠️  Brak skryptu przygotowania bazy${NC}"
         fi
     else
         echo ""
-        echo "⏭️  Pominięto migracje. Uruchom później:"
+        echo "⏭️  Pominięto. Uruchom później:"
         echo "   DATABASE_URL=... ./local/setup-supabase-migrations.sh $SSH_ALIAS"
     fi
 fi
