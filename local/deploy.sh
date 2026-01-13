@@ -149,42 +149,6 @@ if [ "$UPDATE_MODE" = true ]; then
         exit 0
     fi
 
-    # Dla GateFlow - pobierz DATABASE_URL
-    if [ "$APP_NAME" = "gateflow" ]; then
-        if [ -z "$DATABASE_URL" ]; then
-            SUPABASE_CONFIG="$HOME/.config/gateflow/supabase.env"
-            if [ -f "$SUPABASE_CONFIG" ]; then
-                source "$SUPABASE_CONFIG"
-                if [ -n "$DATABASE_URL" ]; then
-                    echo "✅ Używam zapisanego adresu bazy danych"
-                fi
-            fi
-        fi
-
-        # Jeśli nadal nie mamy - zapytaj (ale tylko interaktywnie)
-        if [ -z "$DATABASE_URL" ] && [ "$YES_MODE" != true ]; then
-            echo ""
-            echo -e "${YELLOW}⚠️  Brak zapisanego adresu bazy danych${NC}"
-            echo ""
-            echo "Potrzebuję go żeby zaktualizować strukturę bazy (jeśli są zmiany)."
-            echo "Znajdziesz go w: Supabase Dashboard → Settings → Database → Connection string → URI"
-            echo ""
-            read -p "Database URL (postgresql://...) lub Enter aby pominąć: " DATABASE_URL
-
-            # Zapisz na przyszłość
-            if [ -n "$DATABASE_URL" ]; then
-                mkdir -p "$HOME/.config/gateflow"
-                if [ -f "$SUPABASE_CONFIG" ]; then
-                    echo "DATABASE_URL='$DATABASE_URL'" >> "$SUPABASE_CONFIG"
-                else
-                    echo "DATABASE_URL='$DATABASE_URL'" > "$SUPABASE_CONFIG"
-                fi
-                chmod 600 "$SUPABASE_CONFIG"
-                echo "   ✅ Zapisano na przyszłość"
-            fi
-        fi
-    fi
-
     echo ""
     echo "🚀 Uruchamiam aktualizację..."
 
@@ -210,10 +174,7 @@ if [ "$UPDATE_MODE" = true ]; then
     fi
 
     # Przekaż zmienne środowiskowe
-    ENV_VARS=""
-    if [ -n "$DATABASE_URL" ]; then
-        ENV_VARS="DATABASE_URL='$DATABASE_URL'"
-    fi
+    ENV_VARS="SKIP_MIGRATIONS=1"  # Migracje uruchomimy lokalnie przez API
     if [ -n "$REMOTE_BUILD_FILE" ]; then
         ENV_VARS="$ENV_VARS BUILD_FILE='$REMOTE_BUILD_FILE'"
     fi
@@ -226,12 +187,25 @@ if [ "$UPDATE_MODE" = true ]; then
 
     if ssh -t "$SSH_ALIAS" "export $ENV_VARS; bash '$REMOTE_SCRIPT'; EXIT_CODE=\$?; $CLEANUP_CMD; exit \$EXIT_CODE"; then
         echo ""
-        echo -e "${GREEN}✅ Aktualizacja zakończona!${NC}"
+        echo -e "${GREEN}✅ Pliki zaktualizowane${NC}"
     else
         echo ""
         echo -e "${RED}❌ Aktualizacja nie powiodła się${NC}"
         exit 1
     fi
+
+    # Dla GateFlow - uruchom migracje przez API (lokalnie)
+    if [ "$APP_NAME" = "gateflow" ]; then
+        echo ""
+        echo "🗄️  Aktualizuję bazę danych..."
+
+        if [ -f "$REPO_ROOT/local/setup-supabase-migrations.sh" ]; then
+            "$REPO_ROOT/local/setup-supabase-migrations.sh" || true
+        fi
+    fi
+
+    echo ""
+    echo -e "${GREEN}✅ Aktualizacja zakończona!${NC}"
 
     exit 0
 fi
@@ -902,53 +876,15 @@ fi
 if [ "$APP_NAME" = "gateflow" ]; then
     echo ""
     echo "🗄️  Przygotowanie bazy danych..."
-    echo "   (tworzenie tabel potrzebnych do działania aplikacji)"
 
-    # Sprawdź czy mamy DATABASE_URL
-    if [ -z "$DATABASE_URL" ]; then
-        # Sprawdź w zapisanej konfiguracji
-        SUPABASE_CONFIG="$HOME/.config/gateflow/supabase.env"
-        if [ -f "$SUPABASE_CONFIG" ]; then
-            source "$SUPABASE_CONFIG"
-        fi
-    fi
-
-    if [ -z "$DATABASE_URL" ]; then
-        if [ "$YES_MODE" = true ]; then
-            echo -e "${YELLOW}⚠️  Brak DATABASE_URL - pominięto przygotowanie bazy${NC}"
-            echo "   Uruchom później: DATABASE_URL=... ./local/setup-supabase-migrations.sh $SSH_ALIAS"
-        else
-            echo ""
-            echo "Potrzebuję adres połączenia z bazą danych."
-            echo ""
-            echo "Gdzie go znaleźć:"
-            echo "   1. Otwórz: https://supabase.com/dashboard"
-            echo "   2. Wybierz projekt → Settings → Database"
-            echo "   3. Sekcja 'Connection string' → URI"
-            echo "   4. Skopiuj (zaczyna się od postgresql://)"
-            echo ""
-            read -p "Wklej Database URL (postgresql://...) lub Enter aby pominąć: " DATABASE_URL
-        fi
-    fi
-
-    if [ -n "$DATABASE_URL" ]; then
-        # Zapisz do konfiguracji na przyszłość
-        SUPABASE_CONFIG="$HOME/.config/gateflow/supabase.env"
-        if [ -f "$SUPABASE_CONFIG" ] && ! grep -q "DATABASE_URL" "$SUPABASE_CONFIG"; then
-            echo "DATABASE_URL='$DATABASE_URL'" >> "$SUPABASE_CONFIG"
-            chmod 600 "$SUPABASE_CONFIG"
-        fi
-
-        # Uruchom przygotowanie bazy
-        if [ -f "$REPO_ROOT/local/setup-supabase-migrations.sh" ]; then
-            DATABASE_URL="$DATABASE_URL" "$REPO_ROOT/local/setup-supabase-migrations.sh" "$SSH_ALIAS"
-        else
-            echo -e "${YELLOW}⚠️  Brak skryptu przygotowania bazy${NC}"
-        fi
+    # Uruchom migracje przez Supabase API (lokalnie, nie wymaga DATABASE_URL)
+    if [ -f "$REPO_ROOT/local/setup-supabase-migrations.sh" ]; then
+        "$REPO_ROOT/local/setup-supabase-migrations.sh" || {
+            echo -e "${YELLOW}⚠️  Nie udało się przygotować bazy - możesz uruchomić później:${NC}"
+            echo "   ./local/setup-supabase-migrations.sh"
+        }
     else
-        echo ""
-        echo "⏭️  Pominięto. Uruchom później:"
-        echo "   DATABASE_URL=... ./local/setup-supabase-migrations.sh $SSH_ALIAS"
+        echo -e "${YELLOW}⚠️  Brak skryptu przygotowania bazy${NC}"
     fi
 fi
 

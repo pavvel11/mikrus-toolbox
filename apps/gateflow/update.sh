@@ -9,15 +9,14 @@
 #   ./local/deploy.sh gateflow --ssh=hanna --update --build-file=~/Downloads/gateflow-build.tar.gz
 #
 # Zmienne środowiskowe:
-#   DATABASE_URL - URL do bazy Supabase (dla aktualizacji bazy)
 #   BUILD_FILE - ścieżka do lokalnego pliku tar.gz (zamiast pobierania z GitHub)
-#   SKIP_MIGRATIONS - ustaw na 1 aby pominąć aktualizację bazy
+#
+# Uwaga: Aktualizacja bazy danych jest obsługiwana przez deploy.sh (Supabase API)
 
 set -e
 
 INSTALL_DIR="/root/gateflow"
 GITHUB_REPO="pavvel11/gateflow"
-MIGRATIONS_PATH="supabase/migrations"
 
 # Kolory
 RED='\033[0;31m'
@@ -152,93 +151,10 @@ fi
 
 echo -e "${GREEN}✅ Pliki zaktualizowane${NC}"
 
-# =============================================================================
-# 5. MIGRACJE (opcjonalne)
-# =============================================================================
-
-if [ "$SKIP_MIGRATIONS" != "1" ]; then
-    echo ""
-    echo "🗄️  Sprawdzam migracje..."
-
-    # Sprawdź czy mamy DATABASE_URL
-    if [ -z "$DATABASE_URL" ]; then
-        # Spróbuj odczytać z .env.local (nie znajdziemy, bo to Supabase URL a nie DATABASE_URL)
-        echo -e "${YELLOW}⚠️  DATABASE_URL nie ustawiony${NC}"
-        echo ""
-        echo "Aby uruchomić migracje, potrzebujesz Database URL z Supabase:"
-        echo "   1. Otwórz: https://supabase.com/dashboard"
-        echo "   2. Wybierz projekt → Settings → Database"
-        echo "   3. Sekcja 'Connection string' → URI"
-        echo ""
-        read -p "Wklej Database URL (lub Enter aby pominąć migracje): " DATABASE_URL
-    fi
-
-    if [ -n "$DATABASE_URL" ]; then
-        echo ""
-        echo "📥 Pobieram pliki migracji..."
-
-        MIGRATIONS_TEMP=$(mktemp -d)
-
-        # Pobierz listę migracji
-        MIGRATIONS_LIST=$(curl -sL "https://api.github.com/repos/$GITHUB_REPO/contents/$MIGRATIONS_PATH" \
-            -H "Authorization: token ${GITHUB_TOKEN:-}" 2>/dev/null | grep -o '"name": "[^"]*\.sql"' | cut -d'"' -f4 | sort)
-
-        if [ -z "$MIGRATIONS_LIST" ]; then
-            echo -e "${YELLOW}⚠️  Nie udało się pobrać listy migracji - pomijam${NC}"
-        else
-            # Pobierz każdy plik
-            for migration in $MIGRATIONS_LIST; do
-                curl -sL "https://raw.githubusercontent.com/$GITHUB_REPO/main/$MIGRATIONS_PATH/$migration" \
-                    -H "Authorization: token ${GITHUB_TOKEN:-}" \
-                    -o "$MIGRATIONS_TEMP/$migration"
-            done
-
-            # Sprawdź które są już wykonane
-            MIGRATIONS_TABLE_EXISTS=$(docker run --rm postgres:15-alpine psql "$DATABASE_URL" -t -c \
-                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'schema_migrations');" 2>/dev/null | tr -d ' ')
-
-            if [ "$MIGRATIONS_TABLE_EXISTS" = "t" ]; then
-                APPLIED_MIGRATIONS=$(docker run --rm postgres:15-alpine psql "$DATABASE_URL" -t -c \
-                    "SELECT version FROM schema_migrations ORDER BY version;" 2>/dev/null | tr -d ' ' | grep -v '^$')
-            else
-                APPLIED_MIGRATIONS=""
-                # Utwórz tabelę
-                docker run --rm postgres:15-alpine psql "$DATABASE_URL" -c \
-                    "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW());" 2>/dev/null
-            fi
-
-            # Wykonaj brakujące
-            PENDING=0
-            for migration in $MIGRATIONS_LIST; do
-                VERSION=$(echo "$migration" | cut -d'_' -f1)
-                if ! echo "$APPLIED_MIGRATIONS" | grep -q "^$VERSION$"; then
-                    PENDING=$((PENDING + 1))
-                    echo "   Wykonuję: $migration"
-
-                    if docker run --rm -v "$MIGRATIONS_TEMP/$migration:/migration.sql" postgres:15-alpine \
-                        psql "$DATABASE_URL" -f /migration.sql 2>/dev/null; then
-                        docker run --rm postgres:15-alpine psql "$DATABASE_URL" -c \
-                            "INSERT INTO schema_migrations (version) VALUES ('$VERSION');" 2>/dev/null
-                        echo -e "   ${GREEN}✅ $migration${NC}"
-                    else
-                        echo -e "   ${RED}❌ Błąd w $migration${NC}"
-                    fi
-                fi
-            done
-
-            if [ $PENDING -eq 0 ]; then
-                echo -e "${GREEN}✅ Wszystkie migracje już zastosowane${NC}"
-            fi
-
-            rm -rf "$MIGRATIONS_TEMP"
-        fi
-    else
-        echo "⏭️  Pominięto migracje"
-    fi
-fi
+# Migracje są uruchamiane przez deploy.sh przez Supabase API (nie tutaj)
 
 # =============================================================================
-# 6. URUCHOM APLIKACJĘ
+# 5. URUCHOM APLIKACJĘ
 # =============================================================================
 
 echo ""
@@ -269,7 +185,7 @@ else
 fi
 
 # =============================================================================
-# 7. PODSUMOWANIE
+# 6. PODSUMOWANIE
 # =============================================================================
 
 echo ""
