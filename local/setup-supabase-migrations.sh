@@ -212,20 +212,27 @@ done
 echo ""
 echo "🔍 Sprawdzam status bazy..."
 
-# Sprawdź czy tabela migracji istnieje
-TABLE_CHECK=$(run_sql "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'schema_migrations');" 2>/dev/null)
+# Używamy tabeli Supabase CLI: supabase_migrations.schema_migrations
+# Dzięki temu migracje są spójne z `supabase migration up`
+APPLIED_MIGRATIONS=""
 
-if echo "$TABLE_CHECK" | grep -q "true"; then
-    echo "   Tabela migracji istnieje"
-    APPLIED_RESULT=$(run_sql "SELECT version FROM schema_migrations ORDER BY version;" 2>/dev/null)
+# Sprawdź czy schema supabase_migrations istnieje
+SCHEMA_CHECK=$(run_sql "SELECT EXISTS (SELECT FROM information_schema.schemata WHERE schema_name = 'supabase_migrations');" 2>/dev/null)
+
+if echo "$SCHEMA_CHECK" | grep -q "true"; then
+    echo "   Tabela migracji Supabase istnieje"
+    APPLIED_RESULT=$(run_sql "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version;" 2>/dev/null)
     APPLIED_MIGRATIONS=$(echo "$APPLIED_RESULT" | grep -o '"version":"[^"]*"' | cut -d'"' -f4 | tr '\n' ' ')
-else
-    echo "   Tabela migracji nie istnieje (świeża instalacja)"
-    APPLIED_MIGRATIONS=""
 
-    # Utwórz tabelę
-    run_sql "CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ DEFAULT NOW());" > /dev/null
-    echo "   ✅ Utworzono tabelę schema_migrations"
+    if [ -n "$APPLIED_MIGRATIONS" ]; then
+        echo "   Już zaaplikowane: $(echo $APPLIED_MIGRATIONS | wc -w | tr -d ' ') migracji"
+    fi
+else
+    echo "   Świeża instalacja - tworzę tabelę migracji..."
+    # Utwórz schema i tabelę zgodną z Supabase CLI
+    run_sql "CREATE SCHEMA IF NOT EXISTS supabase_migrations;" > /dev/null
+    run_sql "CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (version TEXT PRIMARY KEY, name TEXT, statements TEXT[]);" > /dev/null
+    echo "   ✅ Utworzono supabase_migrations.schema_migrations"
 fi
 
 # Określ które migracje trzeba wykonać
@@ -265,8 +272,9 @@ for migration in $PENDING_MIGRATIONS; do
     SQL_CONTENT=$(cat "$TEMP_DIR/$migration")
 
     if run_sql "$SQL_CONTENT" > /dev/null 2>&1; then
-        # Zapisz że migracja została wykonana
-        run_sql "INSERT INTO schema_migrations (version) VALUES ('$VERSION');" > /dev/null 2>&1
+        # Zapisz w tabeli Supabase CLI
+        NAME=$(echo "$migration" | sed 's/^[0-9]*_//' | sed 's/\.sql$//')
+        run_sql "INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES ('$VERSION', '$NAME');" > /dev/null 2>&1
         echo -e "${GREEN}✅${NC}"
     else
         echo -e "${RED}❌${NC}"
