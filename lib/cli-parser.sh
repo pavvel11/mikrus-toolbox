@@ -88,6 +88,9 @@ export DB_USER="${DB_USER:-}"
 export DB_PASS="${DB_PASS:-}"
 export DOMAIN="${DOMAIN:-}"
 export DOMAIN_TYPE="${DOMAIN_TYPE:-}"
+export SUPABASE_PROJECT="${SUPABASE_PROJECT:-}"
+export INSTANCE="${INSTANCE:-}"
+export APP_PORT="${APP_PORT:-}"
 export YES_MODE="${YES_MODE:-false}"
 export DRY_RUN="${DRY_RUN:-false}"
 export POSITIONAL_ARGS=()
@@ -147,6 +150,16 @@ parse_args() {
             --domain-type=*) DOMAIN_TYPE="${1#*=}" ;;
             --domain-type) DOMAIN_TYPE="$2"; shift ;;
 
+            # Supabase (for GateFlow)
+            --supabase-project=*) SUPABASE_PROJECT="${1#*=}" ;;
+            --supabase-project) SUPABASE_PROJECT="$2"; shift ;;
+
+            # Multi-instance
+            --instance=*) INSTANCE="${1#*=}" ;;
+            --instance) INSTANCE="$2"; shift ;;
+            --port=*) APP_PORT="${1#*=}" ;;
+            --port) APP_PORT="$2"; shift ;;
+
             # Modes
             --yes|-y) YES_MODE=true ;;
             --dry-run) DRY_RUN=true ;;
@@ -172,7 +185,8 @@ parse_args() {
 
     # Eksportuj zmienne
     export SSH_ALIAS DB_SOURCE DB_HOST DB_PORT DB_NAME DB_SCHEMA DB_USER DB_PASS
-    export DOMAIN DOMAIN_TYPE YES_MODE DRY_RUN UPDATE_MODE BUILD_FILE
+    export DOMAIN DOMAIN_TYPE SUPABASE_PROJECT INSTANCE APP_PORT
+    export YES_MODE DRY_RUN UPDATE_MODE BUILD_FILE
 }
 
 # =============================================================================
@@ -202,6 +216,11 @@ Opcje bazy danych:
 Opcje domeny:
   --domain=DOMAIN      Domena aplikacji (np. app.example.com)
   --domain-type=TYPE   Typ: cytrus, cloudflare, local
+
+Opcje GateFlow:
+  --supabase-project=REF  Project ref Supabase (pomija wybór interaktywny)
+  --instance=NAME         Nazwa instancji (dla multi-instance, np. --instance=shop)
+  --port=PORT             Port aplikacji (domyślnie: auto-increment od 3333)
 
 Tryby:
   --yes, -y            Pomiń wszystkie potwierdzenia (wymaga pełnych parametrów)

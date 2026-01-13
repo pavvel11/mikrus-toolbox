@@ -27,6 +27,7 @@ NC='\033[0m'
 CONFIG_DIR="$HOME/.config/cloudflare"
 CONFIG_FILE="$CONFIG_DIR/config"
 TURNSTILE_TOKEN_FILE="$CONFIG_DIR/turnstile_token"
+TURNSTILE_ACCOUNT_FILE="$CONFIG_DIR/turnstile_account_id"
 
 if [ -z "$DOMAIN" ]; then
     echo "Użycie: $0 <domena> [ssh_alias]"
@@ -80,9 +81,25 @@ check_turnstile_access() {
 TURNSTILE_TOKEN=""
 ACCOUNT_ID=""
 
+# Spróbuj załadować zapisane dane
 if [ -f "$TURNSTILE_TOKEN_FILE" ]; then
     TURNSTILE_TOKEN=$(cat "$TURNSTILE_TOKEN_FILE")
+fi
+if [ -f "$TURNSTILE_ACCOUNT_FILE" ]; then
+    ACCOUNT_ID=$(cat "$TURNSTILE_ACCOUNT_FILE")
+fi
+
+# Zweryfikuj zapisany token
+if [ -n "$TURNSTILE_TOKEN" ] && [ -n "$ACCOUNT_ID" ]; then
     echo "🔑 Znaleziono zapisany token Turnstile..."
+    if check_turnstile_access "$TURNSTILE_TOKEN" "$ACCOUNT_ID"; then
+        echo -e "${GREEN}   ✅ Token jest aktualny${NC}"
+    else
+        echo "   ⚠️  Token wygasł lub jest nieprawidłowy"
+        TURNSTILE_TOKEN=""
+        ACCOUNT_ID=""
+        rm -f "$TURNSTILE_TOKEN_FILE" "$TURNSTILE_ACCOUNT_FILE"
+    fi
 fi
 
 # Jeśli nie ma dedykowanego tokena, spróbuj głównego
@@ -93,6 +110,10 @@ if [ -z "$TURNSTILE_TOKEN" ] && [ -f "$CONFIG_FILE" ]; then
         if [ -n "$ACCOUNT_ID" ] && check_turnstile_access "$MAIN_TOKEN" "$ACCOUNT_ID"; then
             TURNSTILE_TOKEN="$MAIN_TOKEN"
             echo -e "${GREEN}✅ Główny token ma uprawnienia Turnstile${NC}"
+            # Zapisz Account ID dla przyszłych użyć
+            mkdir -p "$CONFIG_DIR"
+            echo "$ACCOUNT_ID" > "$TURNSTILE_ACCOUNT_FILE"
+            chmod 600 "$TURNSTILE_ACCOUNT_FILE"
         fi
     fi
 fi
@@ -182,11 +203,12 @@ if [ -z "$TURNSTILE_TOKEN" ] || [ -z "$ACCOUNT_ID" ]; then
 
     echo -e "${GREEN}✅ Token zweryfikowany!${NC}"
 
-    # Zapisz token
+    # Zapisz token i Account ID
     mkdir -p "$CONFIG_DIR"
     echo "$TURNSTILE_TOKEN" > "$TURNSTILE_TOKEN_FILE"
-    chmod 600 "$TURNSTILE_TOKEN_FILE"
-    echo "   Token zapisany w: $TURNSTILE_TOKEN_FILE"
+    echo "$ACCOUNT_ID" > "$TURNSTILE_ACCOUNT_FILE"
+    chmod 600 "$TURNSTILE_TOKEN_FILE" "$TURNSTILE_ACCOUNT_FILE"
+    echo "   Token i Account ID zapisane"
 fi
 
 # =============================================================================
@@ -289,47 +311,91 @@ if echo "$CREATE_RESPONSE" | grep -q '"success":true'; then
     echo "CLOUDFLARE_TURNSTILE_SECRET_KEY=$SECRET_KEY" >> "$KEYS_FILE"
     chmod 600 "$KEYS_FILE"
 
-    # Opcjonalnie dodaj do .env.local na serwerze
+    # Dodaj do .env.local na serwerze (jeśli podano SSH_ALIAS)
     if [ -n "$SSH_ALIAS" ]; then
-        echo "Dodać klucze do serwera $SSH_ALIAS? [t/N]: "
-        read -r ADD_TO_SERVER
+        echo ""
+        echo "📤 Dodaję klucze do serwera $SSH_ALIAS..."
 
-        if [[ "$ADD_TO_SERVER" =~ ^[TtYy]$ ]]; then
-            # Główny plik .env.local (source of truth)
-            ENV_FILE="/root/gateflow/admin-panel/.env.local"
-            STANDALONE_ENV="/root/gateflow/admin-panel/.next/standalone/admin-panel/.env.local"
+        # Wyznacz ścieżki na podstawie domeny (multi-instance support)
+        INSTANCE_NAME="${DOMAIN%%.*}"
+        GATEFLOW_DIR="/root/gateflow-${INSTANCE_NAME}"
+        PM2_NAME="gateflow-${INSTANCE_NAME}"
 
-            # Sprawdź czy istnieje
-            if ssh "$SSH_ALIAS" "test -f $ENV_FILE"; then
-                # Dodaj do głównego .env.local
-                ssh "$SSH_ALIAS" "echo '' >> $ENV_FILE && echo '# Cloudflare Turnstile' >> $ENV_FILE && echo 'CLOUDFLARE_TURNSTILE_SITE_KEY=$SITE_KEY' >> $ENV_FILE && echo 'CLOUDFLARE_TURNSTILE_SECRET_KEY=$SECRET_KEY' >> $ENV_FILE"
+        # Sprawdź czy istnieje katalog instancji, jeśli nie - użyj domyślnego
+        if ! ssh "$SSH_ALIAS" "test -d $GATEFLOW_DIR" 2>/dev/null; then
+            GATEFLOW_DIR="/root/gateflow"
+            PM2_NAME="gateflow-admin"
+        fi
 
-                # Skopiuj do standalone
-                ssh "$SSH_ALIAS" "cp $ENV_FILE $STANDALONE_ENV 2>/dev/null || true"
+        ENV_FILE="$GATEFLOW_DIR/admin-panel/.env.local"
+        STANDALONE_ENV="$GATEFLOW_DIR/admin-panel/.next/standalone/admin-panel/.env.local"
 
-                echo -e "${GREEN}✅ Klucze dodane do $ENV_FILE${NC}"
+        # Sprawdź czy istnieje
+        if ssh "$SSH_ALIAS" "test -f $ENV_FILE" 2>/dev/null; then
+            # Dodaj do głównego .env.local (z aliasem TURNSTILE_SECRET_KEY dla Supabase)
+            ssh "$SSH_ALIAS" "echo '' >> $ENV_FILE && echo '# Cloudflare Turnstile' >> $ENV_FILE && echo 'CLOUDFLARE_TURNSTILE_SITE_KEY=$SITE_KEY' >> $ENV_FILE && echo 'CLOUDFLARE_TURNSTILE_SECRET_KEY=$SECRET_KEY' >> $ENV_FILE && echo 'TURNSTILE_SECRET_KEY=$SECRET_KEY' >> $ENV_FILE"
 
-                # Restart PM2 z przeładowaniem zmiennych środowiskowych
-                echo ""
-                echo "🔄 Restartuję GateFlow..."
+            # Skopiuj do standalone
+            ssh "$SSH_ALIAS" "cp $ENV_FILE $STANDALONE_ENV 2>/dev/null || true"
 
-                # Katalog standalone
-                STANDALONE_DIR="/root/gateflow/admin-panel/.next/standalone/admin-panel"
+            echo -e "${GREEN}   ✅ Klucze dodane${NC}"
 
-                # Musimy usunąć i uruchomić ponownie żeby przeładować env vars
-                RESTART_CMD="export PATH=\"\$HOME/.bun/bin:\$PATH\" && pm2 delete gateflow-admin 2>/dev/null; cd $STANDALONE_DIR && set -a && source .env.local && set +a && PORT=3333 HOSTNAME=0.0.0.0 pm2 start 'node server.js' --name gateflow-admin && pm2 save"
+            # Restart PM2 z przeładowaniem zmiennych środowiskowych
+            echo "🔄 Restartuję GateFlow..."
 
-                if ssh "$SSH_ALIAS" "$RESTART_CMD" 2>/dev/null; then
-                    echo -e "${GREEN}✅ Aplikacja zrestartowana${NC}"
-                else
-                    echo -e "${YELLOW}⚠️  Nie udało się zrestartować. Zrób to ręcznie:${NC}"
-                    echo "   ssh $SSH_ALIAS '$RESTART_CMD'"
-                fi
+            STANDALONE_DIR="$GATEFLOW_DIR/admin-panel/.next/standalone/admin-panel"
+            # WAŻNE: użyj --interpreter node, NIE 'node server.js' w cudzysłowach (bash nie dziedziczy env)
+            RESTART_CMD="export PATH=\"\$HOME/.bun/bin:\$PATH\" && pm2 delete $PM2_NAME 2>/dev/null; cd $STANDALONE_DIR && set -a && source .env.local && set +a && export PORT=\${PORT:-3333} && export HOSTNAME=\${HOSTNAME:-::} && pm2 start server.js --name $PM2_NAME --interpreter node && pm2 save"
+
+            if ssh "$SSH_ALIAS" "$RESTART_CMD" 2>/dev/null; then
+                echo -e "${GREEN}   ✅ Aplikacja zrestartowana${NC}"
             else
-                echo -e "${YELLOW}⚠️  Nie znaleziono .env.local na serwerze${NC}"
-                echo "   Dodaj klucze ręcznie."
+                echo -e "${YELLOW}   ⚠️  Restart nieudany - zrób ręcznie: pm2 restart $PM2_NAME${NC}"
+            fi
+        else
+            echo -e "${YELLOW}   ⚠️  Nie znaleziono .env.local - GateFlow nie zainstalowany?${NC}"
+        fi
+    fi
+
+    # =============================================================================
+    # 5. KONFIGURACJA CAPTCHA W SUPABASE AUTH
+    # =============================================================================
+
+    # Sprawdź czy mamy konfigurację Supabase
+    SUPABASE_TOKEN_FILE="$HOME/.config/supabase/access_token"
+    GATEFLOW_CONFIG="$HOME/.config/gateflow/supabase.env"
+
+    if [ -f "$SUPABASE_TOKEN_FILE" ] && [ -f "$GATEFLOW_CONFIG" ]; then
+        echo ""
+        echo "🔧 Konfiguruję CAPTCHA w Supabase Auth..."
+
+        SUPABASE_TOKEN=$(cat "$SUPABASE_TOKEN_FILE")
+        source "$GATEFLOW_CONFIG"  # Ładuje PROJECT_REF
+
+        if [ -n "$SUPABASE_TOKEN" ] && [ -n "$PROJECT_REF" ]; then
+            CAPTCHA_CONFIG=$(cat <<EOF
+{
+    "security_captcha_enabled": true,
+    "security_captcha_provider": "turnstile",
+    "security_captcha_secret": "$SECRET_KEY"
+}
+EOF
+)
+            RESPONSE=$(curl -s -X PATCH "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+                -H "Authorization: Bearer $SUPABASE_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "$CAPTCHA_CONFIG")
+
+            if echo "$RESPONSE" | grep -q '"error"'; then
+                echo -e "${YELLOW}   ⚠️  Nie udało się skonfigurować CAPTCHA w Supabase${NC}"
+            else
+                echo -e "${GREEN}   ✅ CAPTCHA włączony w Supabase Auth${NC}"
             fi
         fi
+    else
+        echo ""
+        echo -e "${YELLOW}ℹ️  Aby włączyć CAPTCHA w Supabase, uruchom ponownie deploy.sh${NC}"
+        echo "   lub skonfiguruj ręcznie w Supabase Dashboard → Authentication → Captcha"
     fi
 
     echo ""

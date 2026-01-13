@@ -18,12 +18,40 @@
 set -e
 
 APP_NAME="gateflow"
-INSTALL_DIR="/root/gateflow"
-PORT=${PORT:-3333}
 GITHUB_REPO="pavvel11/gateflow"
+
+# =============================================================================
+# MULTI-INSTANCE: nazwa instancji z domeny
+# =============================================================================
+# Wyciągnij pierwszą część domeny jako nazwę instancji
+# shop.example.com → shop
+# abc123.byst.re → abc123
+# Jeśli brak domeny lub "-" → użyj domyślnej nazwy
+if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
+    INSTANCE_NAME="${DOMAIN%%.*}"
+else
+    INSTANCE_NAME=""
+fi
+
+# Ustaw ścieżki i nazwy na podstawie instancji
+if [ -n "$INSTANCE_NAME" ]; then
+    INSTALL_DIR="/root/gateflow-${INSTANCE_NAME}"
+    PM2_NAME="gateflow-${INSTANCE_NAME}"
+else
+    INSTALL_DIR="/root/gateflow"
+    PM2_NAME="$PM2_NAME"
+fi
+
+PORT=${PORT:-3333}
 
 echo "--- 💰 GateFlow Setup ---"
 echo ""
+if [ -n "$INSTANCE_NAME" ]; then
+    echo "📦 Instancja: $INSTANCE_NAME"
+    echo "   Katalog: $INSTALL_DIR"
+    echo "   PM2: $PM2_NAME"
+    echo ""
+fi
 
 # =============================================================================
 # 1. INSTALACJA BUN + PM2
@@ -44,6 +72,57 @@ if ! command -v bun &> /dev/null || ! command -v pm2 &> /dev/null; then
     fi
 fi
 
+# Dodaj PATH do rc pliku powłoki (żeby pm2 działał przez SSH)
+# Sprawdzamy $SHELL żeby wybrać właściwy plik
+add_path_to_rc() {
+    local RC_FILE="$1"
+    local PREPEND="${2:-false}"
+
+    if [ "$PREPEND" = "true" ] && [ -f "$RC_FILE" ]; then
+        # Dodaj na początku (bash - przed guardem [ -z "$PS1" ] && return)
+        {
+            echo '# Bun & PM2 (dodane przez mikrus-toolbox)'
+            echo 'export PATH="$HOME/.bun/bin:$PATH"'
+            echo ''
+            cat "$RC_FILE"
+        } > "${RC_FILE}.new"
+        mv "${RC_FILE}.new" "$RC_FILE"
+    else
+        # Dodaj na końcu (zsh, profile)
+        echo '' >> "$RC_FILE"
+        echo '# Bun & PM2 (dodane przez mikrus-toolbox)' >> "$RC_FILE"
+        echo 'export PATH="$HOME/.bun/bin:$PATH"' >> "$RC_FILE"
+    fi
+}
+
+# Sprawdź czy PATH już dodany do któregoś z plików
+if ! grep -q '\.bun/bin' ~/.bashrc 2>/dev/null && \
+   ! grep -q '\.bun/bin' ~/.zshrc 2>/dev/null && \
+   ! grep -q '\.bun/bin' ~/.profile 2>/dev/null; then
+
+    # Wybierz plik na podstawie powłoki użytkownika
+    case "$SHELL" in
+        */zsh)
+            add_path_to_rc ~/.zshrc false
+            echo "✅ Dodano PATH do ~/.zshrc"
+            ;;
+        */bash)
+            if [ -f ~/.bashrc ]; then
+                add_path_to_rc ~/.bashrc true
+                echo "✅ Dodano PATH do ~/.bashrc"
+            else
+                add_path_to_rc ~/.profile false
+                echo "✅ Dodano PATH do ~/.profile"
+            fi
+            ;;
+        *)
+            # Nieznana powłoka - użyj .profile (uniwersalne)
+            add_path_to_rc ~/.profile false
+            echo "✅ Dodano PATH do ~/.profile"
+            ;;
+    esac
+fi
+
 echo "✅ Bun: v$(bun --version)"
 echo "✅ PM2: v$(pm2 --version)"
 echo ""
@@ -61,14 +140,38 @@ if [ -d ".next/standalone" ]; then
 else
     echo "📥 Pobieram GateFlow..."
 
-    # URL do najnowszego releasu (automatyczne przekierowanie)
-    RELEASE_URL="https://github.com/$GITHUB_REPO/releases/latest/download/gateflow-build.tar.gz"
+    # Sprawdź czy mamy lokalny plik (przekazany przez deploy.sh)
+    if [ -n "$BUILD_FILE" ] && [ -f "$BUILD_FILE" ]; then
+        echo "   Używam pliku: $BUILD_FILE"
+        if ! tar -xzf "$BUILD_FILE"; then
+            echo ""
+            echo "❌ Nie udało się rozpakować pliku"
+            echo "   Upewnij się, że plik jest prawidłowym archiwum .tar.gz"
+            exit 1
+        fi
+    else
+        # Pobierz z GitHub
+        RELEASE_URL="https://github.com/$GITHUB_REPO/releases/latest/download/gateflow-build.tar.gz"
 
-    curl -L "$RELEASE_URL" | tar -xz
+        if ! curl -fsSL "$RELEASE_URL" | tar -xz; then
+            echo ""
+            echo "❌ Nie udało się pobrać GateFlow z GitHub"
+            echo ""
+            echo "   Możliwe przyczyny:"
+            echo "   • Repozytorium jest prywatne"
+            echo "   • Brak połączenia z internetem"
+            echo "   • GitHub jest niedostępny"
+            echo ""
+            echo "   Rozwiązanie: Pobierz plik ręcznie i użyj flagi --build-file:"
+            echo "   ./local/deploy.sh gateflow --ssh=hanna --build-file=~/Downloads/gateflow-build.tar.gz"
+            exit 1
+        fi
+    fi
 
     if [ ! -d ".next/standalone" ]; then
-        echo "❌ Nie udało się pobrać GateFlow."
-        echo "   Sprawdź czy repo jest publiczne lub pobierz ręcznie."
+        echo ""
+        echo "❌ Nieprawidłowa struktura archiwum"
+        echo "   Archiwum powinno zawierać folder .next/standalone"
         exit 1
     fi
 
@@ -110,54 +213,19 @@ fi
 
 if grep -q "STRIPE_PUBLISHABLE_KEY=pk_" "$ENV_FILE" 2>/dev/null; then
     echo "✅ Konfiguracja Stripe już istnieje"
-else
-    echo ""
-    echo "════════════════════════════════════════════════════════════════"
-    echo "📋 KONFIGURACJA STRIPE"
-    echo "════════════════════════════════════════════════════════════════"
-    echo ""
-
-    # Sprawdź zmienne środowiskowe
-    if [ -n "$STRIPE_PK" ] && [ -n "$STRIPE_SK" ]; then
-        echo "✅ Użyto zmiennych środowiskowych dla Stripe"
-        CONFIGURE_STRIPE=true
-    elif [ -t 0 ]; then
-        echo "GateFlow potrzebuje kluczy Stripe do obsługi płatności."
-        echo "Możesz je skonfigurować teraz lub później w panelu GateFlow."
-        echo ""
-        read -p "Skonfigurować Stripe teraz? [t/N]: " STRIPE_CHOICE
-
-        if [[ "$STRIPE_CHOICE" =~ ^[TtYy1]$ ]]; then
-            echo ""
-            echo "   1. Otwórz: https://dashboard.stripe.com/apikeys"
-            echo "   2. Skopiuj 'Publishable key' (pk_live_... lub pk_test_...)"
-            echo "   3. Skopiuj 'Secret key' (sk_live_... lub sk_test_...)"
-            echo ""
-            read -p "STRIPE_PUBLISHABLE_KEY (pk_...): " STRIPE_PK
-            read -p "STRIPE_SECRET_KEY (sk_...): " STRIPE_SK
-            read -p "STRIPE_WEBHOOK_SECRET (whsec_..., opcjonalne - Enter aby pominąć): " STRIPE_WEBHOOK_SECRET
-            CONFIGURE_STRIPE=true
-        else
-            echo ""
-            echo "⏭️  Pominięto konfigurację Stripe - skonfigurujesz w panelu po instalacji."
-            CONFIGURE_STRIPE=false
-        fi
-    else
-        # Tryb nieinteraktywny bez kluczy - pomiń (można skonfigurować w GUI)
-        echo "⏭️  Stripe nie skonfigurowany - skonfigurujesz w panelu po instalacji."
-        CONFIGURE_STRIPE=false
-    fi
-
-    # Dodaj do .env.local tylko jeśli wybrano konfigurację
-    if [ "$CONFIGURE_STRIPE" = true ] && [ -n "$STRIPE_PK" ]; then
-        cat >> "$ENV_FILE" <<ENVEOF
+elif [ -n "$STRIPE_PK" ] && [ -n "$STRIPE_SK" ]; then
+    # Użyj kluczy przekazanych przez deploy.sh (zebrane lokalnie w FAZIE 1.5)
+    echo "✅ Konfiguruję Stripe..."
+    cat >> "$ENV_FILE" <<ENVEOF
 
 # Stripe
 STRIPE_PUBLISHABLE_KEY=$STRIPE_PK
 STRIPE_SECRET_KEY=$STRIPE_SK
 STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
 ENVEOF
-    fi
+else
+    # Brak kluczy - użytkownik skonfiguruje później w panelu
+    echo "ℹ️  Stripe zostanie skonfigurowany w panelu po instalacji"
 fi
 
 # =============================================================================
@@ -177,6 +245,14 @@ else
         SITE_URL="https://localhost:$PORT"
     fi
 
+    # Sprawdź czy to domena Cytrus (reverse proxy z SSL termination)
+    DISABLE_HSTS="false"
+    case "$DOMAIN" in
+        *.byst.re|*.bieda.it|*.toadres.pl|*.tojest.dev|*.mikr.us|*.srv24.pl|*.vxm.pl)
+            DISABLE_HSTS="true"
+            ;;
+    esac
+
     cat >> "$ENV_FILE" <<ENVEOF
 
 # Site URLs (runtime)
@@ -190,7 +266,11 @@ NEXT_PUBLIC_BASE_URL=$SITE_URL
 # Production
 NODE_ENV=production
 PORT=$PORT
-HOSTNAME=0.0.0.0
+# :: słucha na IPv4 i IPv6 (wymagane dla Cytrus który łączy się przez IPv6)
+HOSTNAME=::
+
+# HSTS (wyłącz dla reverse proxy z SSL termination)
+DISABLE_HSTS=$DISABLE_HSTS
 ENVEOF
 fi
 
@@ -205,6 +285,8 @@ if [ -n "$CLOUDFLARE_TURNSTILE_SITE_KEY" ] && [ -n "$CLOUDFLARE_TURNSTILE_SECRET
 # Cloudflare Turnstile (CAPTCHA)
 CLOUDFLARE_TURNSTILE_SITE_KEY=$CLOUDFLARE_TURNSTILE_SITE_KEY
 CLOUDFLARE_TURNSTILE_SECRET_KEY=$CLOUDFLARE_TURNSTILE_SECRET_KEY
+# Alias dla Supabase Auth
+TURNSTILE_SECRET_KEY=$CLOUDFLARE_TURNSTILE_SECRET_KEY
 ENVEOF
         echo "✅ Turnstile skonfigurowany"
     fi
@@ -242,7 +324,7 @@ fi
 echo "🚀 Uruchamiam GateFlow..."
 
 # Zatrzymaj jeśli działa
-pm2 delete gateflow-admin 2>/dev/null || true
+pm2 delete $PM2_NAME 2>/dev/null || true
 
 # Uruchom - preferuj standalone server (szybszy start, mniej RAM)
 if [ -f "$STANDALONE_DIR/server.js" ]; then
@@ -254,13 +336,16 @@ if [ -f "$STANDALONE_DIR/server.js" ]; then
     source .env.local
     set +a
     export PORT="${PORT:-3333}"
-    export HOSTNAME="${HOSTNAME:-0.0.0.0}"
+    # :: słucha na IPv4 i IPv6 (wymagane dla Cytrus który łączy się przez IPv6)
+    export HOSTNAME="${HOSTNAME:-::}"
 
-    pm2 start "node server.js" --name gateflow-admin
+    # WAŻNE: użyj --interpreter node, NIE "node server.js" w cudzysłowach
+    # Cudzysłowy uruchamiają przez bash, który nie dziedziczy zmiennych środowiskowych
+    pm2 start server.js --name $PM2_NAME --interpreter node
 else
     # Fallback do bun run start
     cd "$INSTALL_DIR/admin-panel"
-    pm2 start "bun run start" --name gateflow-admin
+    pm2 start server.js --name $PM2_NAME --interpreter bun
 fi
 
 pm2 save
@@ -268,11 +353,11 @@ pm2 save
 # Poczekaj i sprawdź
 sleep 3
 
-if pm2 list | grep -q "gateflow-admin.*online"; then
+if pm2 list | grep -q "$PM2_NAME.*online"; then
     echo "✅ GateFlow działa!"
 else
     echo "❌ Problem z uruchomieniem. Logi:"
-    pm2 logs gateflow-admin --lines 20
+    pm2 logs $PM2_NAME --lines 20
     exit 1
 fi
 
@@ -286,7 +371,7 @@ else
 fi
 
 # =============================================================================
-# 8. PODSUMOWANIE
+# 8. PODSUMOWANIE (skrócone - pełne info w deploy.sh po przydzieleniu domeny)
 # =============================================================================
 
 echo ""
@@ -294,27 +379,8 @@ echo "════════════════════════�
 echo "✅ GateFlow zainstalowany!"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
-if [ -n "$DOMAIN" ]; then
-    echo "🔗 URL: https://$DOMAIN"
-else
-    echo "🔗 Lokalnie: http://localhost:$PORT"
-fi
-echo ""
 echo "📋 Przydatne komendy:"
 echo "   pm2 status              - status aplikacji"
-echo "   pm2 logs gateflow-admin - logi"
-echo "   pm2 restart gateflow-admin - restart"
-echo ""
-echo "📋 Następne kroki:"
-echo "   1. Otwórz URL - pierwszy user zostanie adminem"
-echo "   2. Skonfiguruj Stripe Webhook:"
-echo "      → https://dashboard.stripe.com/webhooks"
-echo "      → Endpoint: https://$DOMAIN/api/webhooks/stripe"
-echo "      → Events: checkout.session.completed, payment_intent.succeeded"
-echo "   3. Zaktualizuj STRIPE_WEBHOOK_SECRET w $ENV_FILE"
-if [ -z "$CLOUDFLARE_TURNSTILE_SITE_KEY" ]; then
-    echo "   4. Skonfiguruj Turnstile (CAPTCHA) - lokalnie:"
-    echo "      → ./local/setup-turnstile.sh $DOMAIN <ssh_alias>"
-    echo "      → Lub ręcznie: https://dash.cloudflare.com → Turnstile"
-fi
+echo "   pm2 logs $PM2_NAME - logi"
+echo "   pm2 restart $PM2_NAME - restart"
 echo ""

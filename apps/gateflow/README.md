@@ -1,258 +1,584 @@
-# 💰 GateFlow - Twój Własny System Sprzedaży Produktów Cyfrowych
+# GateFlow - Twój Własny System Sprzedaży Produktów Cyfrowych
 
 **Open source alternatywa dla Gumroad, EasyCart, Teachable.**
 Sprzedawaj e-booki, kursy, szablony i licencje bez miesięcznych opłat i prowizji platformy.
 
 **RAM:** ~300MB | **Dysk:** ~500MB | **Plan:** Mikrus 3.0+ (1GB RAM)
 
+> **Uwaga:** W przykładach używamy `--ssh=hanna` jako przykładowego aliasu SSH.
+> Zamień `hanna` na swój alias z `~/.ssh/config` (np. `mikrus`, `srv1`, `mojserwer`).
+
 ---
 
-## 🚀 Szybki Start
+## Dwa tryby instalacji
 
-### Opcja 1: Dedykowane skrypty konfiguracyjne (zalecane)
+GateFlow obsługuje **dwa tryby** instalacji:
 
-```bash
-# 1. Konfiguracja Supabase (+ migracje)
-./local/setup-supabase-gateflow.sh hanna
+| Tryb | Dla kogo | Opis |
+|------|----------|------|
+| **Interaktywny** | Pierwsza instalacja | Skrypt zadaje pytania krok po kroku |
+| **Automatyczny** | CI/CD, MCP, powtarzalne deploye | Wszystkie klucze z CLI lub zapisanej konfiguracji |
 
-# 2. Konfiguracja Stripe
-./local/setup-stripe-gateflow.sh gf.twojadomena.pl
+---
 
-# 3. Deploy z zapisanymi konfiguracjami
-source ~/.config/gateflow/supabase.env
-source ~/.config/gateflow/stripe.env
-STRIPE_PK="$STRIPE_PUBLISHABLE_KEY" STRIPE_SK="$STRIPE_SECRET_KEY" \
-./local/deploy.sh gateflow --ssh=hanna --domain=gf.twojadomena.pl
-```
+## Szybki Start
 
-### Opcja 2: Interaktywny deploy
+### Tryb interaktywny (najprostszy)
 
 ```bash
-# Interaktywny setup (zadaje pytania)
-./local/deploy.sh gateflow --ssh=mikrus
-
-# Z Cytrus (domena *.byst.re)
-./local/deploy.sh gateflow --ssh=mikrus --domain-type=cytrus --domain=shop.byst.re
-
-# Z Cloudflare (własna domena + Turnstile CAPTCHA)
-./local/deploy.sh gateflow --ssh=mikrus --domain-type=cloudflare --domain=shop.mojafirma.pl
+./local/deploy.sh gateflow --ssh=hanna
 ```
 
 Skrypt przeprowadzi Cię przez:
-1. **Supabase** - automatyczny setup (otwiera przeglądarkę) lub ręczne wpisanie kluczy
-2. **Stripe** - skopiuj klucze z dashboardu
-3. **Turnstile** - CAPTCHA dla Cloudflare (automatycznie dla --domain-type=cloudflare)
-4. **Build & Start** - automatycznie
+1. Logowanie do Supabase (otworzy przeglądarkę)
+2. Wybór projektu Supabase
+3. Klucze Stripe (opcjonalne - możesz później)
+4. Konfigurację domeny
+5. Turnstile CAPTCHA (opcjonalne)
+
+### Tryb automatyczny (dla zaawansowanych)
+
+```bash
+# KROK 1: Jednorazowa konfiguracja (zbiera i zapisuje wszystkie klucze)
+./local/setup-gateflow-config.sh
+
+# KROK 2: Deployment (w pełni automatyczny, bez pytań)
+./local/deploy.sh gateflow --ssh=hanna --yes
+```
 
 ---
 
-## 📋 Wymagania
+## Wymagania
 
-| Usługa | Koszt | Do czego |
-|--------|-------|----------|
-| **Mikrus 3.0+** | ~16 zł/mies | Hosting aplikacji |
-| **Supabase** | Darmowe | Baza danych w chmurze |
-| **Stripe** | 2.9% + 1.20 zł/transakcja | Obsługa płatności |
+| Usługa | Koszt | Do czego | Obowiązkowe |
+|--------|-------|----------|-------------|
+| **Mikrus 3.0+** | ~16 zł/mies | Hosting aplikacji | Tak |
+| **Supabase** | Darmowe | Baza danych + Auth | Tak |
+| **Stripe** | 2.9% + 1.20 zł/transakcja | Płatności | Nie* |
+| **Cloudflare** | Darmowe | Turnstile CAPTCHA | Nie |
 
-### Przed instalacją przygotuj:
+*Stripe możesz skonfigurować później w panelu GateFlow.
 
-1. **Supabase** - https://supabase.com (załóż projekt)
-2. **Stripe** - https://dashboard.stripe.com/apikeys (skopiuj klucze)
+### Przed instalacją załóż konta:
+
+1. **Supabase** - https://supabase.com (utwórz projekt)
+2. **Stripe** - https://dashboard.stripe.com/apikeys (opcjonalne)
+3. **Cloudflare** - https://dash.cloudflare.com (opcjonalne, dla Turnstile)
 
 ---
 
-## 💸 Porównanie kosztów
+## Tryb Interaktywny (szczegóły)
+
+### Podstawowa komenda
+
+```bash
+./local/deploy.sh gateflow --ssh=ALIAS
+```
+
+### Parametry opcjonalne
+
+```bash
+# Z domeną Cytrus (automatyczna subdomena *.byst.re)
+./local/deploy.sh gateflow --ssh=hanna --domain=auto --domain-type=cytrus
+
+# Z własną domeną (Cloudflare DNS)
+./local/deploy.sh gateflow --ssh=hanna --domain=shop.example.com --domain-type=cloudflare
+
+# Z konkretnym projektem Supabase (pomija wybór z listy)
+./local/deploy.sh gateflow --ssh=hanna --supabase-project=abcdefghijk
+```
+
+### Co się dzieje podczas instalacji
+
+```
+1. Logowanie do Supabase
+   ├─ Automatyczne (otwiera przeglądarkę) lub
+   └─ Ręczne (wklejasz Personal Access Token)
+
+2. Wybór projektu Supabase
+   └─ Lista Twoich projektów → wybierasz numer
+
+3. Konfiguracja Stripe (opcjonalne)
+   ├─ Podajesz klucze pk_... i sk_... lub
+   └─ Pomijasz → skonfigurujesz w panelu później
+
+4. Wybór domeny
+   ├─ Automatyczna Cytrus (np. xyz123.byst.re)
+   ├─ Własna subdomena Cytrus
+   └─ Własna domena Cloudflare
+
+5. Turnstile CAPTCHA (opcjonalne)
+   └─ Automatycznie przez API lub ręcznie
+
+6. Instalacja i uruchomienie
+   └─ Build → Start → Migracje bazy
+```
+
+---
+
+## Tryb Automatyczny (szczegóły)
+
+Tryb automatyczny wymaga **wcześniejszego zebrania kluczy** za pomocą skryptu konfiguracyjnego.
+
+### Krok 1: Zbieranie kluczy
+
+```bash
+./local/setup-gateflow-config.sh
+```
+
+Skrypt zbiera i zapisuje do `~/.config/gateflow/deploy-config.env`:
+- Token Supabase + klucze projektu
+- Klucze Stripe (opcjonalne)
+- Klucze Turnstile (opcjonalne)
+- SSH alias
+- Domenę
+
+### Krok 2: Automatyczny deployment
+
+```bash
+./local/deploy.sh gateflow --ssh=hanna --yes
+```
+
+Flaga `--yes` oznacza:
+- Brak pytań interaktywnych
+- Użycie zapisanej konfiguracji
+- Automatyczna konfiguracja Turnstile (jeśli masz token Cloudflare)
+
+### Parametry setup-gateflow-config.sh
+
+| Parametr | Opis | Przykład |
+|----------|------|----------|
+| `--ssh=ALIAS` | SSH alias serwera | `--ssh=hanna` |
+| `--domain=DOMAIN` | Domena lub `auto` | `--domain=auto` |
+| `--domain-type=TYPE` | `cytrus` lub `cloudflare` | `--domain-type=cytrus` |
+| `--supabase-project=REF` | Project ref (pomija wybór) | `--supabase-project=abc123` |
+| `--no-supabase` | Bez konfiguracji Supabase | |
+| `--no-stripe` | Bez konfiguracji Stripe | |
+| `--no-turnstile` | Bez konfiguracji Turnstile | |
+
+### Przykłady konfiguracji
+
+```bash
+# Pełna interaktywna konfiguracja
+./local/setup-gateflow-config.sh
+
+# Szybka konfiguracja z automatyczną domeną Cytrus
+./local/setup-gateflow-config.sh --ssh=hanna --domain=auto
+
+# Bez Stripe i Turnstile (tylko Supabase)
+./local/setup-gateflow-config.sh --ssh=hanna --no-stripe --no-turnstile
+
+# Z konkretnym projektem Supabase
+./local/setup-gateflow-config.sh --ssh=hanna --supabase-project=grinnleqqyygznnbpjzc --domain=auto
+
+# Z własną domeną Cloudflare
+./local/setup-gateflow-config.sh --ssh=hanna --domain=shop.example.com --domain-type=cloudflare
+```
+
+---
+
+## Parametry deploy.sh (dla GateFlow)
+
+### Obowiązkowe
+
+| Parametr | Opis |
+|----------|------|
+| `--ssh=ALIAS` | SSH alias serwera z ~/.ssh/config |
+
+### Opcjonalne - Supabase
+
+| Parametr | Opis |
+|----------|------|
+| `--supabase-project=REF` | Project ref - pomija interaktywny wybór |
+
+### Opcjonalne - Domena
+
+| Parametr | Opis |
+|----------|------|
+| `--domain=DOMAIN` | Domena aplikacji lub `auto` dla automatycznej Cytrus |
+| `--domain-type=TYPE` | `cytrus` (subdomena *.byst.re) lub `cloudflare` (własna domena) |
+
+### Opcjonalne - Tryby
+
+| Parametr | Opis |
+|----------|------|
+| `--yes` | Tryb automatyczny - bez pytań |
+| `--update` | Aktualizacja istniejącej instalacji |
+| `--build-file=PATH` | Użyj lokalnego pliku .tar.gz (dla prywatnych repo) |
+| `--dry-run` | Pokaż co się wykona bez wykonania |
+
+### Przykłady
+
+```bash
+# Interaktywny z automatyczną domeną
+./local/deploy.sh gateflow --ssh=hanna --domain=auto --domain-type=cytrus
+
+# Automatyczny (wymaga wcześniejszej konfiguracji)
+./local/deploy.sh gateflow --ssh=hanna --yes
+
+# Automatyczny z konkretnym projektem Supabase
+./local/deploy.sh gateflow --ssh=hanna --supabase-project=abc123 --yes
+
+# Z własną domeną Cloudflare
+./local/deploy.sh gateflow --ssh=hanna --domain=shop.example.com --domain-type=cloudflare --yes
+
+# Aktualizacja
+./local/deploy.sh gateflow --ssh=hanna --update
+
+# Z lokalnym buildem (prywatne repo)
+./local/deploy.sh gateflow --ssh=hanna --build-file=~/Downloads/gateflow-build.tar.gz --yes
+```
+
+---
+
+## Case Studies
+
+### Case 1: Pierwsza instalacja (początkujący)
+
+**Sytuacja:** Pierwszy raz instalujesz GateFlow, chcesz żeby skrypt prowadził za rączkę.
+
+```bash
+# Po prostu uruchom
+./local/deploy.sh gateflow --ssh=hanna
+
+# Skrypt:
+# 1. Otworzy przeglądarkę do logowania Supabase
+# 2. Pokaże listę projektów do wyboru
+# 3. Zapyta o klucze Stripe (możesz pominąć)
+# 4. Zapyta o domenę (wybierz automatyczną)
+# 5. Zainstaluje i uruchomi
+```
+
+### Case 2: Deployment na CI/CD
+
+**Sytuacja:** Chcesz automatyzować deployment w pipeline CI/CD.
+
+```bash
+# JEDNORAZOWO (na lokalnej maszynie):
+./local/setup-gateflow-config.sh --ssh=hanna --domain=auto
+
+# W CI/CD:
+./local/deploy.sh gateflow --ssh=hanna --yes
+```
+
+### Case 3: Wiele serwerów Mikrus
+
+**Sytuacja:** Masz kilka serwerów i chcesz szybko deployować na różne.
+
+```bash
+# Konfiguracja dla każdego serwera
+./local/setup-gateflow-config.sh --ssh=hanna --domain=auto
+./local/setup-gateflow-config.sh --ssh=gracz --domain=auto
+
+# Deploy (użyje zapisanej konfiguracji)
+./local/deploy.sh gateflow --ssh=hanna --yes
+./local/deploy.sh gateflow --ssh=gracz --yes
+```
+
+### Case 4: Własna domena z Cloudflare
+
+**Sytuacja:** Masz domenę `shop.mojastrona.pl` z DNS w Cloudflare.
+
+```bash
+# 1. W Cloudflare: dodaj rekord A wskazujący na IP serwera Mikrus
+#    shop.mojastrona.pl → 1.2.3.4 (IP z panelu Mikrus)
+
+# 2. Konfiguracja
+./local/setup-gateflow-config.sh \
+  --ssh=hanna \
+  --domain=shop.mojastrona.pl \
+  --domain-type=cloudflare
+
+# 3. Deploy
+./local/deploy.sh gateflow --ssh=hanna --yes
+```
+
+### Case 5: Wiele projektów Supabase na jednym koncie
+
+**Sytuacja:** Masz dwa projekty Supabase: produkcyjny i testowy.
+
+```bash
+# Project ref znajdziesz w URL:
+# https://supabase.com/dashboard/project/TUTAJ_REF
+
+# Deploy na projekt testowy
+./local/deploy.sh gateflow --ssh=hanna-test --supabase-project=abc123test --yes
+
+# Deploy na projekt produkcyjny
+./local/deploy.sh gateflow --ssh=hanna-prod --supabase-project=xyz789prod --yes
+```
+
+### Case 6: Reinstalacja po wyczyszczeniu serwera
+
+**Sytuacja:** Wyczyściłeś serwer, ale masz zapisaną konfigurację.
+
+```bash
+# Konfiguracja jest w ~/.config/gateflow/deploy-config.env
+# Po prostu uruchom:
+./local/deploy.sh gateflow --ssh=hanna --yes
+
+# Skrypt użyje zapisanych kluczy Supabase, domeny, etc.
+```
+
+### Case 7: Aktualizacja GateFlow
+
+**Sytuacja:** Wyszła nowa wersja, chcesz zaktualizować.
+
+```bash
+# Prosta aktualizacja (auto-wykrywa instancję)
+./local/deploy.sh gateflow --ssh=hanna --update
+
+# Aktualizacja konkretnej instancji
+./local/deploy.sh gateflow --ssh=hanna --update --domain=shop.example.com
+
+# Aktualizacja z lokalnym buildem (prywatne repo)
+./local/deploy.sh gateflow --ssh=hanna --update --build-file=~/Downloads/gateflow-build.tar.gz
+```
+
+### Case 8: Wiele instancji na jednym serwerze (ta sama baza)
+
+**Sytuacja:** Chcesz uruchomić kilka sklepów na jednym Mikrusie, używając tego samego projektu Supabase.
+
+```bash
+# Pierwsza instancja - sklep główny
+./local/deploy.sh gateflow --ssh=hanna --domain=shop.example.com --domain-type=cloudflare
+
+# Druga instancja - kursy online
+./local/deploy.sh gateflow --ssh=hanna --domain=courses.example.com --domain-type=cloudflare
+
+# Trzecia instancja - inna domena
+./local/deploy.sh gateflow --ssh=hanna --domain=digital.innadomena.pl --domain-type=cloudflare
+```
+
+**Wynik na serwerze:**
+```
+/root/gateflow-shop/      # PM2: gateflow-shop,    port: 3333
+/root/gateflow-courses/   # PM2: gateflow-courses, port: 3334
+/root/gateflow-digital/   # PM2: gateflow-digital, port: 3335
+```
+
+Każda instancja:
+- Ma własny katalog i proces PM2
+- Może mieć własną konfigurację Stripe
+- Port jest auto-inkrementowany (3333, 3334, 3335...)
+
+**Aktualizacja konkretnej instancji:**
+```bash
+./local/deploy.sh gateflow --ssh=hanna --update --domain=courses.example.com
+```
+
+### Case 9: Wiele instancji z różnymi bazami danych
+
+**Sytuacja:** Chcesz mieć całkowicie niezależne sklepy - każdy z własną bazą Supabase.
+
+```bash
+# Sprawdź swoje projekty Supabase
+# https://supabase.com/dashboard/projects
+
+# Instancja 1: Produkcja (projekt: gateflow-prod)
+./local/deploy.sh gateflow --ssh=hanna \
+  --supabase-project=abc123prod \
+  --domain=shop.example.com \
+  --domain-type=cloudflare \
+  --yes
+
+# Instancja 2: Testy (projekt: gateflow-test)
+./local/deploy.sh gateflow --ssh=hanna \
+  --supabase-project=xyz789test \
+  --domain=test.example.com \
+  --domain-type=cloudflare \
+  --yes
+
+# Instancja 3: Demo dla klienta (projekt: gateflow-demo)
+./local/deploy.sh gateflow --ssh=hanna \
+  --supabase-project=demo456client \
+  --domain=demo.example.com \
+  --domain-type=cloudflare \
+  --yes
+```
+
+**Wynik na serwerze:**
+```
+/root/gateflow-shop/   # Supabase: abc123prod,  port: 3333
+/root/gateflow-test/   # Supabase: xyz789test,  port: 3334
+/root/gateflow-demo/   # Supabase: demo456client, port: 3335
+```
+
+**Kluczowy parametr:** `--supabase-project=REF` pozwala wybrać inny projekt Supabase dla każdej instancji.
+
+**Weryfikacja konfiguracji:**
+```bash
+# Sprawdź który projekt używa która instancja
+ssh hanna "grep SUPABASE_URL /root/gateflow-*/admin-panel/.env.local"
+```
+
+---
+
+## Gdzie są zapisywane klucze
+
+### Na lokalnej maszynie
+
+```
+~/.config/gateflow/
+├── deploy-config.env    # Główna konfiguracja (setup-gateflow-config.sh)
+└── supabase.env         # Backup kluczy Supabase
+
+~/.config/supabase/
+└── access_token         # Personal Access Token Supabase
+
+~/.config/cloudflare/
+├── turnstile_token      # API token Cloudflare
+├── turnstile_account_id # Account ID
+└── turnstile_keys_DOMENA # Klucze Turnstile per domena
+```
+
+### Na serwerze
+
+```
+# Pojedyncza instancja (auto-domena lub pierwsza instalacja)
+~/gateflow/
+├── admin-panel/
+│   ├── .env.local           # Konfiguracja aplikacji
+│   └── .next/standalone/    # Zbudowana aplikacja
+└── .env.local.backup        # Backup (przy update)
+
+# Multi-instance (każda domena = osobny katalog)
+~/gateflow-shop/             # domena: shop.example.com
+~/gateflow-courses/          # domena: courses.example.com
+~/gateflow-demo/             # domena: demo.example.com
+```
+
+---
+
+## Zarządzanie
+
+```bash
+# Status wszystkich instancji
+ssh hanna "pm2 status"
+
+# Logi pojedynczej instancji
+ssh hanna "pm2 logs gateflow-admin"           # auto-domena
+ssh hanna "pm2 logs gateflow-shop"            # shop.example.com
+
+# Restart
+ssh hanna "pm2 restart gateflow-admin"
+
+# Restart wszystkich instancji GateFlow
+ssh hanna "pm2 restart all"
+
+# Logi na żywo
+ssh hanna "pm2 logs gateflow-shop --lines 50"
+
+# Sprawdź konfigurację Supabase wszystkich instancji
+ssh hanna "grep SUPABASE_URL /root/gateflow*/admin-panel/.env.local"
+```
+
+> **Uwaga:** Jeśli `pm2: command not found`, dodaj PATH ręcznie:
+> ```bash
+> ssh hanna "echo 'export PATH=\"\$HOME/.bun/bin:\$PATH\"' >> ~/.bashrc"
+> ```
+> Nowe instalacje GateFlow dodają to automatycznie.
+
+---
+
+## Dodatkowe skrypty
+
+### setup-turnstile.sh - CAPTCHA
+
+```bash
+# Automatycznie tworzy widget Turnstile dla domeny
+./local/setup-turnstile.sh shop.example.com hanna
+```
+
+### setup-supabase-email.sh - SMTP
+
+```bash
+# Konfiguruje własny SMTP dla wysyłki emaili
+./local/setup-supabase-email.sh
+```
+
+### setup-supabase-migrations.sh - Migracje bazy
+
+```bash
+# Ręczne uruchomienie migracji (normalnie automatyczne)
+SSH_ALIAS=hanna ./local/setup-supabase-migrations.sh
+```
+
+---
+
+## Stripe Webhooks (po instalacji)
+
+1. Otwórz: https://dashboard.stripe.com/webhooks
+2. Add endpoint: `https://TWOJA-DOMENA/api/webhooks/stripe`
+3. Events:
+   - `checkout.session.completed`
+   - `payment_intent.succeeded`
+   - `payment_intent.payment_failed`
+4. Skopiuj Signing Secret (`whsec_...`)
+5. Dodaj do konfiguracji:
+   ```bash
+   ssh hanna "echo 'STRIPE_WEBHOOK_SECRET=whsec_...' >> ~/gateflow/admin-panel/.env.local"
+   ssh hanna "pm2 restart gateflow-admin"
+   ```
+
+---
+
+## FAQ
+
+**Q: Jaka jest różnica między trybem interaktywnym a automatycznym?**
+
+A: Interaktywny zadaje pytania krok po kroku - idealny na początek. Automatyczny używa zapisanych kluczy i flagi `--yes` - idealny do CI/CD i powtarzalnych deployów.
+
+**Q: Czy muszę uruchamiać setup-gateflow-config.sh przed każdym deployem?**
+
+A: Nie! Wystarczy raz. Konfiguracja jest zapisywana i używana automatycznie przy kolejnych deployach z `--yes`.
+
+**Q: Co jeśli chcę zmienić projekt Supabase?**
+
+A: Uruchom ponownie `./local/setup-gateflow-config.sh` i wybierz inny projekt, lub użyj `--supabase-project=NOWY_REF`.
+
+**Q: Czy pierwszy user to admin?**
+
+A: Tak! Pierwsza osoba która się zarejestruje automatycznie dostaje uprawnienia admina.
+
+**Q: Testowa karta do Stripe?**
+
+A: `4242 4242 4242 4242` (dowolna data, dowolne CVC)
+
+**Q: Gdzie znajdę project ref Supabase?**
+
+A: W URL projektu: `https://supabase.com/dashboard/project/TUTAJ_REF`
+
+**Q: Czy Turnstile jest obowiązkowy?**
+
+A: Nie. To opcjonalna ochrona CAPTCHA. Możesz skonfigurować później lub pominąć.
+
+**Q: Czy mogę mieć kilka instancji GateFlow na jednym serwerze?**
+
+A: Tak! Każda instancja musi mieć inną domenę. System automatycznie:
+- Tworzy oddzielny katalog (`/root/gateflow-{subdomena}/`)
+- Przydziela kolejny port (3333, 3334, 3335...)
+- Tworzy oddzielny proces PM2
+
+Możesz też użyć różnych projektów Supabase dla każdej instancji za pomocą `--supabase-project=REF`.
+
+**Q: Jak sprawdzić status wielu instancji?**
+
+A: `ssh hanna "pm2 list"` - pokaże wszystkie procesy GateFlow z ich statusem.
+
+---
+
+## Porównanie kosztów
 
 | | EasyCart | Gumroad | **GateFlow** |
 |---|---|---|---|
 | Opłata miesięczna | 100 zł/mies | 10$/mies | **0 zł** |
 | Prowizja od sprzedaży | 1-3% | 10% | **0%** |
-| Własność danych | ❌ | ❌ | **✅** |
+| Własność danych | - | - | **Tak** |
 | Przy 300k zł/rok | ~16-19k zł | ~30k zł | **~8.7k zł** |
 
 **Oszczędzasz 7,000-20,000 zł rocznie** hostując GateFlow na Mikrusie.
 
 ---
 
-## ⚙️ Konfiguracja
-
-### Supabase (dwie opcje)
-
-**Opcja 1: Automatyczna (zalecana)**
-```
-Skrypt uruchomi 'bun run setup' który:
-1. Poprosi o Personal Access Token z Supabase
-2. Wylistuje Twoje projekty
-3. Automatycznie pobierze klucze API
-```
-
-**Opcja 2: Ręczna**
-```
-1. Otwórz: https://supabase.com/dashboard
-2. Wybierz projekt → Settings → API
-3. Skopiuj: URL, anon key, service_role key
-```
-
-### Stripe
-
-```
-1. Otwórz: https://dashboard.stripe.com/apikeys
-2. Skopiuj: Publishable key (pk_...) i Secret key (sk_...)
-```
-
-### Przygotowanie bazy danych
-
-Przy instalacji skrypt automatycznie tworzy potrzebne tabele w Supabase.
-Potrzebujesz tylko "Database URL" (adres połączenia z bazą).
-
-**Gdzie go znaleźć:**
-1. Otwórz https://supabase.com/dashboard
-2. Wybierz projekt → Settings → Database
-3. Sekcja "Connection string" → URI
-4. Skopiuj (zaczyna się od `postgresql://`)
-
-Skrypt zapamięta ten adres na przyszłość (aktualizacje).
-
----
-
-## ✨ Funkcje
-
-### 🛒 Sprzedaż
-- **Stripe Elements** - płatności bez przekierowań
-- **26 walut** z automatyczną konwersją
-- **Guest checkout** - zakupy bez rejestracji
-- **Magic links** - logowanie bez hasła
-
-### 📈 Lejki sprzedażowe
-- **Order Bumps** - zwiększ wartość koszyka o 30-50%
-- **One-Time Offers** - oferty po zakupie z licznikiem
-- **Kupony** - procentowe, kwotowe, z limitami
-
-### 🔐 Ochrona treści
-- **JavaScript SDK** do ochrony dowolnej strony
-- Działa z WordPress, Webflow, statycznymi stronami
-
-### 🇪🇺 Zgodność z prawem
-- **Omnibus Directive** - historia cen 30 dni
-- **GDPR** - consent management
-- **GUS REGON** - auto-uzupełnianie po NIP
-
----
-
-## 🔗 Integracja z Mikrus Toolbox
-
-```
-[Klient] → [Typebot - chatbot] → [GateFlow - płatność]
-                                        ↓
-                               [Webhook do n8n]
-                                        ↓
-                    ┌───────────────────┼───────────────────┐
-                    ↓                   ↓                   ↓
-            [NocoDB - CRM]      [Listmonk - email]   [Fakturownia]
-```
-
----
-
-## 📁 Lokalizacja
-
-**Na serwerze:**
-```
-~/gateflow/
-├── admin-panel/
-│   ├── .env.local      # Konfiguracja (Supabase, Stripe, URLs, Turnstile)
-│   └── .next/standalone/  # Pre-built aplikacja
-└── .env.local.backup   # Backup konfiguracji (tworzony przy update)
-```
-
-**Na lokalnej maszynie:**
-```
-~/.config/gateflow/
-├── supabase.env    # Klucze Supabase (setup-supabase-gateflow.sh)
-└── stripe.env      # Klucze Stripe (setup-stripe-gateflow.sh)
-
-~/.config/cloudflare/
-└── turnstile_keys_DOMENA  # Klucze Turnstile (setup-turnstile.sh)
-```
-
----
-
-## 🔧 Zarządzanie
-
-```bash
-# Status
-pm2 status
-
-# Logi
-pm2 logs gateflow-admin
-
-# Restart
-pm2 restart gateflow-admin
-```
-
-### Aktualizacja
-
-```bash
-# Prosta komenda (tak jak instalacja, ale z --update)
-./local/deploy.sh gateflow --ssh=hanna --update
-```
-
-Co robi:
-1. Pobiera najnowszą wersję aplikacji
-2. Zachowuje Twoją konfigurację
-3. Aktualizuje bazę danych jeśli trzeba (pyta o adres)
-4. Restartuje aplikację
-
----
-
-## 🔒 Turnstile (CAPTCHA)
-
-Dla domen Cloudflare automatycznie konfigurowany jest Turnstile (CAPTCHA bez CAPTCHA):
-
-```bash
-# Automatycznie przy deploy z --domain-type=cloudflare
-./local/deploy.sh gateflow --ssh=hanna --domain-type=cloudflare --domain=gf.example.com
-
-# Lub osobno (jeśli już masz GateFlow)
-./local/setup-turnstile.sh gf.example.com hanna
-```
-
-Klucze są automatycznie dodawane do `.env.local` i aplikacja restartowana.
-
----
-
-## 🔒 Stripe Webhooks
-
-Po instalacji skonfiguruj webhooks:
-
-1. Otwórz: https://dashboard.stripe.com/webhooks
-2. Add endpoint: `https://twoja-domena.pl/api/webhooks/stripe`
-3. Events:
-   - `checkout.session.completed`
-   - `payment_intent.succeeded`
-   - `payment_intent.payment_failed`
-4. Skopiuj Signing Secret (`whsec_...`)
-5. Dodaj do `~/gateflow/admin-panel/.env.local`:
-   ```
-   STRIPE_WEBHOOK_SECRET=whsec_...
-   ```
-6. Restart: `pm2 restart gateflow-admin`
-
----
-
-## ❓ FAQ
-
-**Q: Czy to naprawdę darmowe?**
-A: Tak! GateFlow jest open source (MIT). Płacisz tylko za hosting (~16 zł/mies) i Stripe (2.9% + 1.20 zł).
-
-**Q: Dlaczego Supabase a nie lokalna baza?**
-A: Supabase daje darmowy hosting PostgreSQL + Auth + Realtime. Mniej rzeczy do utrzymania na Mikrusie.
-
-**Q: Czy pierwszy user to admin?**
-A: Tak! Pierwsza osoba która się zarejestruje automatycznie dostaje uprawnienia admina.
-
-**Q: Testowa karta do Stripe?**
-A: `4242 4242 4242 4242` (dowolna data, dowolne CVC)
-
----
-
-> 📖 **Więcej:** https://github.com/pavvel11/gateflow
+> GateFlow: https://github.com/pavvel11/gateflow

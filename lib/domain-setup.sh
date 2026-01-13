@@ -99,10 +99,12 @@ ask_domain() {
     echo ""
     echo "Jak chcesz uzyskać dostęp do aplikacji?"
     echo ""
+
     echo "  1) 🍊 Domena Mikrusa (Cytrus) - najszybsze!"
     echo "     Automatyczna domena *.byst.re / *.bieda.it / *.toadres.pl"
     echo "     ➜ Działa od razu, bez konfiguracji DNS"
     echo ""
+
     echo "  2) ☁️  Własna domena przez Cloudflare"
     echo "     Skrypt skonfiguruje DNS automatycznie"
     echo "     ➜ Wymaga: ./local/setup-cloudflare.sh"

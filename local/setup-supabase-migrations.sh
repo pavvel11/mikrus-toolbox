@@ -38,10 +38,18 @@ echo ""
 # 1. POBIERZ KONFIGURACJĘ
 # =============================================================================
 
+# Zachowaj wartości z env (mają priorytet nad config)
+ENV_PROJECT_REF="$PROJECT_REF"
+ENV_SUPABASE_URL="$SUPABASE_URL"
+
 # Załaduj zapisaną konfigurację
 if [ -f "$CONFIG_FILE" ]; then
     source "$CONFIG_FILE"
 fi
+
+# Przywróć wartości z env jeśli były ustawione (env > config)
+[ -n "$ENV_PROJECT_REF" ] && PROJECT_REF="$ENV_PROJECT_REF"
+[ -n "$ENV_SUPABASE_URL" ] && SUPABASE_URL="$ENV_SUPABASE_URL"
 
 # Sprawdź SUPABASE_URL
 if [ -z "$SUPABASE_URL" ]; then
@@ -50,8 +58,10 @@ if [ -z "$SUPABASE_URL" ]; then
     exit 1
 fi
 
-# Wyciągnij project ref z URL (np. https://abcdefgh.supabase.co -> abcdefgh)
-PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's|https://([^.]+)\.supabase\.co.*|\1|')
+# Użyj PROJECT_REF z config lub wyciągnij z URL
+if [ -z "$PROJECT_REF" ]; then
+    PROJECT_REF=$(echo "$SUPABASE_URL" | sed -E 's|https://([^.]+)\.supabase\.co.*|\1|')
+fi
 
 if [ -z "$PROJECT_REF" ] || [ "$PROJECT_REF" = "$SUPABASE_URL" ]; then
     echo -e "${RED}❌ Nie mogę wyciągnąć project ref z URL: $SUPABASE_URL${NC}"
@@ -139,38 +149,61 @@ fi
 echo -e "${GREEN}✅ Połączenie OK${NC}"
 
 # =============================================================================
-# 3. POBIERZ MIGRACJE
+# 3. ZNAJDŹ MIGRACJE (lokalnie lub z GitHub)
 # =============================================================================
 
 echo ""
-echo "📥 Pobieram pliki migracji..."
+echo "📥 Szukam plików migracji..."
 
 TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
-# Pobierz listę migracji z GitHub
-MIGRATIONS_LIST=$(curl -sL "https://api.github.com/repos/$GITHUB_REPO/contents/$MIGRATIONS_PATH" \
-    -H "Authorization: token ${GITHUB_TOKEN:-}" 2>/dev/null | grep -o '"name": "[^"]*\.sql"' | cut -d'"' -f4 | sort)
+# Sprawdź czy migracje są na serwerze (z paczki instalacyjnej)
+SSH_ALIAS="${SSH_ALIAS:-hanna}"
+MIGRATIONS_SOURCE=""
 
-if [ -z "$MIGRATIONS_LIST" ]; then
-    echo -e "${YELLOW}⚠️  Nie udało się pobrać listy migracji z GitHub${NC}"
-    echo "   Repo może być prywatne. Pomijam przygotowanie bazy."
-    exit 0
+# Znajdź katalog instalacji GateFlow (może być /root/gateflow lub /root/gateflow-*)
+GATEFLOW_DIR=$(ssh "$SSH_ALIAS" "ls -d /root/gateflow-* 2>/dev/null | head -1" 2>/dev/null)
+if [ -z "$GATEFLOW_DIR" ]; then
+    GATEFLOW_DIR="/root/gateflow"
+fi
+REMOTE_MIGRATIONS_DIR="$GATEFLOW_DIR/admin-panel/supabase/migrations"
+
+# Pobierz listę migracji z serwera przez SSH
+MIGRATIONS_LIST=$(ssh "$SSH_ALIAS" "ls '$REMOTE_MIGRATIONS_DIR'/*.sql 2>/dev/null | xargs -n1 basename 2>/dev/null | sort" 2>/dev/null)
+
+if [ -n "$MIGRATIONS_LIST" ]; then
+    echo "   ✅ Znaleziono migracje w paczce instalacyjnej"
+    MIGRATIONS_SOURCE="server"
+    # Skopiuj z serwera do temp
+    scp -q "$SSH_ALIAS:$REMOTE_MIGRATIONS_DIR/"*.sql "$TEMP_DIR/" 2>/dev/null
+fi
+
+# Fallback - pobierz z GitHub
+if [ -z "$MIGRATIONS_SOURCE" ]; then
+    echo "   Pobieram z GitHub..."
+    MIGRATIONS_LIST=$(curl -sL "https://api.github.com/repos/$GITHUB_REPO/contents/$MIGRATIONS_PATH" \
+        -H "Authorization: token ${GITHUB_TOKEN:-}" 2>/dev/null | grep -o '"name": "[^"]*\.sql"' | cut -d'"' -f4 | sort)
+
+    if [ -z "$MIGRATIONS_LIST" ]; then
+        echo -e "${YELLOW}⚠️  Brak migracji do wykonania${NC}"
+        echo "   Migracje nie są dostępne lokalnie ani na GitHub."
+        exit 0
+    fi
+
+    # Pobierz każdy plik
+    for migration in $MIGRATIONS_LIST; do
+        curl -sL "https://raw.githubusercontent.com/$GITHUB_REPO/main/$MIGRATIONS_PATH/$migration" \
+            -H "Authorization: token ${GITHUB_TOKEN:-}" \
+            -o "$TEMP_DIR/$migration"
+    done
+    MIGRATIONS_SOURCE="github"
 fi
 
 echo "   Znaleziono migracje:"
 for migration in $MIGRATIONS_LIST; do
     echo "   - $migration"
 done
-
-# Pobierz każdy plik
-for migration in $MIGRATIONS_LIST; do
-    curl -sL "https://raw.githubusercontent.com/$GITHUB_REPO/main/$MIGRATIONS_PATH/$migration" \
-        -H "Authorization: token ${GITHUB_TOKEN:-}" \
-        -o "$TEMP_DIR/$migration"
-done
-
-echo -e "${GREEN}✅ Migracje pobrane${NC}"
 
 # =============================================================================
 # 4. SPRAWDŹ KTÓRE MIGRACJE SĄ POTRZEBNE

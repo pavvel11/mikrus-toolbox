@@ -30,6 +30,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$REPO_ROOT/lib/cli-parser.sh"
 source "$REPO_ROOT/lib/db-setup.sh"
 source "$REPO_ROOT/lib/domain-setup.sh"
+source "$REPO_ROOT/lib/gateflow-setup.sh" 2>/dev/null || true  # Opcjonalna dla GateFlow
 
 # =============================================================================
 # CUSTOM HELP
@@ -122,6 +123,57 @@ fi
 SSH_ALIAS="${SSH_ALIAS:-mikrus}"
 
 # =============================================================================
+# ZAŁADUJ ZAPISANĄ KONFIGURACJĘ (dla GateFlow)
+# =============================================================================
+
+GATEFLOW_CONFIG="$HOME/.config/gateflow/deploy-config.env"
+if [ -f "$GATEFLOW_CONFIG" ] && [[ "$SCRIPT_PATH" == "gateflow" ]]; then
+    # Zachowaj wartości z CLI (mają priorytet nad configiem)
+    CLI_DOMAIN="$DOMAIN"
+    CLI_DOMAIN_TYPE="$DOMAIN_TYPE"
+    CLI_SUPABASE_PROJECT="$SUPABASE_PROJECT"
+
+    # Załaduj config
+    source "$GATEFLOW_CONFIG"
+
+    # Przywróć wartości CLI jeśli były podane (CLI > config)
+    [ -n "$CLI_DOMAIN" ] && DOMAIN="$CLI_DOMAIN"
+    [ -n "$CLI_DOMAIN_TYPE" ] && DOMAIN_TYPE="$CLI_DOMAIN_TYPE"
+    [ -n "$CLI_SUPABASE_PROJECT" ] && SUPABASE_PROJECT="$CLI_SUPABASE_PROJECT"
+
+    if [ "$YES_MODE" = true ]; then
+        # Tryb --yes: używaj zapisanej konfiguracji (z override z CLI)
+        echo "📂 Ładuję zapisaną konfigurację GateFlow (tryb --yes)..."
+
+        # Supabase
+        [ -n "$SUPABASE_URL" ] && export SUPABASE_URL
+        [ -n "$PROJECT_REF" ] && export PROJECT_REF
+        [ -n "$SUPABASE_ANON_KEY" ] && export SUPABASE_ANON_KEY
+        [ -n "$SUPABASE_SERVICE_KEY" ] && export SUPABASE_SERVICE_KEY
+
+        # Stripe
+        [ -n "$STRIPE_PK" ] && export STRIPE_PK
+        [ -n "$STRIPE_SK" ] && export STRIPE_SK
+        [ -n "$STRIPE_WEBHOOK_SECRET" ] && export STRIPE_WEBHOOK_SECRET
+
+        # Turnstile
+        [ -n "$CLOUDFLARE_TURNSTILE_SITE_KEY" ] && export CLOUDFLARE_TURNSTILE_SITE_KEY
+        [ -n "$CLOUDFLARE_TURNSTILE_SECRET_KEY" ] && export CLOUDFLARE_TURNSTILE_SECRET_KEY
+
+        echo "   ✅ Konfiguracja załadowana"
+    else
+        # Tryb interaktywny: pytaj o wszystko, tylko zachowaj token Supabase
+        echo "📂 Tryb interaktywny - będę pytać o konfigurację"
+
+        # Wyczyść wszystko oprócz tokena (żeby nie trzeba było się ponownie logować)
+        unset SUPABASE_URL PROJECT_REF SUPABASE_ANON_KEY SUPABASE_SERVICE_KEY
+        unset STRIPE_PK STRIPE_SK STRIPE_WEBHOOK_SECRET
+        unset CLOUDFLARE_TURNSTILE_SITE_KEY CLOUDFLARE_TURNSTILE_SECRET_KEY
+        unset DOMAIN DOMAIN_TYPE
+    fi
+fi
+
+# =============================================================================
 # TRYB AKTUALIZACJI (--update)
 # =============================================================================
 
@@ -179,6 +231,15 @@ if [ "$UPDATE_MODE" = true ]; then
         ENV_VARS="$ENV_VARS BUILD_FILE='$REMOTE_BUILD_FILE'"
     fi
 
+    # Dla multi-instance: przekaż nazwę instancji (z --instance lub --domain)
+    if [ -n "$INSTANCE" ]; then
+        ENV_VARS="$ENV_VARS INSTANCE='$INSTANCE'"
+    elif [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
+        # Wyznacz instancję z domeny
+        UPDATE_INSTANCE="${DOMAIN%%.*}"
+        ENV_VARS="$ENV_VARS INSTANCE='$UPDATE_INSTANCE'"
+    fi
+
     # Uruchom skrypt i posprzątaj
     CLEANUP_CMD="rm -f '$REMOTE_SCRIPT'"
     if [ -n "$REMOTE_BUILD_FILE" ]; then
@@ -200,7 +261,7 @@ if [ "$UPDATE_MODE" = true ]; then
         echo "🗄️  Aktualizuję bazę danych..."
 
         if [ -f "$REPO_ROOT/local/setup-supabase-migrations.sh" ]; then
-            "$REPO_ROOT/local/setup-supabase-migrations.sh" || true
+            SSH_ALIAS="$SSH_ALIAS" "$REPO_ROOT/local/setup-supabase-migrations.sh" || true
         fi
     fi
 
@@ -323,7 +384,7 @@ fi
 # Sprawdź zasoby na serwerze
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║  📊 Sprawdzanie zasobów serwera...                            ║"
+echo "║  📊 Sprawdzanie zasobów serwera...                             ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 
 RESOURCES=$(ssh -o ConnectTimeout=10 "$SSH_ALIAS" "free -m | awk '/^Mem:/ {print \$7}'; df -m / | awk 'NR==2 {print \$4}'; free -m | awk '/^Mem:/ {print \$2}'" 2>/dev/null)
@@ -450,7 +511,7 @@ if grep -qiE "DB_HOST|DATABASE_URL" "$SCRIPT_PATH" 2>/dev/null; then
 
     echo ""
     echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║  🗄️  Ta aplikacja wymaga bazy danych ($DB_TYPE)               ║"
+    echo "║  🗄️  Ta aplikacja wymaga bazy danych ($DB_TYPE)                ║"
     echo "╚════════════════════════════════════════════════════════════════╝"
 
     if ! ask_database "$DB_TYPE" "$APP_NAME"; then
@@ -487,12 +548,122 @@ if [[ "$SCRIPT_DISPLAY" == apps/* ]]; then
 fi
 
 # =============================================================================
+# FAZA 1.5: KONFIGURACJA GATEFLOW (pytania o Supabase)
+# =============================================================================
+
+# Zmienne GateFlow
+GATEFLOW_TURNSTILE_SECRET=""
+SETUP_TURNSTILE_LATER=false
+TURNSTILE_OFFERED=false
+GATEFLOW_STRIPE_CONFIGURED=false
+
+if [ "$APP_NAME" = "gateflow" ]; then
+    # 1. Zbierz konfigurację Supabase (token + wybór projektu)
+    # Pobierz klucze jeśli:
+    # - Nie mamy SUPABASE_URL, LUB
+    # - Podano --supabase-project i jest inny niż aktualny PROJECT_REF
+    NEED_SUPABASE_FETCH=false
+    if [ -z "$SUPABASE_URL" ]; then
+        NEED_SUPABASE_FETCH=true
+    elif [ -n "$SUPABASE_PROJECT" ] && [ "$SUPABASE_PROJECT" != "$PROJECT_REF" ]; then
+        # Podano inny projekt niż zapisany - musimy pobrać nowe klucze
+        NEED_SUPABASE_FETCH=true
+        echo "📦 Zmiana projektu Supabase: $PROJECT_REF → $SUPABASE_PROJECT"
+    fi
+
+    if [ "$NEED_SUPABASE_FETCH" = true ]; then
+        if [ -n "$SUPABASE_PROJECT" ]; then
+            # Podano --supabase-project - pobierz klucze automatycznie
+            echo ""
+            echo "📦 Konfiguracja Supabase (projekt: $SUPABASE_PROJECT)"
+
+            # Upewnij się że mamy token
+            if ! check_saved_supabase_token; then
+                if ! supabase_manual_token_flow; then
+                    echo "❌ Brak tokena Supabase"
+                    exit 1
+                fi
+                save_supabase_token "$SUPABASE_TOKEN"
+            fi
+
+            if ! fetch_supabase_keys_by_ref "$SUPABASE_PROJECT"; then
+                echo "❌ Nie udało się pobrać kluczy dla projektu: $SUPABASE_PROJECT"
+                exit 1
+            fi
+        else
+            # Interaktywny wybór projektu
+            if ! gateflow_collect_config "$DOMAIN"; then
+                echo "❌ Konfiguracja Supabase nie powiodła się"
+                exit 1
+            fi
+        fi
+    fi
+
+    # 2. Zbierz konfigurację Stripe (pytanie lokalne)
+    gateflow_collect_stripe_config
+fi
+
+# Turnstile dla GateFlow - pytanie o konfigurację CAPTCHA
+# Turnstile działa na każdej domenie (nie tylko Cloudflare DNS), wymaga tylko konta Cloudflare
+# Pomijamy tylko dla: local (dev) lub automatycznej domeny Cytrus (DOMAIN="-")
+if [ "$APP_NAME" = "gateflow" ] && [ "$DOMAIN_TYPE" != "local" ] && [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
+    TURNSTILE_OFFERED=true
+    echo ""
+    echo "🔒 Konfiguracja Turnstile (CAPTCHA)"
+    echo ""
+
+    if [ "$YES_MODE" = true ]; then
+        # W trybie --yes sprawdź czy mamy zapisane klucze
+        KEYS_FILE="$HOME/.config/cloudflare/turnstile_keys_$DOMAIN"
+        if [ -f "$KEYS_FILE" ]; then
+            source "$KEYS_FILE"
+            if [ -n "$CLOUDFLARE_TURNSTILE_SECRET_KEY" ]; then
+                GATEFLOW_TURNSTILE_SECRET="$CLOUDFLARE_TURNSTILE_SECRET_KEY"
+                echo "   ✅ Użyję zapisanych kluczy Turnstile"
+            fi
+        fi
+        if [ -z "$GATEFLOW_TURNSTILE_SECRET" ]; then
+            echo -e "${YELLOW}   ⚠️  Brak zapisanych kluczy Turnstile${NC}"
+            echo "   Skonfiguruj po instalacji: ./local/setup-turnstile.sh $DOMAIN $SSH_ALIAS"
+            SETUP_TURNSTILE_LATER=true
+        fi
+    else
+        # Tryb interaktywny - zapytaj
+        read -p "Skonfigurować Turnstile teraz? [T/n]: " SETUP_TURNSTILE
+        if [[ ! "$SETUP_TURNSTILE" =~ ^[Nn]$ ]]; then
+            if [ -f "$REPO_ROOT/local/setup-turnstile.sh" ]; then
+                "$REPO_ROOT/local/setup-turnstile.sh" "$DOMAIN"
+
+                # Czytaj klucze z zapisanego pliku
+                KEYS_FILE="$HOME/.config/cloudflare/turnstile_keys_$DOMAIN"
+                if [ -f "$KEYS_FILE" ]; then
+                    source "$KEYS_FILE"
+                    if [ -n "$CLOUDFLARE_TURNSTILE_SECRET_KEY" ]; then
+                        GATEFLOW_TURNSTILE_SECRET="$CLOUDFLARE_TURNSTILE_SECRET_KEY"
+                        EXTRA_ENV="$EXTRA_ENV CLOUDFLARE_TURNSTILE_SITE_KEY='$CLOUDFLARE_TURNSTILE_SITE_KEY' CLOUDFLARE_TURNSTILE_SECRET_KEY='$CLOUDFLARE_TURNSTILE_SECRET_KEY'"
+                        echo -e "${GREEN}✅ Klucze Turnstile zostaną przekazane do instalacji${NC}"
+                    fi
+                fi
+            else
+                echo -e "${YELLOW}⚠️  Brak skryptu setup-turnstile.sh${NC}"
+            fi
+        else
+            echo ""
+            echo "⏭️  Pominięto. Możesz skonfigurować później:"
+            echo "   ./local/setup-turnstile.sh $DOMAIN $SSH_ALIAS"
+            SETUP_TURNSTILE_LATER=true
+        fi
+    fi
+    echo ""
+fi
+
+# =============================================================================
 # FAZA 2: WYKONANIE (ciężkie operacje)
 # =============================================================================
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║  ☕ Teraz się zrelaksuj - pracuję...                           ║"
+echo "║  ☕ Teraz się zrelaksuj - pracuję...                            ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -526,12 +697,12 @@ fi
 
 # Przygotuj zmienną DOMAIN do przekazania
 DOMAIN_ENV=""
-CYTRUS_PLACEHOLDER="pending.byst.re"
 if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ] && [ -n "$DOMAIN" ]; then
     if [ "$DOMAIN" = "-" ]; then
-        # Dla Cytrus z automatyczną domeną, używamy placeholdera
+        # Dla Cytrus z automatyczną domeną, przekaż "-" jako marker
+        # install.sh rozpozna to i użyje domyślnego katalogu /root/gateflow
         # Po instalacji zostanie zaktualizowany prawdziwą domeną
-        DOMAIN_ENV="DOMAIN='$CYTRUS_PLACEHOLDER'"
+        DOMAIN_ENV="DOMAIN='-'"
     else
         DOMAIN_ENV="DOMAIN='$DOMAIN'"
     fi
@@ -557,6 +728,25 @@ EXTRA_ENV=""
 [ -n "$MYSQL_ROOT_PASS" ] && EXTRA_ENV="$EXTRA_ENV MYSQL_ROOT_PASS='$MYSQL_ROOT_PASS'"
 [ -n "$DOMAIN_PUBLIC" ] && EXTRA_ENV="$EXTRA_ENV DOMAIN_PUBLIC='$DOMAIN_PUBLIC'"
 
+# Dla GateFlow - dodaj zmienne do EXTRA_ENV (zebrane wcześniej w FAZIE 1.5)
+if [ "$APP_NAME" = "gateflow" ]; then
+    # Supabase
+    if [ -n "$SUPABASE_URL" ]; then
+        EXTRA_ENV="$EXTRA_ENV SUPABASE_URL='$SUPABASE_URL' SUPABASE_ANON_KEY='$SUPABASE_ANON_KEY' SUPABASE_SERVICE_KEY='$SUPABASE_SERVICE_KEY'"
+    fi
+
+    # Stripe (jeśli zebrane lokalnie)
+    if [ -n "$STRIPE_PK" ] && [ -n "$STRIPE_SK" ]; then
+        EXTRA_ENV="$EXTRA_ENV STRIPE_PK='$STRIPE_PK' STRIPE_SK='$STRIPE_SK'"
+        [ -n "$STRIPE_WEBHOOK_SECRET" ] && EXTRA_ENV="$EXTRA_ENV STRIPE_WEBHOOK_SECRET='$STRIPE_WEBHOOK_SECRET'"
+    fi
+
+    # Turnstile (jeśli zebrane)
+    if [ -n "$GATEFLOW_TURNSTILE_SECRET" ]; then
+        EXTRA_ENV="$EXTRA_ENV CLOUDFLARE_TURNSTILE_SITE_KEY='$CLOUDFLARE_TURNSTILE_SITE_KEY' CLOUDFLARE_TURNSTILE_SECRET_KEY='$CLOUDFLARE_TURNSTILE_SECRET_KEY'"
+    fi
+fi
+
 # Dry-run mode
 if [ "$DRY_RUN" = true ]; then
     echo -e "${BLUE}[dry-run] Symulacja wykonania:${NC}"
@@ -576,293 +766,39 @@ fi
 echo "🚀 Uruchamiam instalację na serwerze..."
 echo ""
 
-# Dla GateFlow - konfiguracja Supabase lokalnie (własna implementacja CLI flow)
-if [ "$APP_NAME" = "gateflow" ] && [ -z "$SUPABASE_URL" ]; then
-    echo "════════════════════════════════════════════════════════════════"
-    echo "📋 KONFIGURACJA SUPABASE"
-    echo "════════════════════════════════════════════════════════════════"
-    echo ""
+# =============================================================================
+# BUILD FILE (dla GateFlow z prywatnego repo)
+# =============================================================================
 
-    # Generuj klucze ECDH (P-256)
-    TEMP_DIR=$(mktemp -d)
-    openssl ecparam -name prime256v1 -genkey -noout -out "$TEMP_DIR/private.pem" 2>/dev/null
-    openssl ec -in "$TEMP_DIR/private.pem" -pubout -out "$TEMP_DIR/public.pem" 2>/dev/null
+REMOTE_BUILD_FILE=""
+if [ -n "$BUILD_FILE" ]; then
+    # Rozwiń ~ do pełnej ścieżki
+    BUILD_FILE="${BUILD_FILE/#\~/$HOME}"
 
-    # Pobierz publiczny klucz - 65 bajtów (04 + X + Y) w formacie HEX
-    PUBLIC_KEY_RAW=$(openssl ec -in "$TEMP_DIR/private.pem" -pubout -outform DER 2>/dev/null | dd bs=1 skip=26 2>/dev/null | xxd -p | tr -d '\n')
-
-    # Generuj session ID (UUID v4) i token name
-    SESSION_ID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen 2>/dev/null || python3 -c "import uuid; print(uuid.uuid4())" 2>/dev/null)
-    TOKEN_NAME="mikrus_toolbox_$(hostname | tr '.' '_')_$(date +%s)"
-
-    # Buduj URL logowania
-    LOGIN_URL="https://supabase.com/dashboard/cli/login?session_id=${SESSION_ID}&token_name=${TOKEN_NAME}&public_key=${PUBLIC_KEY_RAW}"
-
-    echo "🔐 Logowanie do Supabase"
-    echo ""
-    echo "   Za chwilę otworzy się przeglądarka ze stroną logowania Supabase."
-    echo "   Po zalogowaniu zobaczysz 8-znakowy kod weryfikacyjny."
-    echo "   Skopiuj go i wklej tutaj."
-    echo ""
-    read -p "   Naciśnij Enter aby otworzyć przeglądarkę..." _
-
-    if command -v open &>/dev/null; then
-        open "$LOGIN_URL"
-    elif command -v xdg-open &>/dev/null; then
-        xdg-open "$LOGIN_URL"
-    else
-        echo ""
-        echo "   Nie mogę otworzyć przeglądarki automatycznie."
-        echo "   Otwórz ręcznie: $LOGIN_URL"
-    fi
-
-    echo ""
-    read -p "Wklej kod weryfikacyjny: " DEVICE_CODE
-
-    # Polluj endpoint po token
-    echo ""
-    echo "🔑 Pobieram token..."
-    POLL_URL="https://api.supabase.com/platform/cli/login/${SESSION_ID}?device_code=${DEVICE_CODE}"
-
-    TOKEN_RESPONSE=$(curl -s "$POLL_URL")
-
-    if echo "$TOKEN_RESPONSE" | grep -q '"access_token"'; then
-        echo "   ✓ Token otrzymany, deszyfruję..."
-
-        # Token w odpowiedzi - potrzebujemy odszyfrować
-        ENCRYPTED_TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"access_token":"[^"]*"' | cut -d'"' -f4)
-        SERVER_PUBLIC_KEY=$(echo "$TOKEN_RESPONSE" | grep -o '"public_key":"[^"]*"' | cut -d'"' -f4)
-        NONCE=$(echo "$TOKEN_RESPONSE" | grep -o '"nonce":"[^"]*"' | cut -d'"' -f4)
-
-        # Deszyfrowanie ECDH + AES-GCM
-        if command -v node &>/dev/null; then
-            # Zapisz dane do plików tymczasowych
-            echo "$SERVER_PUBLIC_KEY" > "$TEMP_DIR/server_pubkey.hex"
-            echo "$NONCE" > "$TEMP_DIR/nonce.hex"
-            echo "$ENCRYPTED_TOKEN" > "$TEMP_DIR/encrypted.hex"
-
-            SUPABASE_TOKEN=$(TEMP_DIR="$TEMP_DIR" node << 'NODESCRIPT'
-const crypto = require('crypto');
-const fs = require('fs');
-
-const tempDir = process.env.TEMP_DIR;
-const privateKeyPem = fs.readFileSync(tempDir + '/private.pem', 'utf8');
-const serverPubKeyHex = fs.readFileSync(tempDir + '/server_pubkey.hex', 'utf8').trim();
-const nonceHex = fs.readFileSync(tempDir + '/nonce.hex', 'utf8').trim();
-const encryptedHex = fs.readFileSync(tempDir + '/encrypted.hex', 'utf8').trim();
-
-// Dekoduj hex
-const serverPubKey = Buffer.from(serverPubKeyHex, 'hex');
-const nonce = Buffer.from(nonceHex, 'hex');
-const encrypted = Buffer.from(encryptedHex, 'hex');
-
-// Wyciągnij raw private key z PEM (ostatnie 32 bajty z SEC1/PKCS8)
-const privKeyObj = crypto.createPrivateKey(privateKeyPem);
-const privKeyDer = privKeyObj.export({type: 'sec1', format: 'der'});
-// SEC1 format: 30 len 02 01 01 04 20 [32 bytes private key] ...
-const privKeyRaw = privKeyDer.slice(7, 39);
-
-// ECDH z createECDH - przyjmuje raw bytes
-const ecdh = crypto.createECDH('prime256v1');
-ecdh.setPrivateKey(privKeyRaw);
-const sharedSecret = ecdh.computeSecret(serverPubKey);
-
-// Klucz AES = shared secret (32 bajty)
-const key = sharedSecret;
-
-// Deszyfruj AES-GCM
-const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce);
-const tag = encrypted.slice(-16);
-const ciphertext = encrypted.slice(0, -16);
-decipher.setAuthTag(tag);
-const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-console.log(decrypted.toString('utf8'));
-NODESCRIPT
-            ) || true
-        else
-            echo "   Brak Node.js - nie mogę odszyfrować"
-        fi
-
-        if [ -z "$SUPABASE_TOKEN" ] || echo "$SUPABASE_TOKEN" | grep -qiE "error|node:|Error"; then
-            echo ""
-            echo "⚠️  Nie udało się odszyfrować tokena automatycznie."
-            echo "   Ale token został utworzony w Supabase! Pobierzemy go ręcznie."
-            echo ""
-            echo "   Krok po kroku:"
-            echo "   1. Za chwilę otworzy się strona z tokenami Supabase"
-            echo "   2. Kliknij 'Generate new token'"
-            echo "   3. Nadaj mu nazwę (np. mikrus) i kliknij 'Generate token'"
-            echo "   4. Skopiuj wygenerowany token (sbp_...) i wklej tutaj"
-            echo ""
-            echo "   UWAGA: Istniejących tokenów nie można skopiować - trzeba wygenerować nowy!"
-            echo ""
-            read -p "   Naciśnij Enter aby otworzyć stronę z tokenami..." _
-            if command -v open &>/dev/null; then
-                open "https://supabase.com/dashboard/account/tokens"
-            elif command -v xdg-open &>/dev/null; then
-                xdg-open "https://supabase.com/dashboard/account/tokens"
-            else
-                echo "   Otwórz: https://supabase.com/dashboard/account/tokens"
-            fi
-            echo ""
-            read -p "Wklej token (sbp_...): " SUPABASE_TOKEN
-        else
-            echo "   ✅ Token odszyfrowany!"
-        fi
-    elif echo "$TOKEN_RESPONSE" | grep -q "Cloudflare"; then
-        echo "⚠️  Cloudflare blokuje request. Wygeneruj token ręcznie."
-        echo ""
-        echo "   1. Kliknij 'Generate new token'"
-        echo "   2. Nadaj mu nazwę (np. mikrus) i kliknij 'Generate token'"
-        echo "   3. Skopiuj wygenerowany token (sbp_...)"
-        echo ""
-        if command -v open &>/dev/null; then
-            open "https://supabase.com/dashboard/account/tokens"
-        fi
-        read -p "Wklej token (sbp_...): " SUPABASE_TOKEN
-    else
-        echo "❌ Błąd: $TOKEN_RESPONSE"
-        rm -rf "$TEMP_DIR"
+    if [ ! -f "$BUILD_FILE" ]; then
+        echo -e "${RED}❌ Plik nie istnieje: $BUILD_FILE${NC}"
         exit 1
     fi
 
-    rm -rf "$TEMP_DIR"
+    echo "📦 Przesyłam plik instalacyjny na serwer..."
+    REMOTE_BUILD_FILE="/tmp/gateflow-build-$$.tar.gz"
+    scp -q "$BUILD_FILE" "$SSH_ALIAS:$REMOTE_BUILD_FILE"
+    echo "   ✅ Plik przesłany"
 
-    # Mamy token - pobierz projekty
-    if [ -n "$SUPABASE_TOKEN" ]; then
-        echo ""
-        echo "📋 Pobieram listę projektów..."
-        PROJECTS=$(curl -s -H "Authorization: Bearer $SUPABASE_TOKEN" "https://api.supabase.com/v1/projects")
-
-        if echo "$PROJECTS" | grep -q '"id"'; then
-            echo ""
-            echo "Twoje projekty Supabase:"
-            echo ""
-
-            # Parsuj projekty do tablicy
-            PROJECT_IDS=()
-            PROJECT_NAMES=()
-            i=1
-
-            # Użyj jq jeśli dostępne, inaczej grep/sed
-            if command -v jq &>/dev/null; then
-                while IFS=$'\t' read -r proj_id proj_name; do
-                    PROJECT_IDS+=("$proj_id")
-                    PROJECT_NAMES+=("$proj_name")
-                    echo "   $i) $proj_name ($proj_id)"
-                    ((i++))
-                done < <(echo "$PROJECTS" | jq -r '.[] | "\(.id)\t\(.name)"')
-            else
-                # Fallback bez jq - parsuj każdy obiekt osobno
-                while read -r proj_id; do
-                    # Znajdź name dla tego id w JSON
-                    proj_name=$(echo "$PROJECTS" | grep -o "\"id\":\"$proj_id\"[^}]*\"name\":\"[^\"]*\"" | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
-                    if [ -z "$proj_name" ]; then
-                        # Może name jest przed id
-                        proj_name=$(echo "$PROJECTS" | grep -o "\"name\":\"[^\"]*\"[^}]*\"id\":\"$proj_id\"" | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
-                    fi
-                    PROJECT_IDS+=("$proj_id")
-                    PROJECT_NAMES+=("$proj_name")
-                    echo "   $i) $proj_name ($proj_id)"
-                    ((i++))
-                done < <(echo "$PROJECTS" | grep -oE '"id":"[^"]+"' | cut -d'"' -f4)
-            fi
-
-            echo ""
-            read -p "Wybierz numer projektu [1-$((i-1))]: " PROJECT_NUM
-
-            # Walidacja wyboru
-            if [[ "$PROJECT_NUM" =~ ^[0-9]+$ ]] && [ "$PROJECT_NUM" -ge 1 ] && [ "$PROJECT_NUM" -lt "$i" ]; then
-                PROJECT_REF="${PROJECT_IDS[$((PROJECT_NUM-1))]}"
-                echo "   Wybrany projekt: ${PROJECT_NAMES[$((PROJECT_NUM-1))]}"
-            else
-                echo "❌ Nieprawidłowy wybór"
-                exit 1
-            fi
-
-            echo ""
-            echo "🔑 Pobieram klucze API..."
-            API_KEYS=$(curl -s -H "Authorization: Bearer $SUPABASE_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys")
-
-            SUPABASE_URL="https://${PROJECT_REF}.supabase.co"
-
-            # Parsuj klucze API
-            if command -v jq &>/dev/null; then
-                SUPABASE_ANON_KEY=$(echo "$API_KEYS" | jq -r '.[] | select(.name == "anon") | .api_key')
-                SUPABASE_SERVICE_KEY=$(echo "$API_KEYS" | jq -r '.[] | select(.name == "service_role") | .api_key')
-            else
-                SUPABASE_ANON_KEY=$(echo "$API_KEYS" | grep -o '"anon"[^}]*"api_key":"[^"]*"' | grep -o '"api_key":"[^"]*"' | cut -d'"' -f4)
-                SUPABASE_SERVICE_KEY=$(echo "$API_KEYS" | grep -o '"service_role"[^}]*"api_key":"[^"]*"' | grep -o '"api_key":"[^"]*"' | cut -d'"' -f4)
-            fi
-
-            if [ -n "$SUPABASE_ANON_KEY" ] && [ -n "$SUPABASE_SERVICE_KEY" ]; then
-                echo "✅ Klucze Supabase pobrane!"
-                EXTRA_ENV="$EXTRA_ENV SUPABASE_URL='$SUPABASE_URL' SUPABASE_ANON_KEY='$SUPABASE_ANON_KEY' SUPABASE_SERVICE_KEY='$SUPABASE_SERVICE_KEY'"
-            else
-                echo "❌ Nie udało się pobrać kluczy API"
-                exit 1
-            fi
-        else
-            echo "❌ Nie udało się pobrać projektów: $PROJECTS"
-            exit 1
-        fi
-    fi
-    echo ""
-fi
-
-# =============================================================================
-# TURNSTILE (dla GateFlow + Cloudflare) - PRZED instalacją
-# =============================================================================
-
-if [ "$APP_NAME" = "gateflow" ] && [ "$DOMAIN_TYPE" = "cloudflare" ] && [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
-    echo ""
-    echo "🔒 Konfiguracja Turnstile (CAPTCHA)..."
-
-    if [ -f "$REPO_ROOT/local/setup-turnstile.sh" ]; then
-        if [ "$YES_MODE" = true ]; then
-            # W trybie --yes sprawdź czy mamy zapisany token
-            TURNSTILE_TOKEN_FILE="$HOME/.config/cloudflare/turnstile_token"
-            if [ -f "$TURNSTILE_TOKEN_FILE" ]; then
-                echo "   Automatyczna konfiguracja Turnstile..."
-                # TODO: dodać --yes do setup-turnstile.sh
-            fi
-            echo -e "${YELLOW}⚠️  Tryb automatyczny: Turnstile wymaga interakcji.${NC}"
-            echo "   Uruchom po instalacji: ./local/setup-turnstile.sh $DOMAIN $SSH_ALIAS"
-        else
-            # Tryb interaktywny - zapytaj
-            echo ""
-            read -p "Skonfigurować Turnstile teraz? [T/n]: " SETUP_TURNSTILE
-            if [[ ! "$SETUP_TURNSTILE" =~ ^[Nn]$ ]]; then
-                # Uruchom setup-turnstile interaktywnie
-                "$REPO_ROOT/local/setup-turnstile.sh" "$DOMAIN"
-
-                # Czytaj klucze z zapisanego pliku
-                KEYS_FILE="$HOME/.config/cloudflare/turnstile_keys_$DOMAIN"
-                if [ -f "$KEYS_FILE" ]; then
-                    source "$KEYS_FILE"
-                    if [ -n "$CLOUDFLARE_TURNSTILE_SITE_KEY" ] && [ -n "$CLOUDFLARE_TURNSTILE_SECRET_KEY" ]; then
-                        EXTRA_ENV="$EXTRA_ENV CLOUDFLARE_TURNSTILE_SITE_KEY='$CLOUDFLARE_TURNSTILE_SITE_KEY' CLOUDFLARE_TURNSTILE_SECRET_KEY='$CLOUDFLARE_TURNSTILE_SECRET_KEY'"
-                        echo -e "${GREEN}✅ Klucze Turnstile zostaną przekazane do instalacji${NC}"
-                    fi
-                fi
-            else
-                echo ""
-                echo "⏭️  Pominięto. Możesz skonfigurować później:"
-                echo "   ./local/setup-turnstile.sh $DOMAIN $SSH_ALIAS"
-            fi
-        fi
-    else
-        echo -e "${YELLOW}⚠️  Brak skryptu setup-turnstile.sh${NC}"
-    fi
-    echo ""
+    EXTRA_ENV="$EXTRA_ENV BUILD_FILE='$REMOTE_BUILD_FILE'"
 fi
 
 REMOTE_SCRIPT="/tmp/mikrus-deploy-$$.sh"
 scp -q "$SCRIPT_PATH" "$SSH_ALIAS:$REMOTE_SCRIPT"
 
-if ssh -t "$SSH_ALIAS" "export DEPLOY_SSH_ALIAS='$SSH_ALIAS' SSH_ALIAS='$SSH_ALIAS' $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV $EXTRA_ENV; bash '$REMOTE_SCRIPT'; EXIT_CODE=\$?; rm -f '$REMOTE_SCRIPT'; exit \$EXIT_CODE"; then
-    echo ""
-    echo -e "${GREEN}✅ Instalacja zakończona pomyślnie${NC}"
+# Cleanup remote build file after install
+CLEANUP_CMD=""
+if [ -n "$REMOTE_BUILD_FILE" ]; then
+    CLEANUP_CMD="rm -f '$REMOTE_BUILD_FILE';"
+fi
+
+if ssh -t "$SSH_ALIAS" "export DEPLOY_SSH_ALIAS='$SSH_ALIAS' SSH_ALIAS='$SSH_ALIAS' $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV $EXTRA_ENV; bash '$REMOTE_SCRIPT'; EXIT_CODE=\$?; rm -f '$REMOTE_SCRIPT'; $CLEANUP_CMD exit \$EXIT_CODE"; then
+    : # Sukces - kontynuuj do przygotowania bazy i konfiguracji domeny
 else
     echo ""
     echo -e "${RED}❌ Instalacja NIEUDANA! Sprawdź błędy powyżej.${NC}"
@@ -870,22 +806,32 @@ else
 fi
 
 # =============================================================================
-# PRZYGOTOWANIE BAZY DANYCH (dla GateFlow)
+# KONFIGURACJA GATEFLOW PO INSTALACJI
 # =============================================================================
 
 if [ "$APP_NAME" = "gateflow" ]; then
+    # 1. Migracje bazy danych
     echo ""
     echo "🗄️  Przygotowanie bazy danych..."
 
-    # Uruchom migracje przez Supabase API (lokalnie, nie wymaga DATABASE_URL)
     if [ -f "$REPO_ROOT/local/setup-supabase-migrations.sh" ]; then
-        "$REPO_ROOT/local/setup-supabase-migrations.sh" || {
+        SSH_ALIAS="$SSH_ALIAS" PROJECT_REF="$PROJECT_REF" SUPABASE_URL="$SUPABASE_URL" "$REPO_ROOT/local/setup-supabase-migrations.sh" || {
             echo -e "${YELLOW}⚠️  Nie udało się przygotować bazy - możesz uruchomić później:${NC}"
-            echo "   ./local/setup-supabase-migrations.sh"
+            echo "   SSH_ALIAS=$SSH_ALIAS ./local/setup-supabase-migrations.sh"
         }
     else
         echo -e "${YELLOW}⚠️  Brak skryptu przygotowania bazy${NC}"
     fi
+
+    # 2. Skonsolidowana konfiguracja Supabase (Site URL, CAPTCHA, email templates)
+    if [ -n "$SUPABASE_TOKEN" ] && [ -n "$PROJECT_REF" ]; then
+        # Użyj funkcji z lib/gateflow-setup.sh
+        # Przekazuje: domenę, secret turnstile, SSH alias (do pobrania szablonów email)
+        configure_supabase_settings "$DOMAIN" "$GATEFLOW_TURNSTILE_SECRET" "$SSH_ALIAS" || {
+            echo -e "${YELLOW}⚠️  Częściowa konfiguracja Supabase${NC}"
+        }
+    fi
+    # Przypomnienia (Stripe, Turnstile, SMTP) będą wyświetlone na końcu
 fi
 
 # =============================================================================
@@ -908,10 +854,97 @@ if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ]; then
             echo "🔄 Aktualizuję konfigurację z prawdziwą domeną: $DOMAIN"
             if [ "$REQUIRES_DOMAIN_UPFRONT" = true ]; then
                 # Static sites - update Caddyfile
-                ssh "$SSH_ALIAS" "sudo sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' /etc/caddy/Caddyfile && sudo systemctl reload caddy" 2>/dev/null
-            else
-                # Docker apps - update docker-compose
-                ssh "$SSH_ALIAS" "cd /opt/stacks/$APP_NAME && sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' docker-compose.yaml && docker compose up -d" 2>/dev/null
+                ssh "$SSH_ALIAS" "sudo sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' /etc/caddy/Caddyfile && sudo systemctl reload caddy" 2>/dev/null || true
+            elif [ "$APP_NAME" != "gateflow" ]; then
+                # Docker apps - update docker-compose (skip for standalone apps like GateFlow)
+                ssh "$SSH_ALIAS" "cd /opt/stacks/$APP_NAME && sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' docker-compose.yaml && docker compose up -d" 2>/dev/null || true
+            fi
+        fi
+
+        # Dla GateFlow z Cytrus - zaktualizuj .env.local, Supabase i zapytaj o Turnstile
+        if [ "$APP_NAME" = "gateflow" ] && [ "$ORIGINAL_DOMAIN" = "-" ] && [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
+            # 1. Zaktualizuj .env.local na serwerze (zastąp placeholder prawdziwą domeną)
+            echo "📝 Aktualizuję .env.local z prawdziwą domeną..."
+            ssh "$SSH_ALIAS" "
+                cd /root/gateflow/admin-panel
+                sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' .env.local
+                # Skopiuj do standalone
+                if [ -d '.next/standalone/admin-panel' ]; then
+                    cp .env.local .next/standalone/admin-panel/.env.local
+                fi
+            " 2>/dev/null || true
+
+            # 2. Restart PM2 żeby załadować nową konfigurację (delete + start z env)
+            echo "🔄 Restartuję GateFlow..."
+            # Dla auto-Cytrus (ORIGINAL_DOMAIN="-") używamy domyślnych ścieżek
+            # bo instalacja była zrobiona przed poznaniem domeny
+            ssh "$SSH_ALIAS" "
+                export PATH=\"\$HOME/.bun/bin:\$PATH\"
+                cd /root/gateflow/admin-panel/.next/standalone/admin-panel
+                pm2 delete gateflow-admin 2>/dev/null || true
+                set -a && source .env.local && set +a
+                export PORT=\${PORT:-3333}
+                export HOSTNAME=\${HOSTNAME:-::}
+                pm2 start server.js --name gateflow-admin --interpreter node
+                pm2 save
+            " 2>/dev/null || true
+
+            # 3. Zaktualizuj Site URL w Supabase
+            update_supabase_site_url "$DOMAIN" || true
+
+            # Turnstile nie był oferowany wcześniej (nie znaliśmy domeny) - zapytaj teraz
+            if [ "$TURNSTILE_OFFERED" != true ] && [ "$YES_MODE" != true ]; then
+                echo ""
+                echo "🔒 Konfiguracja Turnstile (CAPTCHA)"
+                echo "   Domena: $DOMAIN"
+                echo ""
+                read -p "Skonfigurować Turnstile teraz? [T/n]: " SETUP_TURNSTILE_NOW
+                if [[ ! "$SETUP_TURNSTILE_NOW" =~ ^[Nn]$ ]]; then
+                    if [ -f "$REPO_ROOT/local/setup-turnstile.sh" ]; then
+                        "$REPO_ROOT/local/setup-turnstile.sh" "$DOMAIN" "$SSH_ALIAS"
+                        # Sprawdź czy klucze zostały zapisane
+                        KEYS_FILE="$HOME/.config/cloudflare/turnstile_keys_$DOMAIN"
+                        if [ -f "$KEYS_FILE" ]; then
+                            source "$KEYS_FILE"
+                            if [ -n "$CLOUDFLARE_TURNSTILE_SECRET_KEY" ]; then
+                                GATEFLOW_TURNSTILE_SECRET="$CLOUDFLARE_TURNSTILE_SECRET_KEY"
+                                echo -e "${GREEN}✅ Turnstile skonfigurowany!${NC}"
+                            fi
+                        fi
+                    fi
+                else
+                    SETUP_TURNSTILE_LATER=true
+                fi
+            elif [ "$YES_MODE" = true ]; then
+                # W trybie --yes - sprawdź zapisane klucze lub utwórz automatycznie
+                KEYS_FILE="$HOME/.config/cloudflare/turnstile_keys_$DOMAIN"
+                CF_TOKEN_FILE="$HOME/.config/cloudflare/turnstile_token"
+
+                if [ -f "$KEYS_FILE" ]; then
+                    # Mamy zapisane klucze dla tej domeny
+                    source "$KEYS_FILE"
+                    if [ -n "$CLOUDFLARE_TURNSTILE_SECRET_KEY" ]; then
+                        GATEFLOW_TURNSTILE_SECRET="$CLOUDFLARE_TURNSTILE_SECRET_KEY"
+                        configure_supabase_settings "$DOMAIN" "$GATEFLOW_TURNSTILE_SECRET" "" || true
+                    fi
+                elif [ -f "$CF_TOKEN_FILE" ]; then
+                    # Mamy token Cloudflare - utwórz klucze automatycznie
+                    echo ""
+                    echo "🔒 Automatyczna konfiguracja Turnstile..."
+                    if [ -f "$REPO_ROOT/local/setup-turnstile.sh" ]; then
+                        "$REPO_ROOT/local/setup-turnstile.sh" "$DOMAIN" "$SSH_ALIAS"
+                        # Sprawdź czy klucze zostały utworzone
+                        if [ -f "$KEYS_FILE" ]; then
+                            source "$KEYS_FILE"
+                            if [ -n "$CLOUDFLARE_TURNSTILE_SECRET_KEY" ]; then
+                                GATEFLOW_TURNSTILE_SECRET="$CLOUDFLARE_TURNSTILE_SECRET_KEY"
+                                echo -e "${GREEN}✅ Turnstile skonfigurowany automatycznie${NC}"
+                            fi
+                        fi
+                    fi
+                else
+                    SETUP_TURNSTILE_LATER=true
+                fi
             fi
         fi
         # Poczekaj aż domena zacznie odpowiadać (timeout 90s)
@@ -988,6 +1021,17 @@ if [ "$NEEDS_DB" = true ]; then
     echo "   Konfiguracja automatycznego backupu:"
     echo -e "      ${BLUE}ssh $SSH_ALIAS \"bash /opt/mikrus-toolbox/system/setup-db-backup.sh\"${NC}"
     echo ""
+fi
+
+# Przypomnienia post-instalacyjne dla GateFlow
+if [ "$APP_NAME" = "gateflow" ]; then
+    # Określ czy Turnstile jest skonfigurowany
+    TURNSTILE_CONFIGURED=false
+    [ -n "$GATEFLOW_TURNSTILE_SECRET" ] && TURNSTILE_CONFIGURED=true
+
+    echo ""
+    echo -e "${YELLOW}📋 Następne kroki:${NC}"
+    gateflow_show_post_install_reminders "$DOMAIN" "$SSH_ALIAS" "$GATEFLOW_STRIPE_CONFIGURED" "$TURNSTILE_CONFIGURED"
 fi
 
 echo ""

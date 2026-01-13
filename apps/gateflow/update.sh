@@ -15,8 +15,23 @@
 
 set -e
 
-INSTALL_DIR="/root/gateflow"
 GITHUB_REPO="pavvel11/gateflow"
+
+# =============================================================================
+# AUTO-DETEKCJA KATALOGU INSTALACJI
+# =============================================================================
+# Jeśli podano INSTANCE, użyj go. Jeśli nie, znajdź pierwszy dostępny.
+if [ -n "$INSTANCE" ]; then
+    INSTALL_DIR="/root/gateflow-${INSTANCE}"
+    PM2_NAME="gateflow-${INSTANCE}"
+elif ls -d /root/gateflow-* &>/dev/null; then
+    # Znajdź pierwszy katalog instancji
+    INSTALL_DIR=$(ls -d /root/gateflow-* 2>/dev/null | head -1)
+    PM2_NAME="gateflow-${INSTALL_DIR##*-}"
+else
+    INSTALL_DIR="/root/gateflow"
+    PM2_NAME="$PM2_NAME"
+fi
 
 # Kolory
 RED='\033[0;31m'
@@ -120,7 +135,7 @@ echo ""
 echo "⏹️  Zatrzymuję GateFlow..."
 
 export PATH="$HOME/.bun/bin:$PATH"
-pm2 stop gateflow-admin 2>/dev/null || true
+pm2 stop $PM2_NAME 2>/dev/null || true
 
 # =============================================================================
 # 4. ZAMIEŃ PLIKI
@@ -167,20 +182,22 @@ set -a
 source .env.local
 set +a
 export PORT="${PORT:-3333}"
-export HOSTNAME="${HOSTNAME:-0.0.0.0}"
+# :: słucha na IPv4 i IPv6 (wymagane dla Cytrus który łączy się przez IPv6)
+export HOSTNAME="${HOSTNAME:-::}"
 
-pm2 delete gateflow-admin 2>/dev/null || true
-pm2 start "node server.js" --name gateflow-admin
+pm2 delete $PM2_NAME 2>/dev/null || true
+# WAŻNE: użyj --interpreter node, NIE "node server.js" w cudzysłowach
+pm2 start server.js --name $PM2_NAME --interpreter node
 pm2 save
 
 # Poczekaj i sprawdź
 sleep 3
 
-if pm2 list | grep -q "gateflow-admin.*online"; then
+if pm2 list | grep -q "$PM2_NAME.*online"; then
     echo -e "${GREEN}✅ GateFlow działa!${NC}"
 else
     echo -e "${RED}❌ Problem z uruchomieniem. Logi:${NC}"
-    pm2 logs gateflow-admin --lines 20
+    pm2 logs $PM2_NAME --lines 20
     exit 1
 fi
 
@@ -197,6 +214,6 @@ echo "   Poprzednia wersja: $CURRENT_VERSION"
 echo "   Nowa wersja: $NEW_VERSION"
 echo ""
 echo "📋 Przydatne komendy:"
-echo "   pm2 logs gateflow-admin - logi"
-echo "   pm2 restart gateflow-admin - restart"
+echo "   pm2 logs $PM2_NAME - logi"
+echo "   pm2 restart $PM2_NAME - restart"
 echo ""
