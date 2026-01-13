@@ -191,6 +191,7 @@ if [ -f "$ENV_FILE" ] && grep -q "SUPABASE_URL=" "$ENV_FILE"; then
 elif [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ] && [ -n "$SUPABASE_SERVICE_KEY" ]; then
     # Zmienne przekazane z deploy.sh
     echo "✅ Konfiguruję Supabase..."
+
     cat > "$ENV_FILE" <<ENVEOF
 # Supabase (runtime - bez NEXT_PUBLIC_)
 SUPABASE_URL=$SUPABASE_URL
@@ -200,12 +201,27 @@ SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_KEY
 # Legacy (dla kompatybilności)
 NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+
+# Klucz szyfrujący dla integracji (Stripe UI wizard, GUS, Currency API)
+# AES-256-GCM - NIE ZMIENIAJ! Utrata klucza = reset konfiguracji integracji
+APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
 ENVEOF
 else
     echo "❌ Brak konfiguracji Supabase!"
     echo "   Uruchom deploy.sh interaktywnie lub podaj zmienne:"
     echo "   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY"
     exit 1
+fi
+
+# Upewnij się że APP_ENCRYPTION_KEY istnieje (dla starszych instalacji)
+if ! grep -q "APP_ENCRYPTION_KEY=" "$ENV_FILE" 2>/dev/null; then
+    echo "🔐 Generuję klucz szyfrujący..."
+    cat >> "$ENV_FILE" <<ENVEOF
+
+# Klucz szyfrujący dla integracji (Stripe UI wizard, GUS, Currency API)
+# AES-256-GCM - NIE ZMIENIAJ! Utrata klucza = reset konfiguracji integracji
+APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
+ENVEOF
 fi
 
 # =============================================================================
