@@ -50,7 +50,8 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
-source "$CONFIG_FILE"
+# Wyciągnij token (nie sourcuj całego pliku - zawiera zone mappings z kropkami)
+CF_API_TOKEN=$(grep -E "^(CF_)?API_TOKEN=" "$CONFIG_FILE" | head -1 | cut -d'=' -f2)
 
 if [ -z "$CF_API_TOKEN" ]; then
     echo -e "${RED}❌ Brak tokenu API${NC}"
