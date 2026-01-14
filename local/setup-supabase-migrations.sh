@@ -162,8 +162,17 @@ trap "rm -rf $TEMP_DIR" EXIT
 SSH_ALIAS="${SSH_ALIAS:-hanna}"
 MIGRATIONS_SOURCE=""
 
-# Znajdź katalog instalacji GateFlow (może być /root/gateflow lub /root/gateflow-*)
-GATEFLOW_DIR=$(ssh "$SSH_ALIAS" "ls -d /root/gateflow-* 2>/dev/null | head -1" 2>/dev/null)
+# Znajdź katalog instalacji GateFlow
+# Nowa lokalizacja: /opt/stacks/gateflow*
+# Stara lokalizacja: /root/gateflow* (dla kompatybilności)
+GATEFLOW_DIR=$(ssh "$SSH_ALIAS" "ls -d /opt/stacks/gateflow-* 2>/dev/null | head -1" 2>/dev/null)
+if [ -z "$GATEFLOW_DIR" ]; then
+    GATEFLOW_DIR=$(ssh "$SSH_ALIAS" "ls -d /opt/stacks/gateflow 2>/dev/null" 2>/dev/null)
+fi
+if [ -z "$GATEFLOW_DIR" ]; then
+    # Fallback do starej lokalizacji
+    GATEFLOW_DIR=$(ssh "$SSH_ALIAS" "ls -d /root/gateflow-* 2>/dev/null | head -1" 2>/dev/null)
+fi
 if [ -z "$GATEFLOW_DIR" ]; then
     GATEFLOW_DIR="/root/gateflow"
 fi
