@@ -441,7 +441,7 @@ configure_supabase_settings() {
 
     # 3. Email templates (jeśli dostępne na serwerze)
     if [ -n "$SSH_ALIAS" ]; then
-        local REMOTE_TEMPLATES_DIR="/root/gateflow/admin-panel/supabase/templates"
+        local REMOTE_TEMPLATES_DIR="/opt/stacks/gateflow/admin-panel/supabase/templates"
         local TEMPLATES_EXIST=$(ssh "$SSH_ALIAS" "ls '$REMOTE_TEMPLATES_DIR'/*.html 2>/dev/null | head -1" 2>/dev/null)
 
         if [ -n "$TEMPLATES_EXIST" ]; then
@@ -736,7 +736,7 @@ gateflow_show_post_install_reminders() {
     if [ "$STRIPE_CONFIGURED" != true ]; then
         echo ""
         echo -e "${YELLOW}💳 Stripe API Keys:${NC} (jeśli nie skonfigurowane)"
-        echo -e "   ${BLUE}ssh $SSH_ALIAS nano /root/gateflow/admin-panel/.env.local${NC}"
+        echo -e "   ${BLUE}ssh $SSH_ALIAS nano /opt/stacks/gateflow/admin-panel/.env.local${NC}"
     fi
 
     # Turnstile

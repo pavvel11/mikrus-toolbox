@@ -317,14 +317,24 @@ if echo "$CREATE_RESPONSE" | grep -q '"success":true'; then
         echo "📤 Dodaję klucze do serwera $SSH_ALIAS..."
 
         # Wyznacz ścieżki na podstawie domeny (multi-instance support)
+        # Nowa lokalizacja: /opt/stacks/gateflow*
         INSTANCE_NAME="${DOMAIN%%.*}"
-        GATEFLOW_DIR="/root/gateflow-${INSTANCE_NAME}"
+        GATEFLOW_DIR="/opt/stacks/gateflow-${INSTANCE_NAME}"
         PM2_NAME="gateflow-${INSTANCE_NAME}"
 
-        # Sprawdź czy istnieje katalog instancji, jeśli nie - użyj domyślnego
+        # Sprawdź czy istnieje katalog instancji, jeśli nie - szukaj dalej
+        if ! ssh "$SSH_ALIAS" "test -d $GATEFLOW_DIR" 2>/dev/null; then
+            GATEFLOW_DIR="/opt/stacks/gateflow"
+            PM2_NAME="gateflow"
+        fi
+        # Fallback do starej lokalizacji
+        if ! ssh "$SSH_ALIAS" "test -d $GATEFLOW_DIR" 2>/dev/null; then
+            GATEFLOW_DIR="/root/gateflow-${INSTANCE_NAME}"
+            PM2_NAME="gateflow-${INSTANCE_NAME}"
+        fi
         if ! ssh "$SSH_ALIAS" "test -d $GATEFLOW_DIR" 2>/dev/null; then
             GATEFLOW_DIR="/root/gateflow"
-            PM2_NAME="gateflow-admin"
+            PM2_NAME="gateflow"
         fi
 
         ENV_FILE="$GATEFLOW_DIR/admin-panel/.env.local"

@@ -702,7 +702,7 @@ DOMAIN_ENV=""
 if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ] && [ -n "$DOMAIN" ]; then
     if [ "$DOMAIN" = "-" ]; then
         # Dla Cytrus z automatyczną domeną, przekaż "-" jako marker
-        # install.sh rozpozna to i użyje domyślnego katalogu /root/gateflow
+        # install.sh rozpozna to i użyje domyślnego katalogu /opt/stacks/gateflow
         # Po instalacji zostanie zaktualizowany prawdziwą domeną
         DOMAIN_ENV="DOMAIN='-'"
     else
