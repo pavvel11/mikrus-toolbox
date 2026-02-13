@@ -59,6 +59,36 @@ else
     echo "✅ RAM: ${TOTAL_RAM}MB → profil: lekki (FPM: 4 workery)"
 fi
 
+# =============================================================================
+# 1a. DETEKCJA REDIS (external vs bundled)
+# =============================================================================
+# WP_REDIS=external  → użyj istniejącego na hoście (localhost:6379)
+# WP_REDIS=bundled   → zawsze bundluj redis:alpine w compose
+# WP_REDIS=auto      → auto-detekcja (domyślne)
+
+WP_REDIS="${WP_REDIS:-auto}"
+REDIS_HOST=""
+
+if [ "$WP_REDIS" = "external" ]; then
+    if redis-cli ping 2>/dev/null | grep -q PONG; then
+        REDIS_HOST="host-gateway"
+        echo "✅ Redis: zewnętrzny (host, wskazany przez WP_REDIS=external)"
+    else
+        echo "⚠️  WP_REDIS=external ale Redis nie odpowiada na localhost:6379"
+        echo "   Używam bundled Redis zamiast tego."
+        REDIS_HOST="redis"
+    fi
+elif [ "$WP_REDIS" = "bundled" ]; then
+    REDIS_HOST="redis"
+    echo "✅ Redis: bundled (wymuszony przez WP_REDIS=bundled)"
+elif redis-cli ping 2>/dev/null | grep -q PONG; then
+    REDIS_HOST="host-gateway"
+    echo "✅ Redis: zewnętrzny (wykryty na localhost:6379)"
+else
+    REDIS_HOST="redis"
+    echo "✅ Redis: bundled (brak istniejącego)"
+fi
+
 # Domain
 if [ -n "$DOMAIN" ]; then
     echo "✅ Domena: $DOMAIN"
@@ -95,8 +125,11 @@ echo ""
 # 3. PRZYGOTOWANIE KATALOGÓW
 # =============================================================================
 
-sudo mkdir -p "$STACK_DIR"/{config,wp-content,nginx-cache}
+sudo mkdir -p "$STACK_DIR"/{config,wp-content,nginx-cache,redis-data}
 cd "$STACK_DIR"
+
+# Zapisz Redis host dla wp-init.sh
+echo "$REDIS_HOST" | sudo tee "$STACK_DIR/.redis-host" > /dev/null
 
 # =============================================================================
 # 3a. DOCKERFILE (wordpress + redis extension + WP-CLI)
@@ -377,109 +410,60 @@ NGINX_EOF
 
 echo "⚙️  Generuję docker-compose.yaml..."
 
-if [ "$WP_DB_MODE" = "sqlite" ]; then
-    # SQLite: bez zmiennych DB
-    cat <<EOF | sudo tee docker-compose.yaml > /dev/null
-services:
-  wordpress:
-    build: .
-    restart: always
-    volumes:
-      - ./wp-content:/var/www/html/wp-content
-      - ./config/php-opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
-      - ./config/php-performance.ini:/usr/local/etc/php/conf.d/performance.ini:ro
-      - ./config/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
-      - wp-html:/var/www/html
-    tmpfs:
-      - /tmp:size=128M,mode=1777
-    depends_on:
-      - redis
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    healthcheck:
-      test: ["CMD-SHELL", "php -v > /dev/null"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: $WP_MEMORY
-
-  redis:
-    image: redis:alpine
-    restart: always
-    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save 60 1 --loglevel warning
-    volumes:
-      - ./redis-data:/data
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "5m"
-        max-file: "2"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 96M
-
-  nginx:
-    image: nginx:alpine
-    restart: always
-    ports:
-      - "127.0.0.1:$PORT:80"
-    volumes:
-      - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx-cache:/var/cache/nginx
-      - wp-html:/var/www/html:ro
-      - ./wp-content:/var/www/html/wp-content:ro
-    depends_on:
-      - wordpress
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    healthcheck:
-      test: ["CMD", "wget", "-qO/dev/null", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
-    deploy:
-      resources:
-        limits:
-          memory: $NGINX_MEMORY
-
-volumes:
-  wp-html:
-EOF
-else
-    # MySQL: ze zmiennymi DB
-    cat <<EOF | sudo tee docker-compose.yaml > /dev/null
-services:
-  wordpress:
-    build: .
-    restart: always
-    environment:
+# --- WordPress service (wspólna baza) ---
+WP_ENV_BLOCK=""
+if [ "$WP_DB_MODE" != "sqlite" ]; then
+    WP_ENV_BLOCK="    environment:
       - WORDPRESS_DB_HOST=${DB_HOST}:${DB_PORT}
       - WORDPRESS_DB_USER=${DB_USER}
       - WORDPRESS_DB_PASSWORD=${DB_PASS}
-      - WORDPRESS_DB_NAME=${DB_NAME}
+      - WORDPRESS_DB_NAME=${DB_NAME}"
+fi
+
+# --- Redis: bundled vs external ---
+WP_DEPENDS=""
+WP_EXTRA_HOSTS=""
+REDIS_SERVICE=""
+
+if [ "$REDIS_HOST" = "redis" ]; then
+    # Bundled Redis
+    WP_DEPENDS="    depends_on:
+      - redis"
+    REDIS_SERVICE="
+  redis:
+    image: redis:alpine
+    restart: always
+    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save 60 1 --loglevel warning
+    volumes:
+      - ./redis-data:/data
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: \"5m\"
+        max-file: \"2\"
+    healthcheck:
+      test: [\"CMD\", \"redis-cli\", \"ping\"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 96M"
+else
+    # External Redis - łącz z hostem
+    WP_EXTRA_HOSTS="    extra_hosts:
+      - \"host-gateway:host-gateway\""
+fi
+
+cat <<EOF | sudo tee docker-compose.yaml > /dev/null
+services:
+  wordpress:
+    build: .
+    restart: always
+$WP_ENV_BLOCK
     volumes:
       - ./wp-content:/var/www/html/wp-content
       - ./config/php-opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
@@ -488,8 +472,8 @@ services:
       - wp-html:/var/www/html
     tmpfs:
       - /tmp:size=128M,mode=1777
-    depends_on:
-      - redis
+$WP_DEPENDS
+$WP_EXTRA_HOSTS
     security_opt:
       - no-new-privileges:true
     logging:
@@ -507,29 +491,7 @@ services:
       resources:
         limits:
           memory: $WP_MEMORY
-
-  redis:
-    image: redis:alpine
-    restart: always
-    command: redis-server --maxmemory 64mb --maxmemory-policy allkeys-lru --save 60 1 --loglevel warning
-    volumes:
-      - ./redis-data:/data
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: "5m"
-        max-file: "2"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 96M
+$REDIS_SERVICE
 
   nginx:
     image: nginx:alpine
@@ -564,7 +526,9 @@ services:
 volumes:
   wp-html:
 EOF
-fi
+
+# Wyczyść puste linie z YAML (z pustych bloków warunkowych)
+sudo sed -i '/^$/{ N; /^\n$/d; }' docker-compose.yaml
 
 # =============================================================================
 # 8. WP-INIT.SH (post-install: HTTPS fix, wp-cron, performance defines)
@@ -649,12 +613,23 @@ define('DISALLOW_FILE_EDIT', true);" "$WP_CONFIG"
 fi
 
 # 8. Redis Object Cache - wp-config.php defines
+REDIS_HOST="redis"
+if [ -f "/opt/stacks/wordpress/.redis-host" ]; then
+    REDIS_HOST=$(cat /opt/stacks/wordpress/.redis-host)
+fi
+# host-gateway → WordPress widzi Redis przez extra_hosts
+if [ "$REDIS_HOST" = "host-gateway" ]; then
+    WP_REDIS_ADDR="host-gateway"
+else
+    WP_REDIS_ADDR="$REDIS_HOST"
+fi
+
 if ! docker exec "$CONTAINER" grep -q "WP_REDIS_HOST" "$WP_CONFIG"; then
     docker exec "$CONTAINER" sed -i "/^<?php/a\\
-define('WP_REDIS_HOST', 'redis');\
+define('WP_REDIS_HOST', '$WP_REDIS_ADDR');\
 define('WP_REDIS_PORT', 6379);\
 define('WP_CACHE', true);" "$WP_CONFIG"
-    echo "   ✅ Redis config (WP_REDIS_HOST=redis, WP_CACHE=true)"
+    echo "   ✅ Redis config (WP_REDIS_HOST=$WP_REDIS_ADDR, WP_CACHE=true)"
 fi
 
 # 9. Redis Object Cache - instalacja pluginu przez WP-CLI
