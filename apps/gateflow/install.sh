@@ -216,10 +216,6 @@ SUPABASE_URL=$SUPABASE_URL
 SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_KEY
 
-# Legacy (dla kompatybilności)
-NEXT_PUBLIC_SUPABASE_URL=$SUPABASE_URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
-
 # Klucz szyfrujący dla integracji (Stripe UI wizard, GUS, Currency API)
 # AES-256-GCM - NIE ZMIENIAJ! Utrata klucza = reset konfiguracji integracji
 APP_ENCRYPTION_KEY=$(openssl rand -base64 32)
@@ -314,10 +310,6 @@ else
 # Site URLs (runtime)
 SITE_URL=$SITE_URL
 MAIN_DOMAIN=$DOMAIN
-
-# Legacy (dla kompatybilności)
-NEXT_PUBLIC_SITE_URL=$SITE_URL
-NEXT_PUBLIC_BASE_URL=$SITE_URL
 
 # Production
 NODE_ENV=production
