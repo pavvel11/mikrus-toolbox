@@ -269,7 +269,8 @@ select_supabase_project() {
 
     echo ""
     echo "🔑 Pobieram klucze API..."
-    local API_KEYS=$(curl -s -H "Authorization: Bearer $SUPABASE_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys")
+    # WAŻNE: ?reveal=true zwraca pełne klucze (bez tego nowe secret keys są zamaskowane!)
+    local API_KEYS=$(curl -s -H "Authorization: Bearer $SUPABASE_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys?reveal=true")
 
     SUPABASE_URL="https://${PROJECT_REF}.supabase.co"
 
@@ -306,6 +307,14 @@ EOF
         return 0
     else
         echo "❌ Nie udało się pobrać kluczy API"
+        echo ""
+        echo "Możliwe przyczyny:"
+        echo "  • Projekt nie ma jeszcze wygenerowanych kluczy API"
+        echo "  • Token nie ma uprawnień do odczytu kluczy"
+        echo ""
+        echo "Rozwiązanie: Skopiuj klucze ręcznie"
+        echo "  1. Otwórz: https://supabase.com/dashboard/project/$PROJECT_REF/settings/api"
+        echo "  2. Uruchom: ./local/setup-gateflow-config.sh"
         return 1
     fi
 }
@@ -324,7 +333,8 @@ fetch_supabase_keys_by_ref() {
     SUPABASE_URL="https://${PROJECT_REF}.supabase.co"
 
     echo "🔑 Pobieram klucze API dla projektu $PROJECT_REF..."
-    local API_KEYS=$(curl -s -H "Authorization: Bearer $SUPABASE_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys")
+    # WAŻNE: ?reveal=true zwraca pełne klucze (bez tego nowe secret keys są zamaskowane!)
+    local API_KEYS=$(curl -s -H "Authorization: Bearer $SUPABASE_TOKEN" "https://api.supabase.com/v1/projects/$PROJECT_REF/api-keys?reveal=true")
 
     # Sprawdź czy projekt istnieje
     if echo "$API_KEYS" | grep -q '"error"'; then
@@ -354,6 +364,12 @@ fetch_supabase_keys_by_ref() {
         return 0
     else
         echo "❌ Nie udało się pobrać kluczy API"
+        echo ""
+        echo "Możliwe przyczyny:"
+        echo "  • Projekt nie ma jeszcze wygenerowanych kluczy API"
+        echo "  • Token nie ma uprawnień do odczytu kluczy"
+        echo ""
+        echo "Sprawdź: https://supabase.com/dashboard/project/$PROJECT_REF/settings/api"
         return 1
     fi
 }
