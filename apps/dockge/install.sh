@@ -46,6 +46,7 @@ echo "--- 4. Starting Dockge ---"
 sudo docker compose up -d
 
 # Health check
+export STACK_DIR="$DOCKGE_DIR"
 source /opt/mikrus-toolbox/lib/health-check.sh 2>/dev/null || true
 if type wait_for_healthy &>/dev/null; then
     wait_for_healthy "dockge" "$PORT" 45 || { echo "❌ Instalacja nie powiodła się!"; exit 1; }

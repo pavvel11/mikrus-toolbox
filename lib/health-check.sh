@@ -20,13 +20,14 @@ NC='\033[0m'
 
 # Sprawdza czy kontener działa i aplikacja odpowiada na HTTP
 # Argumenty: APP_NAME PORT [TIMEOUT] [HEALTH_PATH]
+# Używa $STACK_DIR z env jeśli ustawiony, inaczej /opt/stacks/$APP_NAME
 wait_for_healthy() {
     local APP_NAME="$1"
     local PORT="$2"
     local TIMEOUT="${3:-30}"
     local HEALTH_PATH="${4:-/}"
 
-    local STACK_DIR="/opt/stacks/$APP_NAME"
+    local STACK_DIR="${STACK_DIR:-/opt/stacks/$APP_NAME}"
     local ELAPSED=0
     local INTERVAL=2
 
@@ -99,7 +100,7 @@ wait_for_healthy() {
 # Szybkie sprawdzenie - tylko czy kontener running (bez HTTP)
 check_container_running() {
     local APP_NAME="$1"
-    local STACK_DIR="/opt/stacks/$APP_NAME"
+    local STACK_DIR="${STACK_DIR:-/opt/stacks/$APP_NAME}"
 
     cd "$STACK_DIR" 2>/dev/null || return 1
 

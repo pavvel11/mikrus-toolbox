@@ -86,7 +86,7 @@ fi
 
 # --- Port check ---
 PORTS_BUSY=0
-for CHECK_PORT in 80 443 8000; do
+for CHECK_PORT in 80 443; do
     if ss -tlnp 2>/dev/null | grep -q ":${CHECK_PORT} "; then
         echo "⚠️  Port $CHECK_PORT jest zajęty!"
         PORTS_BUSY=1
@@ -95,10 +95,29 @@ done
 
 if [ "$PORTS_BUSY" -eq 1 ]; then
     echo ""
-    echo "   Coolify potrzebuje portów 80 (HTTP), 443 (HTTPS) i 8000 (UI)."
-    echo "   Traefik (reverse proxy Coolify) przejmie porty 80/443."
+    echo "   Coolify potrzebuje portów 80 (HTTP) i 443 (HTTPS)."
+    echo "   Traefik (reverse proxy Coolify) przejmie te porty."
     echo "   Istniejące usługi na tych portach mogą przestać działać!"
     echo ""
+fi
+
+# --- Port 8000 (Coolify UI) ---
+COOLIFY_PORT=8000
+if ss -tlnp 2>/dev/null | grep -q ":8000 "; then
+    echo "⚠️  Port 8000 jest zajęty! Szukam wolnego portu dla Coolify UI..."
+    COOLIFY_PORT=""
+    for i in $(seq 1 10); do
+        TRY_PORT=$((8000 + i))
+        if ! ss -tlnp 2>/dev/null | grep -q ":${TRY_PORT} "; then
+            COOLIFY_PORT=$TRY_PORT
+            echo "✅ Używam portu $COOLIFY_PORT dla Coolify UI"
+            break
+        fi
+    done
+    if [ -z "$COOLIFY_PORT" ]; then
+        echo "❌ Nie znaleziono wolnego portu w zakresie 8001-8010!"
+        exit 1
+    fi
 fi
 
 # --- Existing stacks warning ---
@@ -148,6 +167,15 @@ curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
 INSTALL_EXIT=$?
 set -e
 
+# Jeśli port 8000 był zajęty, podmień na wolny port
+if [ "$COOLIFY_PORT" != "8000" ] && [ -f /data/coolify/source/.env ]; then
+    echo ""
+    echo "🔧 Zmieniam port Coolify UI: 8000 → $COOLIFY_PORT"
+    sed -i "s/^APP_PORT=.*/APP_PORT=$COOLIFY_PORT/" /data/coolify/source/.env
+    cd /data/coolify/source && docker compose up -d 2>/dev/null
+    sleep 5
+fi
+
 if [ "$INSTALL_EXIT" -ne 0 ]; then
     echo ""
     echo "❌ Oficjalny instalator Coolify zakończył się błędem (kod: $INSTALL_EXIT)"
@@ -175,7 +203,7 @@ echo "⏳ Weryfikuję dostępność panelu Coolify..."
 
 COOLIFY_UP=0
 for i in $(seq 1 6); do
-    if curl -sf "http://localhost:8000" > /dev/null 2>&1; then
+    if curl -sf "http://localhost:$COOLIFY_PORT" > /dev/null 2>&1; then
         COOLIFY_UP=1
         break
     fi
@@ -184,7 +212,7 @@ done
 
 if [ "$COOLIFY_UP" -eq 0 ]; then
     echo "⚠️  Panel jeszcze się uruchamia. Sprawdź za chwilę:"
-    echo "   curl http://localhost:8000"
+    echo "   curl http://localhost:$COOLIFY_PORT"
     echo "   cd /data/coolify/source && docker compose logs -f"
     echo ""
 fi
@@ -200,7 +228,7 @@ echo "════════════════════════�
 echo "✅ Coolify zainstalowany!"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
-echo "🔗 Panel: http://${SERVER_IP}:8000"
+echo "🔗 Panel: http://${SERVER_IP}:${COOLIFY_PORT}"
 echo ""
 
 if [ -n "$ROOT_USERNAME" ] && [ -n "$ROOT_USER_PASSWORD" ]; then
@@ -215,13 +243,13 @@ fi
 
 echo ""
 echo "📝 Następne kroki:"
-echo "   1. Otwórz http://${SERVER_IP}:8000 → utwórz konto admina"
+echo "   1. Otwórz http://${SERVER_IP}:${COOLIFY_PORT} → utwórz konto admina"
 echo "   2. Dodaj serwer (Coolify auto-wykrywa localhost)"
 echo "   3. Skonfiguruj domenę w Settings → General"
 echo "   4. Deploy pierwszej apki: Resources → + New → Service"
 echo ""
 echo "🏗️  Architektura Coolify:"
-echo "   • Panel UI:      port 8000"
+echo "   • Panel UI:      port $COOLIFY_PORT"
 echo "   • Traefik HTTP:  port 80  (reverse proxy dla apek)"
 echo "   • Traefik HTTPS: port 443 (automatyczny SSL Let's Encrypt)"
 echo "   • Dane:          /data/coolify/"
