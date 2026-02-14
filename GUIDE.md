@@ -1,7 +1,8 @@
-# Mikrus Toolbox - Instrukcja dla agentów AI
+# Mikrus Toolbox - Referencja operacyjna
 
-Ten dokument zawiera wszystkie informacje potrzebne do pracy z Mikrus Toolbox.
-Przeznaczony dla agentów AI (Claude, GPT, Gemini, etc.) oraz ludzi.
+> **Główne instrukcje dla AI → [`AGENTS.md`](AGENTS.md)**. Ten dokument to szczegółowa referencja - sięgaj tu gdy potrzebujesz konkretnych komend, procedur diagnostycznych lub szczegółów architektury.
+
+Kompletna dokumentacja techniczna Mikrus Toolbox. Przeznaczona dla agentów AI i ludzi.
 
 ## Spis treści
 
@@ -76,8 +77,22 @@ Aplikacje znajdują się w `apps/<nazwa>/install.sh`:
 | **vaultwarden** | Menedżer haseł (Bitwarden) | SQLite | 8080 |
 | **linkstack** | Strona z linkami (alt. Linktree) | SQLite | 8080 |
 | **redis** | Cache/baza klucz-wartość | - | 6379 |
+| **wordpress** | CMS (Performance Edition: FPM+Nginx+Redis) | MySQL/SQLite | 8080 |
+| **convertx** | Konwerter plików (100+ formatów) | SQLite | 3000 |
+| **postiz** | Social media scheduler | PostgreSQL | 5000 |
+| **crawl4ai** | Web crawler z AI extraction | - | 8000 |
+| **cap** | Screen recording i sharing | PostgreSQL | 3000 |
+| **gateflow** | Waitlist / launch page | PostgreSQL (Supabase) | 3001 |
+| **minio** | Object storage (S3-compatible) | - | 9000 |
+| **gotenberg** | API do konwersji dokumentów (PDF) | - | 3000 |
+| **cookie-hub** | Consent management (GDPR) | - | 3000 |
+| **littlelink** | Strona z linkami (prostsza alt.) | - | 8080 |
+| **mcp-docker** | MCP server do zarządzania Docker | - | 8811 |
 
 *umami wymaga PostgreSQL z rozszerzeniem `pgcrypto` - NIE działa ze współdzieloną bazą Mikrusa!
+
+**WordPress** to specjalna aplikacja z własnym Dockerfile (PHP redis ext + WP-CLI), bundled Redis,
+auto-tuning FPM na podstawie RAM i post-install skryptem `wp-init.sh`. Szczegóły: `apps/wordpress/README.md`.
 
 ---
 

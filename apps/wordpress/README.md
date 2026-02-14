@@ -53,6 +53,21 @@ Cytrus/Caddy (host) → Nginx (gzip, FastCGI cache, rate limiting, security)
 WP_DB_MODE=sqlite ./local/deploy.sh wordpress --ssh=hanna --domain-type=cytrus --domain=auto
 ```
 
+### Redis (external vs bundled)
+
+Domyślnie auto-detekcja: jeśli `redis-cli ping` na serwerze zwraca PONG, WordPress łączy się z istniejącym Redis (bez nowego kontenera). W przeciwnym razie bundluje `redis:alpine`.
+
+```bash
+# Wymuś bundled Redis (nawet gdy istnieje external)
+WP_REDIS=bundled ./local/deploy.sh wordpress --ssh=hanna
+
+# Wymuś external Redis (host)
+WP_REDIS=external ./local/deploy.sh wordpress --ssh=hanna
+
+# Auto-detekcja (domyślne)
+./local/deploy.sh wordpress --ssh=hanna
+```
+
 ## Wymagania
 
 - **RAM:** ~80-100MB idle (WP + Nginx + Redis), działa na Mikrus 1.0 (512MB)
@@ -79,6 +94,23 @@ WP_DB_MODE=sqlite ./local/deploy.sh wordpress --ssh=hanna --domain-type=cytrus -
 - Włącza Redis Object Cache drop-in
 
 ## Dodatkowa optymalizacja (ręczna)
+
+### Cloudflare Edge Cache
+
+Przy deploy z `--domain-type=cloudflare`, optymalizacja zone i cache rules uruchamia się **automatycznie**.
+
+Ręczne uruchomienie (np. po zmianie domeny):
+```bash
+./local/setup-cloudflare-optimize.sh wp.mojadomena.pl --app=wordpress
+```
+
+Co ustawia:
+- **Zone:** SSL Flexible, Brotli, Always HTTPS, HTTP/2+3, Early Hints
+- **Bypass cache:** `/wp-admin/*`, `/wp-login.php`, `/wp-json/*`, `/wp-cron.php`
+- **Cache 1 rok:** `/wp-content/uploads/*` (media), `/wp-includes/*` (core static)
+- **Cache 1 tydzień:** `/wp-content/themes/*`, `/wp-content/plugins/*` (assets)
+
+Cloudflare edge cache działa **nad** Nginx FastCGI cache - statyki serwowane z CDN bez dotykania serwera. Dla stron HTML FastCGI cache jest lepszy (zna kontekst zalogowanego usera).
 
 ### Converter for Media (WebP)
 

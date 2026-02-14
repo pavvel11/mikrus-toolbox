@@ -456,7 +456,13 @@ configure_domain_cloudflare() {
     # Optymalizacja ustawień Cloudflare (SSL Flexible, cache, kompresja)
     if [ -f "$OPTIMIZE_SCRIPT" ]; then
         echo ""
-        bash "$OPTIMIZE_SCRIPT" "$DOMAIN" || echo -e "${YELLOW}⚠️  Optymalizacja Cloudflare pominięta${NC}"
+        # Mapuj APP_NAME na --app preset (jeśli znany)
+        local CF_APP_FLAG=""
+        case "${APP_NAME:-}" in
+            wordpress) CF_APP_FLAG="--app=wordpress" ;;
+            gateflow)  CF_APP_FLAG="--app=nextjs" ;;
+        esac
+        bash "$OPTIMIZE_SCRIPT" "$DOMAIN" $CF_APP_FLAG || echo -e "${YELLOW}⚠️  Optymalizacja Cloudflare pominięta${NC}"
     fi
 
     # Konfiguruj Caddy na serwerze (nawet jeśli DNS nie wymagał zmian)

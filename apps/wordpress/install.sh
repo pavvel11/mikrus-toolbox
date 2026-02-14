@@ -96,6 +96,13 @@ else
     echo "⚠️  Brak domeny - użyj --domain=... lub dostęp przez SSH tunnel"
 fi
 
+# Port binding: Cytrus wymaga 0.0.0.0, Cloudflare/local → 127.0.0.1 (bezpieczniejsze)
+if [ "${DOMAIN_TYPE:-}" = "cytrus" ]; then
+    BIND_ADDR=""
+else
+    BIND_ADDR="127.0.0.1:"
+fi
+
 # =============================================================================
 # 2. WALIDACJA BAZY DANYCH
 # =============================================================================
@@ -497,9 +504,10 @@ $REDIS_SERVICE
     image: nginx:alpine
     restart: always
     ports:
-      - "127.0.0.1:$PORT:80"
+      - "${BIND_ADDR}$PORT:80"
     volumes:
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /dev/null:/etc/nginx/conf.d/default.conf:ro
       - ./nginx-cache:/var/cache/nginx
       - wp-html:/var/www/html:ro
       - ./wp-content:/var/www/html/wp-content:ro

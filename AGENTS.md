@@ -1,91 +1,122 @@
 # AGENTS.md
 
-This repository contains Bash scripts for managing Mikrus servers and deploying applications.
+Instrukcje dla agentów AI (Claude Code, Cursor, Copilot, itp.) pracujących z tym repozytorium.
 
-## Build/Test Commands
+## Projekt i rola
 
-Pure Bash project - no build, compile, or test runners.
+Skrypty Bash do zarządzania serwerami [Mikrus](https://mikr.us) - tani polski VPS.
+Toolbox automatyzuje instalację aplikacji Docker, konfigurację domen, backupy i diagnostykę.
 
-**Run scripts directly:**
-```bash
-./local/deploy.sh APP_NAME --ssh=mikrus
-./local/cytrus-domain.sh domain.com 3001
-./local/setup-backup.sh
-./local/deploy.sh APP_NAME --dry-run  # Test without executing
+Pomagasz użytkownikom zarządzać ich serwerami Mikrus. Możesz:
+- Instalować aplikacje (`./local/deploy.sh`)
+- Konfigurować backupy i domeny
+- Diagnozować problemy (logi, porty, RAM)
+- Tworzyć nowe instalatory (`apps/<app>/install.sh`)
+
+**Zawsze komunikuj się po polsku.** Zrób za użytkownika co się da, resztę wytłumacz krok po kroku.
+
+**WAŻNE:** Nigdy nie konstruuj ręcznie komend curl do API Mikrusa - zawsze używaj skryptów!
+
+## Struktura repozytorium
+
+```
+local/           → Skrypty użytkownika (deploy, backup, setup)
+apps/<app>/      → Instalatory aplikacji (install.sh + README.md)
+lib/             → Biblioteki pomocnicze (cli-parser, db-setup, domain-setup, health-check, resource-check)
+system/          → Skrypty systemowe (docker, caddy, backup-core)
+docs/            → Dokumentacja (Cloudflare, CLI reference)
 ```
 
-**Manual testing:** Run on test server, verify `docker ps | grep APP`, check `docker logs -f APP`, confirm port responds with `curl -I http://localhost:PORT`.
+## Deploy aplikacji
 
-## Code Style Guidelines
+```bash
+./local/deploy.sh APP [opcje]
 
-### Header Format
+# Opcje:
+#   --ssh=ALIAS           SSH alias (domyślnie: mikrus)
+#   --domain-type=TYPE    cytrus | cloudflare | local
+#   --domain=DOMAIN       Domena lub "auto" dla Cytrus
+#   --db-source=SOURCE    shared | custom (bazy danych)
+#   --yes, -y             Pomiń wszystkie potwierdzenia
+
+# Przykłady:
+./local/deploy.sh n8n --ssh=hanna --domain-type=cytrus --domain=auto
+./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=local --yes
+./local/deploy.sh wordpress --ssh=hanna --domain-type=cytrus --domain=auto
+```
+
+**WordPress env vars** (przekazywane jako opcje lub env):
+- `WP_DB_MODE=sqlite|mysql` - tryb bazy (domyślnie: mysql)
+- `WP_REDIS=auto|external|bundled` - auto-detekcja Redisa na hoście
+
+**Post-install WordPress** - po ukończeniu kreatora w przeglądarce:
+```bash
+ssh hanna 'cd /opt/stacks/wordpress && ./wp-init.sh'
+```
+
+## Aplikacje (24)
+
+Wszystkie w `apps/<nazwa>/install.sh`. Uruchamiane przez `deploy.sh`, nie ręcznie.
+
+n8n, ntfy, uptime-kuma, filebrowser, dockge, stirling-pdf, vaultwarden, linkstack, littlelink, nocodb, umami, listmonk, typebot, redis, wordpress, convertx, postiz, crawl4ai, cap, gateflow, minio, gotenberg, cookie-hub, mcp-docker
+
+Szczegóły konkretnej aplikacji (porty, wymagania, DB) → `apps/<app>/README.md` lub `GUIDE.md`
+
+## WordPress - architektura
+
+Najbardziej złożona aplikacja. Własny Dockerfile, 3 kontenery, auto-tuning na RAM.
+
+```
+wordpress (build: .) → wordpress:php8.3-fpm-alpine + pecl redis + WP-CLI
+nginx:alpine          → gzip, FastCGI cache, rate limiting, security headers
+redis:alpine          → object cache (bundled lub external, auto-detekcja)
+```
+
+**Pliki na serwerze (`/opt/stacks/wordpress/`):**
+- `Dockerfile` - extends wordpress:fpm-alpine + redis ext + WP-CLI
+- `docker-compose.yaml` - dynamiczny (zależy od DB i Redis mode)
+- `config/` - php-opcache.ini, php-performance.ini, www.conf, nginx.conf
+- `wp-init.sh` - post-install: wp-config tuning + Redis Object Cache (WP-CLI)
+- `flush-cache.sh` - czyści FastCGI cache
+- `.redis-host` - `redis` (bundled) lub `host-gateway` (external)
+
+**DB detection:** install.sh zawiera literały `DB_HOST` i `mysql`, więc deploy.sh automatycznie wykrywa potrzebę MySQL. W trybie `WP_DB_MODE=sqlite` zmienne DB są ignorowane.
+
+**wp-init.sh automatycznie:** HTTPS fix, WP-Cron→system cron, rewizje limit, autosave 5min, DISALLOW_FILE_EDIT, Redis config + plugin install/activate via WP-CLI.
+
+## Code style
+
+### Konwencje
+
+- `set -e` w każdym skrypcie
+- Zmienne: `UPPER_CASE`, funkcje: `snake_case()` (bez `function`)
+- Pliki: `kebab-case.sh`, katalogi: `kebab-case`
+- Komunikaty po polsku z emoji (✅ ❌ ⚠️)
+- Zawsze `memory:` limit w docker-compose
+- Porty: `127.0.0.1:$PORT:CONTAINER_PORT` (bezpieczeństwo, Cytrus wymaga `$PORT:CONTAINER_PORT` bez 127.0.0.1 - deploy.sh przekazuje `DOMAIN_TYPE`)
+
+### Wzorzec install.sh
+
 ```bash
 #!/bin/bash
 
-# Mikrus Toolbox - Script Purpose
-# Brief description.
+# Mikrus Toolbox - Nazwa Aplikacji
+# Opis.
 # Author: Paweł (Lazy Engineer)
 #
-# IMAGE_SIZE_MB=500  # Optional Docker size hint
-#
-# Required env vars:
-#   VAR1 - Description
-```
+# IMAGE_SIZE_MB=200  # Rozmiar obrazu Docker
 
-### Error Handling
-- Always use `set -e` for fail-fast
-- Pattern: `|| { echo "Error"; exit 1; }`
-- Use `|| true` for optional commands
-
-```bash
 set -e
-command_to_run || { echo "❌ Error"; exit 1; }
-```
 
-### Functions & Variables
-```bash
-# snake_case, no 'function' keyword
-function_name() {
-    local var1="$1"
-    local var2="${2:-default}"
-}
+APP_NAME="myapp"
+STACK_DIR="/opt/stacks/$APP_NAME"
+PORT=${PORT:-3000}
 
-export SSH_ALIAS="${SSH_ALIAS:-mikrus}"
-export DB_PORT="${DB_PORT:-5432}"
-local app_name="$1"
-```
+# Walidacja (jeśli DB)
+if [ -z "$DB_HOST" ]; then echo "❌ Brak danych DB!"; exit 1; fi
 
-### Colors & Messages
-```bash
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
-
-echo -e "${GREEN}✅ Success${NC}"
-echo -e "${RED}❌ Error${NC}"
-echo -e "${YELLOW}⚠️  Warning${NC}"
-```
-
-**User messages:** Always use Polish, include emojis (✅ ❌ ⚠️ 🌐), box format for sections.
-
-### File Creation (Heredoc)
-```bash
-cat <<EOF | sudo tee docker-compose.yaml > /dev/null
-services:
-  app:
-    image: myimage:latest
-    ports:
-      - "$PORT:8080"
-EOF
-```
-
-### SSH & Docker Patterns
-```bash
-SSH_ALIAS="${SSH_ALIAS:-mikrus}"
-ssh "$SSH_ALIAS" "command"
-scp local_file "$SSH_ALIAS:/remote/path"
-ssh -t "$SSH_ALIAS" "export VAR=value; bash /path/to/script.sh"
-
-APP_NAME="myapp"; STACK_DIR="/opt/stacks/$APP_NAME"; PORT=${PORT:-3000}
-sudo mkdir -p "$STACK_DIR"; cd "$STACK_DIR"
+sudo mkdir -p "$STACK_DIR"
+cd "$STACK_DIR"
 
 cat <<EOF | sudo tee docker-compose.yaml > /dev/null
 services:
@@ -93,7 +124,7 @@ services:
     image: myimage:latest
     restart: always
     ports:
-      - "$PORT:8080"
+      - "127.0.0.1:$PORT:8080"
     deploy:
       resources:
         limits:
@@ -103,65 +134,26 @@ EOF
 sudo docker compose up -d
 ```
 
-### Database Pattern
-```bash
-if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ]; then
-    echo "❌ Brak danych bazy danych!"
-    exit 1
-fi
-DB_PORT="${DB_PORT:-5432}"; DB_NAME="${DB_NAME:-app_db}"; DB_SCHEMA="${DB_SCHEMA:-public}"
-```
+### Kluczowe zasady
 
-### Library Usage
-```bash
-source "$REPO_ROOT/lib/cli-parser.sh"    # CLI parsing
-source "$REPO_ROOT/lib/db-setup.sh"      # Database helpers
-source "$REPO_ROOT/lib/domain-setup.sh"   # Domain config
-source "$REPO_ROOT/lib/health-check.sh"   # Health checks
-```
+- Nie pytaj o domenę w install.sh - robi to deploy.sh
+- Pliki w `/opt/stacks/<app>/`
+- `|| { echo "❌ Error"; exit 1; }` dla obsługi błędów
+- `|| true` dla opcjonalnych komend
+- Nigdy nie loguj sekretów
+- Sekrety w env vars, konfiguracje w `~/.config/mikrus/`
 
-### Conditionals & Arg Parsing
-```bash
-if [[ "$VAR" == "value" ]]; then echo "Match"; fi
-if [ "$PORT" -lt 1024 ]; then echo "Privileged port"; fi
-if [ -n "$VAR" ]; then echo "VAR is set"; fi
-if [ -z "$VAR" ]; then echo "VAR is empty"; fi
+## Więcej informacji
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --ssh=*) SSH_ALIAS="${1#*=}" ;;
-        --yes) YES_MODE=true ;;
-        *) POSITIONAL_ARGS+=("$1") ;;
-    esac
-    shift
-done
-```
+Szczegółowa dokumentacja → **`GUIDE.md`** (referencja operacyjna):
+- SSH, klucz API, konfiguracja połączenia
+- Pełna tabela aplikacji z portami
+- Szczegółowy flow deploy.sh (krok po kroku)
+- Backup i restore (konfiguracja, ręczne uruchomienie, weryfikacja)
+- Diagnostyka i troubleshooting (logi, porty, typowe problemy)
+- Architektura (domeny Cytrus/Cloudflare, bazy danych)
+- Limity i ograniczenia (RAM, dysk, porty)
 
-### Common Pitfalls
-- Don't use `function` keyword - use `name()`
-- Always declare function-local vars with `local`
-- Always use `set -e` and handle failures
-- Don't hardcode paths - use `/opt/stacks/$APP_NAME`
-- Always use `confirm()` before destructive actions
-- Use Polish for user messages
-- Always add `memory:` limits in docker-compose
-
-### Naming Conventions
-- Variables: `UPPER_CASE_WITH_UNDERSCORES`
-- Functions: `snake_case()`
-- Constants: `ALL_CAPS` (`APP_NAME`, `PORT`)
-- Files: `kebab-case.sh`
-- Dirs: `kebab-case` (except `apps/` uses app names)
-
-### File Organization
-- `local/` - User-facing scripts (deploy, backup, setup)
-- `apps/<app>/install.sh` - Application installers
-- `lib/` - Reusable helpers
-- `system/` - System-level scripts
-- `docs/` - Documentation
-
-### Security
-- Never log or expose secrets
-- Use env vars for credentials
-- Store sensitive configs in `~/.config/mikrus/`
-- Validate user input before use
+Inne źródła:
+- `apps/<app>/README.md` - szczegóły per aplikacja
+- `docs/CLI-REFERENCE.md` - pełna referencja parametrów CLI
