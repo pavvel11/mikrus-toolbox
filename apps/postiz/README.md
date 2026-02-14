@@ -15,7 +15,7 @@ Deploy.sh automatycznie skonfiguruje bazę PostgreSQL (shared Mikrus lub własna
 - **RAM:** zalecane 2GB (Mikrus 2.0+), ~1-1.5GB zużycia (Postiz + Redis)
 - **Dysk:** ~3GB (obraz Docker)
 - **Baza danych:** PostgreSQL (shared Mikrus lub własna)
-- **Redis:** Bundled w docker-compose (nie wymaga osobnej instalacji)
+- **Redis:** Auto-detekcja external lub bundled (patrz niżej)
 
 ## Wersja
 
@@ -63,6 +63,18 @@ Pełna lista: [docs.postiz.com/configuration/reference](https://docs.postiz.com/
 Twitter/X, LinkedIn, Instagram, Facebook, TikTok, YouTube, Pinterest, Reddit, Mastodon, Bluesky, Threads, Discord, Slack, Telegram i więcej (20+).
 
 Każda platforma wymaga własnych kluczy API - konfiguracja w Settings → Integrations.
+
+### Redis (external vs bundled)
+
+Domyślnie auto-detekcja: jeśli standalone Redis (`apps/redis`) działa na serwerze, Postiz łączy się z nim (obsługuje hasło z `/opt/stacks/redis/.redis_password`). W przeciwnym razie bundluje `redis:7.2-alpine`.
+
+```bash
+# Wymuś bundled Redis (nawet gdy istnieje external)
+POSTIZ_REDIS=bundled ./local/deploy.sh postiz --ssh=hanna
+
+# Wymuś external Redis (host)
+POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=hanna
+```
 
 ## Ograniczenia
 

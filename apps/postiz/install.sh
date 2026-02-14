@@ -17,6 +17,7 @@
 # Wymagane zmienne środowiskowe (przekazywane przez deploy.sh):
 #   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS - baza PostgreSQL
 #   DOMAIN (opcjonalne)
+#   POSTIZ_REDIS (opcjonalne): auto|external|bundled (domyślnie: auto)
 
 set -e
 
@@ -50,6 +51,66 @@ if [ "$TOTAL_RAM" -gt 0 ] && [ "$TOTAL_RAM" -lt 1800 ]; then
     echo "║  Na małym serwerze może być wolny.                           ║"
     echo "╚════════════════════════════════════════════════════════════════╝"
     echo ""
+fi
+
+# =============================================================================
+# DETEKCJA REDIS (external vs bundled)
+# =============================================================================
+# POSTIZ_REDIS=external  → użyj istniejącego na hoście (localhost:6379)
+# POSTIZ_REDIS=bundled   → zawsze bundluj redis:7.2-alpine w compose
+# POSTIZ_REDIS=auto      → auto-detekcja (domyślne)
+
+POSTIZ_REDIS="${POSTIZ_REDIS:-auto}"
+REDIS_HOST=""
+REDIS_PASS=""
+
+# Sprawdź czy standalone Redis działa (apps/redis)
+detect_external_redis() {
+    # Najpierw sprawdź hasło (standalone Redis ma requirepass)
+    if [ -f /opt/stacks/redis/.redis_password ]; then
+        local pass
+        pass=$(cat /opt/stacks/redis/.redis_password 2>/dev/null)
+        if [ -n "$pass" ] && redis-cli -a "$pass" ping 2>/dev/null | grep -q PONG; then
+            REDIS_PASS="$pass"
+            return 0
+        fi
+    fi
+    # Fallback: Redis bez hasła
+    if redis-cli ping 2>/dev/null | grep -q PONG; then
+        return 0
+    fi
+    return 1
+}
+
+if [ "$POSTIZ_REDIS" = "external" ]; then
+    if detect_external_redis; then
+        REDIS_HOST="host-gateway"
+        echo "✅ Redis: zewnętrzny (host, wskazany przez POSTIZ_REDIS=external)"
+    else
+        echo "⚠️  POSTIZ_REDIS=external ale Redis nie odpowiada na localhost:6379"
+        echo "   Używam bundled Redis zamiast tego."
+        REDIS_HOST="postiz-redis"
+    fi
+elif [ "$POSTIZ_REDIS" = "bundled" ]; then
+    REDIS_HOST="postiz-redis"
+    echo "✅ Redis: bundled (wymuszony przez POSTIZ_REDIS=bundled)"
+elif detect_external_redis; then
+    REDIS_HOST="host-gateway"
+    echo "✅ Redis: zewnętrzny (wykryty na localhost:6379)"
+else
+    REDIS_HOST="postiz-redis"
+    echo "✅ Redis: bundled (brak istniejącego)"
+fi
+
+# Buduj REDIS_URL
+if [ "$REDIS_HOST" = "host-gateway" ]; then
+    if [ -n "$REDIS_PASS" ]; then
+        REDIS_URL="redis://:${REDIS_PASS}@host-gateway:6379"
+    else
+        REDIS_URL="redis://host-gateway:6379"
+    fi
+else
+    REDIS_URL="redis://postiz-redis:6379"
 fi
 
 # Sprawdź dane bazy PostgreSQL
@@ -89,6 +150,38 @@ fi
 sudo mkdir -p "$STACK_DIR"
 cd "$STACK_DIR"
 
+# --- Docker Compose: warunkowe bloki Redis ---
+POSTIZ_DEPENDS=""
+POSTIZ_EXTRA_HOSTS=""
+REDIS_SERVICE=""
+
+if [ "$REDIS_HOST" = "postiz-redis" ]; then
+    # Bundled Redis
+    POSTIZ_DEPENDS="    depends_on:
+      postiz-redis:
+        condition: service_healthy"
+    REDIS_SERVICE="
+  postiz-redis:
+    image: redis:7.2-alpine
+    restart: always
+    command: redis-server --save 60 1 --loglevel warning
+    volumes:
+      - ./redis-data:/data
+    healthcheck:
+      test: [\"CMD\", \"redis-cli\", \"ping\"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M"
+else
+    # External Redis - łącz z hostem
+    POSTIZ_EXTRA_HOSTS="    extra_hosts:
+      - \"host-gateway:host-gateway\""
+fi
+
 cat <<EOF | sudo tee docker-compose.yaml > /dev/null
 services:
   postiz:
@@ -102,7 +195,7 @@ services:
       - NEXT_PUBLIC_BACKEND_URL=$BACKEND_URL
       - BACKEND_INTERNAL_URL=http://localhost:3000
       - DATABASE_URL=$DATABASE_URL
-      - REDIS_URL=redis://postiz-redis:6379
+      - REDIS_URL=$REDIS_URL
       - JWT_SECRET=$JWT_SECRET
       - IS_GENERAL=true
       - STORAGE_PROVIDER=local
@@ -112,9 +205,8 @@ services:
     volumes:
       - ./config:/config
       - ./uploads:/uploads
-    depends_on:
-      postiz-redis:
-        condition: service_healthy
+$POSTIZ_DEPENDS
+$POSTIZ_EXTRA_HOSTS
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000"]
       interval: 30s
@@ -125,22 +217,7 @@ services:
       resources:
         limits:
           memory: 1024M
-
-  postiz-redis:
-    image: redis:7.2-alpine
-    restart: always
-    command: redis-server --save 60 1 --loglevel warning
-    volumes:
-      - ./redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 128M
+$REDIS_SERVICE
 EOF
 
 sudo docker compose up -d
