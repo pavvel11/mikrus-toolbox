@@ -54,13 +54,19 @@ docs/            → Dokumentacja (Cloudflare, CLI reference)
 ssh hanna 'cd /opt/stacks/wordpress && ./wp-init.sh'
 ```
 
-## Aplikacje (24)
+## Aplikacje (25)
 
 Wszystkie w `apps/<nazwa>/install.sh`. Uruchamiane przez `deploy.sh`, nie ręcznie.
 
-n8n, ntfy, uptime-kuma, filebrowser, dockge, stirling-pdf, vaultwarden, linkstack, littlelink, nocodb, umami, listmonk, typebot, redis, wordpress, convertx, postiz, crawl4ai, cap, gateflow, minio, gotenberg, cookie-hub, mcp-docker
+n8n, ntfy, uptime-kuma, filebrowser, dockge, stirling-pdf, vaultwarden, linkstack, littlelink, nocodb, umami, listmonk, typebot, redis, wordpress, convertx, postiz, crawl4ai, cap, gateflow, minio, gotenberg, cookie-hub, mcp-docker, coolify
 
 Szczegóły konkretnej aplikacji (porty, wymagania, DB) → `apps/<app>/README.md` lub `GUIDE.md`
+
+### Coolify (specjalny flow)
+
+Coolify to pełny PaaS (prywatny Heroku) - **tylko dla Mikrus 4.1+** (8GB RAM, 80GB dysk).
+Nie korzysta z `DOMAIN_TYPE`, `DB_*`, ani `/opt/stacks/`. Deleguje do oficjalnego instalatora Coolify (`curl | bash`), który sam instaluje Docker, Traefik, PostgreSQL, Redis i tworzy `/data/coolify/`.
+Przejmuje porty 80/443 - **nie mieszać z innymi apkami z toolboxa.**
 
 ## WordPress - architektura
 

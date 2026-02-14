@@ -31,6 +31,7 @@ Przygotowaliśmy gotowe skrypty instalacyjne ("One-Click"), które stawiają us�
 | **Uptime Kuma** | UptimeRobot | Twój stróż nocny. Sprawdza czy Twoje strony działają i wysyła alarm, gdy coś padnie. |
 | **ntfy** | Pushover | Serwer powiadomień PUSH. Wysyłaj alerty z n8n prosto na telefon. |
 | **Redis** | - | Pamięć podręczna (cache). Przyspiesza n8n i inne aplikacje. |
+| **Crawl4AI** | ScrapingBee / Apify | AI-ready web scraper z API. Markdown, LLM extraction, JavaScript rendering. |
 | **MCP Docker** | - | Most AI ↔ Serwer. Pozwól Claude/Cursor zarządzać kontenerami przez SSH. |
 | **MinIO** | AWS S3 | Self-hosted storage S3-compatible. Dla Cap, Typebot, lub własnych plików. |
 | **Power Tools** | - | Zestaw CLI (`yt-dlp`, `ffmpeg`, `pup`) do zaawansowanej automatyzacji na serwerze. |
@@ -41,6 +42,7 @@ Przygotowaliśmy gotowe skrypty instalacyjne ("One-Click"), które stawiają us�
 | **GateFlow** | EasyCart / Gumroad | **Twój własny sklep z produktami cyfrowymi.** E-booki, kursy, szablony. 0 zł/mies, 0% prowizji. Lejki, OTO, kupony, Omnibus EU. |
 | **Listmonk** | Mailchimp / ActiveCampaign | System newsletterowy. Wysyłaj miliony maili za grosze (przez Amazon SES lub inny SMTP). |
 | **Typebot** | Typeform | Interaktywne formularze i chatboty. Zbieraj leady, rób ankiety, sprzedawaj w rozmowie. |
+| **Postiz** | Buffer / Hootsuite | Planuj posty na Twitter/X, LinkedIn, Instagram, Facebook, TikTok i 20+ platform. |
 | **Cap** | Loom | Nagrywaj ekran i udostępniaj wideo. Idealny do tutoriali i komunikacji asynchronicznej. |
 | **Umami** | Google Analytics | Statystyki WWW. Proste, czytelne, szanujące prywatność (bez RODO-paniki). |
 | **Cookie Hub** | Cookiebot / CookieYes | Centralny serwer zgód RODO (Klaro!). Zarządzaj ciasteczkami na wszystkich stronach z jednego miejsca. |
@@ -49,9 +51,11 @@ Przygotowaliśmy gotowe skrypty instalacyjne ("One-Click"), które stawiają us�
 ### 🏢 Biuro & Produktywność
 | Narzędzie | Zastępuje | Opis |
 | :--- | :--- | :--- |
+| **WordPress** | WordPress.com / WPEngine | Blog i CMS. Performance Edition: FPM + Nginx + Redis Object Cache, auto-tuning na RAM. |
 | **NocoDB** | Airtable | Twoja baza danych jako Arkusz Kalkulacyjny. Trzymaj tu dane klientów, zamówienia, projekty. |
 | **Stirling-PDF** | Adobe Acrobat Pro | Edytuj, łącz, dziel i podpisuj PDF-y w przeglądarce. Bez wysyłania plików w świat. ⚠️ **Wymaga 2GB RAM (Mikrus 2.0+)** |
 | **Gotenberg** | - | API do konwersji dokumentów (HTML→PDF, DOCX→PDF). Lekka alternatywa dla Stirling-PDF (~150MB RAM). |
+| **ConvertX** | CloudConvert | Konwerter plików (dokumenty, obrazy, wideo, audio). 800+ formatów w przeglądarce. |
 | **Vaultwarden** | 1Password / LastPass | Bezpieczny sejf na hasła dla całej firmy. |
 | **LinkStack** | Linktree | Twoja wizytówka "Link in Bio" z panelem admina. |
 | **LittleLink** | Linktree | Wizytówka "Link in Bio" – wersja ultra-lekka (czysty HTML). |
@@ -327,14 +331,35 @@ Dockge pozwala zarządzać kontenerami przez przeglądarkę. Nie wymaga bazy dan
 **Inne aplikacje:**
 Każda aplikacja ma swój folder w `apps/` z pełną dokumentacją:
 
-| Aplikacja | Wymaga PostgreSQL | Dokumentacja |
+| Aplikacja | Wymaga bazy | Dokumentacja |
 |---|---|---|
-| **n8n** | Tak | [apps/n8n/README.md](apps/n8n/README.md) |
-| **Listmonk** | Tak | [apps/listmonk/README.md](apps/listmonk/README.md) |
+| **n8n** | PostgreSQL | [apps/n8n/README.md](apps/n8n/README.md) |
+| **WordPress** | MySQL (lub SQLite) | [apps/wordpress/README.md](apps/wordpress/README.md) |
+| **Listmonk** | PostgreSQL | [apps/listmonk/README.md](apps/listmonk/README.md) |
+| **Postiz** | PostgreSQL | [apps/postiz/README.md](apps/postiz/README.md) |
 | **Uptime Kuma** | Nie | [apps/uptime-kuma/README.md](apps/uptime-kuma/README.md) |
-| **Umami** | Tak | [apps/umami/README.md](apps/umami/README.md) |
+| **Umami** | PostgreSQL | [apps/umami/README.md](apps/umami/README.md) |
 
 > 💡 **PostgreSQL na Mikrusie:** Darmowa współdzielona baza (200MB) w [Panelu](https://mikr.us/panel/?a=postgres) lub dedykowana 10GB za 29 zł/rok w [Cloud](https://mikr.us/panel/?a=cloud).
+
+---
+
+## 🏆 Super Bonus: Coolify (Mikrus 4.1+)
+
+Masz **Mikrus 4.1** (8GB RAM, 80GB dysk, 2x CPU) lub wyższy? Zainstaluj **[Coolify](https://coolify.io)** - prywatny Heroku/Vercel z **280+ apkami** do zainstalowania jednym kliknięciem.
+
+| Co dostajesz | Opis |
+| :--- | :--- |
+| **280+ apek** | WordPress, n8n, Nextcloud, Grafana, Gitea, Jellyfin, Ollama, Supabase... |
+| **Automatyczny SSL** | Let's Encrypt dla każdej apki |
+| **Git push deploy** | Podepnij repo z GitHub/GitLab, push = deploy |
+| **Webowy panel** | Zarządzaj wszystkim przez przeglądarkę |
+
+```bash
+./local/deploy.sh coolify --ssh=hanna
+```
+
+> ⚠️ **Coolify przejmuje serwer** - Traefik na portach 80/443 zarządza ruchem. Nie mieszaj z innymi apkami z toolboxa. Szczegóły: [apps/coolify/README.md](apps/coolify/README.md)
 
 ---
 
@@ -487,7 +512,7 @@ A:
 - Gotenberg: ~150MB (API do konwersji dokumentów - lekka alternatywa dla Stirling-PDF)
 - ⚠️ **Stirling-PDF: ~500MB+** (Java/Spring Boot - wymaga minimum Mikrus 2.0!)
 
-*Rekomendacja:* Mikrus 3.0 (1GB RAM) uciągnie n8n + 2-3 mniejsze usługi. Do pełnego zestawu (n8n + Typebot + GateFlow) zalecany Mikrus 4.0 (2GB RAM). **Stirling-PDF instaluj tylko na Mikrus 2.0+ (2GB RAM).** Na Mikrus 1.0 użyj **Gotenberg** zamiast Stirling-PDF.
+*Rekomendacja:* Mikrus 3.0 (1GB RAM) uciągnie n8n + 2-3 mniejsze usługi. Do pełnego zestawu (n8n + Typebot + GateFlow) zalecany Mikrus 4.0 (2GB RAM). **Stirling-PDF instaluj tylko na Mikrus 2.0+ (2GB RAM).** Na Mikrus 1.0 użyj **Gotenberg** zamiast Stirling-PDF. **Coolify (PaaS)** wymaga Mikrus 4.1+ (8GB RAM).
 
 **Q: Co z bazą danych?**
 A: Większość skryptów (n8n, Umami, Listmonk) poprosi o dane do Postgresa. **NIE INSTALUJ POSTGRESA NA MIKRUSIE 3.0.** Kup "Cegłę" bazy danych na Mikrusie (29 zł/rok) lub użyj darmowego tieru w chmurze (Neon, Supabase). To oszczędza mnóstwo zasobów.
@@ -500,14 +525,17 @@ A: Większość skryptów (n8n, Umami, Listmonk) poprosi o dane do Postgresa. **
 
 ### Koszt Mikrusa
 
-| Plan | RAM | Dysk | Cena/mies | Cena/rok |
-|------|-----|------|-----------|----------|
-| Mikrus 1.0 | 256MB | 2.5GB | 7 zł | 84 zł |
-| Mikrus 2.0 | 512MB | 5GB | 12 zł | 144 zł |
-| Mikrus 3.0 | 1GB | 10GB | 20 zł | 240 zł |
-| Mikrus 4.0 | 2GB | 20GB | 35 zł | 420 zł |
-| PostgreSQL (dedykowana) | - | 10GB | ~2.5 zł | 29 zł |
-| Domena (.pl) | - | - | - | ~50 zł |
+| Plan | RAM | Dysk | CPU | Cena/mies | Cena/rok |
+|------|-----|------|-----|-----------|----------|
+| Mikrus 1.0 | 256MB | 2.5GB | 1x | 7 zł | 84 zł |
+| Mikrus 2.0 | 512MB | 5GB | 1x | 12 zł | 144 zł |
+| Mikrus 3.0 | 1GB | 10GB | 1x | 20 zł | 240 zł |
+| Mikrus 3.5 | 4GB | 40GB | 1x | - | - |
+| Mikrus 4.0 | 2GB | 20GB | 1x | 35 zł | 420 zł |
+| Mikrus 4.1 | 8GB | 80GB | 2x | 34 zł | - |
+| Mikrus 4.2 | 16GB | 160GB | 2x | - | - |
+| PostgreSQL (dedykowana) | - | 10GB | - | ~2.5 zł | 29 zł |
+| Domena (.pl) | - | - | - | - | ~50 zł |
 
 ### Ile kosztują SaaS-y w chmurze?
 
@@ -524,6 +552,10 @@ A: Większość skryptów (n8n, Umami, Listmonk) poprosi o dane do Postgresa. **
 | FileBrowser | Tiiny.host Pro | $6+ | $72+ | 0 zł |
 | Vaultwarden | 1Password Teams | $8/user | $96/user | 0 zł |
 | Stirling-PDF | Adobe Acrobat | $15+ | $180+ | 0 zł |
+| ConvertX | CloudConvert | $9+ | $108+ | 0 zł |
+| Postiz | Buffer Pro | $15+ | $180+ | 0 zł |
+| WordPress | WordPress.com Biz | $25+ | $300+ | 0 zł |
+| Crawl4AI | ScrapingBee | $49+ | $588+ | 0 zł |
 
 > 📊 TODO: Dokładny research cen (tier, limity, ukryte koszty)
 
@@ -586,8 +618,10 @@ A: Większość skryptów (n8n, Umami, Listmonk) poprosi o dane do Postgresa. **
 | + Listmonk + Uptime Kuma | Mikrus 3.0 | ~800MB |
 | + Typebot + GateFlow | Mikrus 4.0 | ~1.5GB |
 | Pełny stack | Mikrus 4.0 | ~1.8GB |
+| **Coolify (PaaS)** | **Mikrus 4.1** | **~500-800MB (platforma)** |
 
 > ⚠️ Stirling-PDF wymaga Mikrus 4.0 (2GB RAM). Alternatywa: Gotenberg (~150MB)
+> ⚠️ Coolify wymaga Mikrus 4.1+ (8GB RAM). Zastępuje cały toolbox - zarządzaj 280+ apkami przez panel webowy.
 
 ---
 **Twórca:** Paweł (Lazy Engineer)
