@@ -77,9 +77,17 @@ Token jest generowany automatycznie podczas instalacji i zapisany w:
 /opt/stacks/crawl4ai/.api_token
 ```
 
+## Wersja
+
+Kontener uruchomiony jako non-root (UID 1000).
+
 ## Ograniczenia
 
-- **Memory leak** - Przy intensywnym użyciu pamięć rośnie do restartu kontenera. `PLAYWRIGHT_MAX_CONCURRENCY=2` ogranicza problem. Rozważ codzienny restart kontenera.
+- **Memory leak** - Przy intensywnym użyciu pamięć rośnie (Chrome procesy się kumulują). `PLAYWRIGHT_MAX_CONCURRENCY=2` ogranicza problem. Przy dużym ruchu dodaj codzienny restart:
+  ```bash
+  # crontab -e na serwerze
+  0 4 * * * cd /opt/stacks/crawl4ai && docker compose restart
+  ```
 - **Wolny start** - Chromium startuje ~60-90s
 - **Duży obraz** - ~3.5GB na dysku
 - **JWT auth broken** - Wbudowany JWT nie wymaga credentials (znany bug). Używaj `CRAWL4AI_API_TOKEN` lub reverse proxy z auth.

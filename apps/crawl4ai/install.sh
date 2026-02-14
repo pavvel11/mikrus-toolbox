@@ -11,6 +11,9 @@
 # ⚠️  UWAGA: Ta aplikacja wymaga minimum 2GB RAM (Mikrus 2.0+)!
 #     Crawl4AI uruchamia headless Chromium do crawlowania stron.
 #     Na Mikrus 1.0 (1GB RAM) może powodować zawieszenie serwera.
+#
+# Znany problem: memory leak przy intensywnym użyciu (Chrome procesy się kumulują).
+# PLAYWRIGHT_MAX_CONCURRENCY=2 ogranicza, ale przy dużym ruchu rozważ cron restart.
 
 set -e
 
@@ -70,6 +73,7 @@ services:
   crawl4ai:
     image: unclecode/crawl4ai:latest
     restart: always
+    user: "1000:1000"
     ports:
       - "${BIND_ADDR}$PORT:11235"
     environment:
