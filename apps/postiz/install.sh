@@ -60,46 +60,13 @@ fi
 # POSTIZ_REDIS=bundled   → zawsze bundluj redis:7.2-alpine w compose
 # POSTIZ_REDIS=auto      → auto-detekcja (domyślne)
 
-POSTIZ_REDIS="${POSTIZ_REDIS:-auto}"
-REDIS_HOST=""
-REDIS_PASS=""
-
-# Sprawdź czy standalone Redis działa (apps/redis)
-detect_external_redis() {
-    # Najpierw sprawdź hasło (standalone Redis ma requirepass)
-    if [ -f /opt/stacks/redis/.redis_password ]; then
-        local pass
-        pass=$(cat /opt/stacks/redis/.redis_password 2>/dev/null)
-        if [ -n "$pass" ] && redis-cli -a "$pass" ping 2>/dev/null | grep -q PONG; then
-            REDIS_PASS="$pass"
-            return 0
-        fi
-    fi
-    # Fallback: Redis bez hasła
-    if redis-cli ping 2>/dev/null | grep -q PONG; then
-        return 0
-    fi
-    return 1
-}
-
-if [ "$POSTIZ_REDIS" = "external" ]; then
-    if detect_external_redis; then
-        REDIS_HOST="host-gateway"
-        echo "✅ Redis: zewnętrzny (host, wskazany przez POSTIZ_REDIS=external)"
-    else
-        echo "⚠️  POSTIZ_REDIS=external ale Redis nie odpowiada na localhost:6379"
-        echo "   Używam bundled Redis zamiast tego."
-        REDIS_HOST="postiz-redis"
-    fi
-elif [ "$POSTIZ_REDIS" = "bundled" ]; then
-    REDIS_HOST="postiz-redis"
-    echo "✅ Redis: bundled (wymuszony przez POSTIZ_REDIS=bundled)"
-elif detect_external_redis; then
-    REDIS_HOST="host-gateway"
-    echo "✅ Redis: zewnętrzny (wykryty na localhost:6379)"
+source /opt/mikrus-toolbox/lib/redis-detect.sh 2>/dev/null || true
+if type detect_redis &>/dev/null; then
+    detect_redis "${POSTIZ_REDIS:-auto}" "postiz-redis"
 else
     REDIS_HOST="postiz-redis"
-    echo "✅ Redis: bundled (brak istniejącego)"
+    REDIS_PASS=""
+    echo "✅ Redis: bundled (lib/redis-detect.sh niedostępne)"
 fi
 
 # Buduj REDIS_URL

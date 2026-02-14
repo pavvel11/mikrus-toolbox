@@ -66,27 +66,14 @@ fi
 # WP_REDIS=bundled   → zawsze bundluj redis:alpine w compose
 # WP_REDIS=auto      → auto-detekcja (domyślne)
 
-WP_REDIS="${WP_REDIS:-auto}"
-REDIS_HOST=""
-
-if [ "$WP_REDIS" = "external" ]; then
-    if redis-cli ping 2>/dev/null | grep -q PONG; then
-        REDIS_HOST="host-gateway"
-        echo "✅ Redis: zewnętrzny (host, wskazany przez WP_REDIS=external)"
-    else
-        echo "⚠️  WP_REDIS=external ale Redis nie odpowiada na localhost:6379"
-        echo "   Używam bundled Redis zamiast tego."
-        REDIS_HOST="redis"
-    fi
-elif [ "$WP_REDIS" = "bundled" ]; then
-    REDIS_HOST="redis"
-    echo "✅ Redis: bundled (wymuszony przez WP_REDIS=bundled)"
-elif redis-cli ping 2>/dev/null | grep -q PONG; then
-    REDIS_HOST="host-gateway"
-    echo "✅ Redis: zewnętrzny (wykryty na localhost:6379)"
+source /opt/mikrus-toolbox/lib/redis-detect.sh 2>/dev/null || true
+if type detect_redis &>/dev/null; then
+    detect_redis "${WP_REDIS:-auto}" "redis"
 else
+    # Fallback jeśli lib niedostępne
     REDIS_HOST="redis"
-    echo "✅ Redis: bundled (brak istniejącego)"
+    REDIS_PASS=""
+    echo "✅ Redis: bundled (lib/redis-detect.sh niedostępne)"
 fi
 
 # Domain
@@ -633,10 +620,16 @@ else
 fi
 
 if ! docker exec "$CONTAINER" grep -q "WP_REDIS_HOST" "$WP_CONFIG"; then
+    WP_REDIS_DEFINES="define('WP_REDIS_HOST', '$WP_REDIS_ADDR');\
+define('WP_REDIS_PORT', 6379);"
+    if [ -n "$REDIS_PASS" ]; then
+        WP_REDIS_DEFINES="$WP_REDIS_DEFINES\
+define('WP_REDIS_PASSWORD', '$REDIS_PASS');"
+    fi
+    WP_REDIS_DEFINES="$WP_REDIS_DEFINES\
+define('WP_CACHE', true);"
     docker exec "$CONTAINER" sed -i "/^<?php/a\\
-define('WP_REDIS_HOST', '$WP_REDIS_ADDR');\
-define('WP_REDIS_PORT', 6379);\
-define('WP_CACHE', true);" "$WP_CONFIG"
+$WP_REDIS_DEFINES" "$WP_CONFIG"
     echo "   ✅ Redis config (WP_REDIS_HOST=$WP_REDIS_ADDR, WP_CACHE=true)"
 fi
 
