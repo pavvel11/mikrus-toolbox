@@ -7,8 +7,8 @@
 #   ./local/deploy.sh APP [--ssh=ALIAS] [--db-source=shared|custom] [--domain=DOMAIN] [--yes]
 #
 # Przykłady:
-#   ./local/deploy.sh n8n --ssh=hanna                              # interaktywny
-#   ./local/deploy.sh n8n --ssh=hanna --db-source=shared --domain=auto --yes  # automatyczny
+#   ./local/deploy.sh n8n --ssh=mikrus                              # interaktywny
+#   ./local/deploy.sh n8n --ssh=mikrus --db-source=shared --domain=auto --yes  # automatyczny
 #   ./local/deploy.sh uptime-kuma --domain-type=local --yes        # bez domeny
 #
 # FLOW:
@@ -72,31 +72,31 @@ Tryby:
 
 Przykłady:
   # Interaktywny (pytania o brakujące dane)
-  ./local/deploy.sh n8n --ssh=hanna
+  ./local/deploy.sh n8n --ssh=mikrus
 
   # Automatyczny z Cytrus
-  ./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=cytrus --domain=auto --yes
+  ./local/deploy.sh uptime-kuma --ssh=mikrus --domain-type=cytrus --domain=auto --yes
 
   # Automatyczny z Cloudflare
-  ./local/deploy.sh n8n --ssh=hanna \\
+  ./local/deploy.sh n8n --ssh=mikrus \\
     --db-source=custom --db-host=psql.example.com \\
     --db-name=n8n --db-user=user --db-pass=secret \\
     --domain-type=cloudflare --domain=n8n.example.com --yes
 
   # Tylko lokalnie (bez domeny)
-  ./local/deploy.sh dockge --ssh=hanna --domain-type=local --yes
+  ./local/deploy.sh dockge --ssh=mikrus --domain-type=local --yes
 
   # Dry-run (podgląd bez wykonania)
-  ./local/deploy.sh n8n --ssh=hanna --dry-run
+  ./local/deploy.sh n8n --ssh=mikrus --dry-run
 
   # Aktualizacja istniejącej aplikacji
-  ./local/deploy.sh gateflow --ssh=hanna --update
+  ./local/deploy.sh gateflow --ssh=mikrus --update
 
   # Aktualizacja z lokalnego pliku (gdy repo jest prywatne)
-  ./local/deploy.sh gateflow --ssh=hanna --update --build-file=~/Downloads/gateflow-build.tar.gz
+  ./local/deploy.sh gateflow --ssh=mikrus --update --build-file=~/Downloads/gateflow-build.tar.gz
 
   # Restart bez aktualizacji (np. po zmianie .env)
-  ./local/deploy.sh gateflow --ssh=hanna --update --restart
+  ./local/deploy.sh gateflow --ssh=mikrus --update --restart
 
 EOF
 }

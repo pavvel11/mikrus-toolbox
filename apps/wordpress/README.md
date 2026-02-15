@@ -41,16 +41,16 @@ Cytrus/Caddy (host) → Nginx (gzip, FastCGI cache, rate limiting, security)
 
 ```bash
 # Shared MySQL z Mikrusa (darmowy)
-./local/deploy.sh wordpress --ssh=hanna --domain-type=cytrus --domain=auto
+./local/deploy.sh wordpress --ssh=mikrus --domain-type=cytrus --domain=auto
 
 # Własny MySQL
-./local/deploy.sh wordpress --ssh=hanna --db-source=custom --domain-type=cytrus --domain=auto
+./local/deploy.sh wordpress --ssh=mikrus --db-source=custom --domain-type=cytrus --domain=auto
 ```
 
 ### Tryb SQLite (lekki, bez MySQL)
 
 ```bash
-WP_DB_MODE=sqlite ./local/deploy.sh wordpress --ssh=hanna --domain-type=cytrus --domain=auto
+WP_DB_MODE=sqlite ./local/deploy.sh wordpress --ssh=mikrus --domain-type=cytrus --domain=auto
 ```
 
 ### Redis (external vs bundled)
@@ -59,16 +59,16 @@ Domyślnie auto-detekcja: jeśli port 6379 nasłuchuje na serwerze, WordPress ł
 
 ```bash
 # Wymuś bundled Redis (nawet gdy istnieje external)
-WP_REDIS=bundled ./local/deploy.sh wordpress --ssh=hanna
+WP_REDIS=bundled ./local/deploy.sh wordpress --ssh=mikrus
 
 # Wymuś external Redis (host)
-WP_REDIS=external ./local/deploy.sh wordpress --ssh=hanna
+WP_REDIS=external ./local/deploy.sh wordpress --ssh=mikrus
 
 # External Redis z hasłem
-REDIS_PASS=tajneHaslo WP_REDIS=external ./local/deploy.sh wordpress --ssh=hanna
+REDIS_PASS=tajneHaslo WP_REDIS=external ./local/deploy.sh wordpress --ssh=mikrus
 
 # Auto-detekcja (domyślne)
-./local/deploy.sh wordpress --ssh=hanna
+./local/deploy.sh wordpress --ssh=mikrus
 ```
 
 ## Wymagania
@@ -82,7 +82,7 @@ REDIS_PASS=tajneHaslo WP_REDIS=external ./local/deploy.sh wordpress --ssh=hanna
 1. Otwórz stronę → kreator instalacji WordPress
 2. Zastosuj optymalizacje wp-config.php + zainstaluj Redis Object Cache:
    ```bash
-   ssh hanna 'cd /opt/stacks/wordpress && ./wp-init.sh'
+   ssh mikrus 'cd /opt/stacks/wordpress && ./wp-init.sh'
    ```
 
 `wp-init.sh` automatycznie:
@@ -131,7 +131,7 @@ Ochrona przed thundering herd: gdy wielu użytkowników prosi o tę samą niecac
 
 Wyczyść cache po aktualizacji treści/wtyczek:
 ```bash
-ssh hanna 'cd /opt/stacks/wordpress && ./flush-cache.sh'
+ssh mikrus 'cd /opt/stacks/wordpress && ./flush-cache.sh'
 ```
 
 Header `X-FastCGI-Cache` w odpowiedzi HTTP pokazuje status: `HIT`, `MISS`, `BYPASS`.
@@ -151,7 +151,7 @@ Header `X-FastCGI-Cache` w odpowiedzi HTTP pokazuje status: `HIT`, `MISS`, `BYPA
 ## Backup
 
 ```bash
-./local/setup-backup.sh hanna
+./local/setup-backup.sh mikrus
 ```
 
 Dane w `/opt/stacks/wordpress/`:

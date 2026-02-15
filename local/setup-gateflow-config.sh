@@ -53,10 +53,10 @@ Przykłady:
   ./local/setup-gateflow-config.sh
 
   # Z domeną i SSH
-  ./local/setup-gateflow-config.sh --ssh=hanna --domain=auto --domain-type=cytrus
+  ./local/setup-gateflow-config.sh --ssh=mikrus --domain=auto --domain-type=cytrus
 
   # Z konkretnym projektem Supabase
-  ./local/setup-gateflow-config.sh --ssh=hanna --supabase-project=abcdefghijk --domain=auto
+  ./local/setup-gateflow-config.sh --ssh=mikrus --supabase-project=abcdefghijk --domain=auto
 
   # Tylko Supabase (bez Stripe i Turnstile)
   ./local/setup-gateflow-config.sh --no-stripe --no-turnstile

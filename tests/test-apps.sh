@@ -3,7 +3,7 @@
 # Tests all apps on a remote server: deploy → check HTTP → cleanup
 #
 # Usage:
-#   ./tests/test-apps.sh                  # uses SSH_HOST=hanna
+#   ./tests/test-apps.sh                  # uses SSH_HOST=mikrus
 #   SSH_HOST=myserver ./tests/test-apps.sh
 #   ./tests/test-apps.sh ntfy dockge      # test only specific apps
 #
@@ -15,7 +15,7 @@
 set -o pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-SSH="${SSH_HOST:-hanna}"
+SSH="${SSH_HOST:-mikrus}"
 RESULTS=()
 PASS=0
 FAIL=0

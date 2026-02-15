@@ -27,8 +27,8 @@ if [ -z "$FULL_DOMAIN" ]; then
     echo ""
     echo "Przykłady:"
     echo "  $0 app.mojafirma.pl                    # Cloudflare + Caddy"
-    echo "  $0 app.mojafirma.pl hanna              # z innego serwera"
-    echo "  $0 app.mojafirma.pl hanna cytrus       # dla Cytrus API"
+    echo "  $0 app.mojafirma.pl mikrus              # z innego serwera"
+    echo "  $0 app.mojafirma.pl mikrus cytrus       # dla Cytrus API"
     echo ""
     echo "Wymaga wcześniejszej konfiguracji: ./local/setup-cloudflare.sh"
     exit 1

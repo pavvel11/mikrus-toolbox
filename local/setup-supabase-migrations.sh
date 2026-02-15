@@ -159,7 +159,7 @@ TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
 # Sprawdź czy migracje są na serwerze (z paczki instalacyjnej)
-SSH_ALIAS="${SSH_ALIAS:-hanna}"
+SSH_ALIAS="${SSH_ALIAS:-mikrus}"
 MIGRATIONS_SOURCE=""
 
 # Znajdź katalog instalacji GateFlow

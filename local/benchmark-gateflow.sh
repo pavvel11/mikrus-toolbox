@@ -5,8 +5,8 @@ set -e
 # Użycie: ./local/benchmark-gateflow.sh <url> <ssh_alias> [requesty] [współbieżność]
 #
 # Przykłady:
-#   ./local/benchmark-gateflow.sh https://shop.byst.re hanna
-#   ./local/benchmark-gateflow.sh https://shop.example.com hanna 200 20
+#   ./local/benchmark-gateflow.sh https://shop.byst.re mikrus
+#   ./local/benchmark-gateflow.sh https://shop.example.com mikrus 200 20
 
 URL=${1}
 SSH_ALIAS=${2}
@@ -17,7 +17,7 @@ if [ -z "$URL" ] || [ -z "$SSH_ALIAS" ]; then
   echo "❌ Użycie: $0 <url> <ssh_alias> [requesty] [współbieżność]"
   echo ""
   echo "Przykład:"
-  echo "  $0 https://shop.byst.re hanna 200 20"
+  echo "  $0 https://shop.byst.re mikrus 200 20"
   exit 1
 fi
 

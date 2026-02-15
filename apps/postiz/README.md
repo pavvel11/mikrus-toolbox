@@ -5,7 +5,7 @@ Alternatywa dla Buffer/Hootsuite. Planuj posty na Twitter/X, LinkedIn, Instagram
 ## Instalacja
 
 ```bash
-./local/deploy.sh postiz --ssh=hanna --domain-type=cytrus --domain=auto
+./local/deploy.sh postiz --ssh=mikrus --domain-type=cytrus --domain=auto
 ```
 
 Deploy.sh automatycznie skonfiguruje bazę PostgreSQL (shared Mikrus lub własna).
@@ -26,7 +26,7 @@ Pinujemy **v2.11.3** (pre-Temporal). Od v2.12+ Postiz wymaga Temporal + Elastics
 1. Otwórz stronę w przeglądarce → utwórz konto administratora
 2. **Wyłącz rejestrację** po utworzeniu konta:
    ```bash
-   ssh hanna 'cd /opt/stacks/postiz && grep -q DISABLE_REGISTRATION docker-compose.yaml || sed -i "/IS_GENERAL/a\      - DISABLE_REGISTRATION=true" docker-compose.yaml && docker compose up -d'
+   ssh mikrus 'cd /opt/stacks/postiz && grep -q DISABLE_REGISTRATION docker-compose.yaml || sed -i "/IS_GENERAL/a\      - DISABLE_REGISTRATION=true" docker-compose.yaml && docker compose up -d'
    ```
 3. Podłącz konta social media (Settings → Integrations)
 4. Zaplanuj pierwsze posty
@@ -70,13 +70,13 @@ Domyślnie auto-detekcja: jeśli port 6379 nasłuchuje na serwerze, Postiz łąc
 
 ```bash
 # Wymuś bundled Redis (nawet gdy istnieje external)
-POSTIZ_REDIS=bundled ./local/deploy.sh postiz --ssh=hanna
+POSTIZ_REDIS=bundled ./local/deploy.sh postiz --ssh=mikrus
 
 # Wymuś external Redis (host)
-POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=hanna
+POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=mikrus
 
 # External Redis z hasłem
-REDIS_PASS=tajneHaslo POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=hanna
+REDIS_PASS=tajneHaslo POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=mikrus
 ```
 
 ## Ograniczenia
@@ -90,7 +90,7 @@ REDIS_PASS=tajneHaslo POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=hanna
 ## Backup
 
 ```bash
-./local/setup-backup.sh hanna
+./local/setup-backup.sh mikrus
 ```
 
 Dane w `/opt/stacks/postiz/`:

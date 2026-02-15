@@ -32,14 +32,14 @@ Na Mikrus 4.1 (8GB/80GB) - komfortowo. ~7 GB na apki, 80 GB dysku na obrazy i da
 ## Instalacja
 
 ```bash
-./local/deploy.sh coolify --ssh=hanna
+./local/deploy.sh coolify --ssh=mikrus
 ```
 
 ### Z pre-konfiguracją admina (bezpieczniej)
 
 ```bash
 ROOT_USERNAME=admin ROOT_USER_EMAIL=admin@example.com ROOT_USER_PASSWORD=TajneHaslo123 \
-  ./local/deploy.sh coolify --ssh=hanna
+  ./local/deploy.sh coolify --ssh=mikrus
 ```
 
 Pomija ekran otwartej rejestracji - konto admina jest gotowe od razu.
@@ -47,7 +47,7 @@ Pomija ekran otwartej rejestracji - konto admina jest gotowe od razu.
 ### Wyłączenie auto-aktualizacji
 
 ```bash
-AUTOUPDATE=false ./local/deploy.sh coolify --ssh=hanna
+AUTOUPDATE=false ./local/deploy.sh coolify --ssh=mikrus
 ```
 
 Nie wymaga: `--domain-type`, `--domain`, bazy danych. Coolify zarządza tym sam.

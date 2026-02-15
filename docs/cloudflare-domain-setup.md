@@ -104,10 +104,10 @@ Teraz dodawanie domeny to jedno polecenie:
 
 ```bash
 # Dodaj rekord DNS (IPv6 pobierze się automatycznie!)
-./local/dns-add.sh status.mojafirma.pl hanna
+./local/dns-add.sh status.mojafirma.pl mikrus
 
 # Wystaw aplikację przez HTTPS
-ssh hanna 'mikrus-expose status.mojafirma.pl 3001'
+ssh mikrus 'mikrus-expose status.mojafirma.pl 3001'
 ```
 
 ## Weryfikacja
@@ -132,12 +132,12 @@ Poczekaj 5-10 minut. Cloudflare jest szybki, ale propagacja może chwilę zają�
 2. Sprawdź czy proxy jest włączony (żółta chmurka przy rekordzie)
 
 ### "502 Bad Gateway"
-1. Sprawdź czy aplikacja działa: `ssh hanna 'docker ps'`
+1. Sprawdź czy aplikacja działa: `ssh mikrus 'docker ps'`
 2. Sprawdź czy port jest poprawny w `mikrus-expose`
 
 ### "Connection refused"
-1. Upewnij się że Caddy jest zainstalowany: `ssh hanna 'which caddy'`
-2. Sprawdź status Caddy: `ssh hanna 'systemctl status caddy'`
+1. Upewnij się że Caddy jest zainstalowany: `ssh mikrus 'which caddy'`
+2. Sprawdź status Caddy: `ssh mikrus 'systemctl status caddy'`
 
 ---
 

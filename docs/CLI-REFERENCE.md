@@ -27,10 +27,10 @@ Mikrus Toolbox obsługuje trzy tryby pracy:
 
 ```bash
 # Interaktywny
-./local/deploy.sh n8n --ssh=hanna
+./local/deploy.sh n8n --ssh=mikrus
 
 # Pełna automatyzacja
-./local/deploy.sh n8n --ssh=hanna --db-source=shared --domain=auto --yes
+./local/deploy.sh n8n --ssh=mikrus --db-source=shared --domain=auto --yes
 ```
 
 ---
@@ -84,7 +84,7 @@ Wartości są pobierane w następującej kolejności (od najwyższego priorytetu
 | `--ssh=ALIAS` | SSH alias z `~/.ssh/config` | `mikrus` |
 
 ```bash
-./local/deploy.sh n8n --ssh=hanna
+./local/deploy.sh n8n --ssh=mikrus
 ./local/deploy.sh n8n --ssh mikrus2
 ```
 
@@ -119,7 +119,7 @@ Używane przez aplikacje wymagające PostgreSQL (n8n, listmonk, umami, nocodb, t
 Pobiera dane bazy z API Mikrus. Wymaga zalogowania w przeglądarce.
 
 ```bash
-./local/deploy.sh n8n --ssh=hanna --db-source=shared --domain=n8n.example.com --yes
+./local/deploy.sh n8n --ssh=mikrus --db-source=shared --domain=n8n.example.com --yes
 ```
 
 **Uwaga:** Shared DB nie obsługuje rozszerzenia `pgcrypto`. Aplikacje wymagające `pgcrypto` (n8n, umami) potrzebują `--db-source=custom`.
@@ -129,7 +129,7 @@ Pobiera dane bazy z API Mikrus. Wymaga zalogowania w przeglądarce.
 Ręczna konfiguracja bazy danych.
 
 ```bash
-./local/deploy.sh n8n --ssh=hanna \
+./local/deploy.sh n8n --ssh=mikrus \
   --db-source=custom \
   --db-host=psql.example.com \
   --db-port=5432 \
@@ -156,7 +156,7 @@ Ręczna konfiguracja bazy danych.
 Domena przydzielana przez system Cytrus (*.cytrus.app). Użyj `--domain=auto` dla automatycznego przydziału.
 
 ```bash
-./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=cytrus --domain=auto --yes
+./local/deploy.sh uptime-kuma --ssh=mikrus --domain-type=cytrus --domain=auto --yes
 ```
 
 ### --domain-type=cloudflare
@@ -164,7 +164,7 @@ Domena przydzielana przez system Cytrus (*.cytrus.app). Użyj `--domain=auto` dl
 Własna domena zarządzana przez Cloudflare. Wymaga tunelu Cloudflare.
 
 ```bash
-./local/deploy.sh n8n --ssh=hanna \
+./local/deploy.sh n8n --ssh=mikrus \
   --domain-type=cloudflare \
   --domain=n8n.mojafirma.pl \
   --yes
@@ -175,8 +175,8 @@ Własna domena zarządzana przez Cloudflare. Wymaga tunelu Cloudflare.
 Brak domeny. Dostęp przez tunel SSH.
 
 ```bash
-./local/deploy.sh dockge --ssh=hanna --domain-type=local --yes
-# Dostęp: ssh -L 5001:localhost:5001 hanna && http://localhost:5001
+./local/deploy.sh dockge --ssh=mikrus --domain-type=local --yes
+# Dostęp: ssh -L 5001:localhost:5001 mikrus && http://localhost:5001
 ```
 
 ---
@@ -188,7 +188,7 @@ Brak domeny. Dostęp przez tunel SSH.
 Skrypt pyta o brakujące wartości.
 
 ```bash
-./local/deploy.sh n8n --ssh=hanna
+./local/deploy.sh n8n --ssh=mikrus
 # > Wybierz źródło bazy danych [shared/custom]: _
 # > Podaj domenę: _
 ```
@@ -199,10 +199,10 @@ Wymaga wszystkich wartości. Brak wartości = błąd.
 
 ```bash
 # OK - wszystkie wartości podane
-./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=local --yes
+./local/deploy.sh uptime-kuma --ssh=mikrus --domain-type=local --yes
 
 # BŁĄD - brak wymaganych wartości
-./local/deploy.sh n8n --ssh=hanna --yes
+./local/deploy.sh n8n --ssh=mikrus --yes
 # > Błąd: --db-source jest wymagane w trybie --yes
 ```
 
@@ -211,10 +211,10 @@ Wymaga wszystkich wartości. Brak wartości = błąd.
 Pokazuje co zostanie wykonane bez faktycznego wykonania.
 
 ```bash
-./local/deploy.sh n8n --ssh=hanna --dry-run
+./local/deploy.sh n8n --ssh=mikrus --dry-run
 # [dry-run] Symulacja wykonania:
-#   scp apps/n8n/install.sh hanna:/tmp/mikrus-deploy-123.sh
-#   ssh -t hanna "export DB_HOST=... ; bash '/tmp/mikrus-deploy-123.sh'"
+#   scp apps/n8n/install.sh mikrus:/tmp/mikrus-deploy-123.sh
+#   ssh -t mikrus "export DB_HOST=... ; bash '/tmp/mikrus-deploy-123.sh'"
 ```
 
 ---
@@ -413,14 +413,14 @@ DOMAIN=...  # Opcjonalna domena
 ### Szybki deploy z Cytrus
 
 ```bash
-./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=cytrus --domain=auto --yes
+./local/deploy.sh uptime-kuma --ssh=mikrus --domain-type=cytrus --domain=auto --yes
 ```
 
 ### Deploy bez domeny (tunel SSH)
 
 ```bash
-./local/deploy.sh dockge --ssh=hanna --domain-type=local --yes
-# Dostęp: ssh -L 5001:localhost:5001 hanna
+./local/deploy.sh dockge --ssh=mikrus --domain-type=local --yes
+# Dostęp: ssh -L 5001:localhost:5001 mikrus
 ```
 
 ### Dry-run przed produkcją
@@ -466,11 +466,11 @@ Git Bash z domyślnym terminalem MinTTY ma problemy z interaktywnymi sesjami SSH
 1. **Windows Terminal (zalecane)** - uruchom Git Bash w Windows Terminal
 2. **winpty** - prefix dla poleceń:
    ```bash
-   winpty ./local/deploy.sh n8n --ssh=hanna
+   winpty ./local/deploy.sh n8n --ssh=mikrus
    ```
 3. **Tryb automatyczny** - użyj `--yes` aby pominąć interakcje:
    ```bash
-   ./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=local --yes
+   ./local/deploy.sh uptime-kuma --ssh=mikrus --domain-type=local --yes
    ```
 4. **WSL2 (najlepsze)** - zainstaluj Ubuntu z Microsoft Store
 
@@ -497,7 +497,7 @@ Po skonfigurowaniu domeny Cytrus, może minąć do 60 sekund zanim zacznie odpow
 Sprawdź czy alias SSH jest poprawnie skonfigurowany w `~/.ssh/config`:
 
 ```
-Host hanna
+Host mikrus
     HostName srv00.mikr.us
     User root
     Port 10123

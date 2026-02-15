@@ -92,7 +92,7 @@ if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ]; then
     echo "   Wymagane: DB_HOST, DB_USER, DB_PASS, DB_NAME"
     echo ""
     echo "   Użyj deploy.sh - automatycznie skonfiguruje bazę:"
-    echo "   ./local/deploy.sh postiz --ssh=hanna"
+    echo "   ./local/deploy.sh postiz --ssh=mikrus"
     exit 1
 fi
 

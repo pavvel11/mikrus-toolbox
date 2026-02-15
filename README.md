@@ -189,7 +189,7 @@ claude
 ```
 
 Powiedz co chcesz:
-- *"Zainstaluj n8n na serwerze hanna"*
+- *"Zainstaluj n8n na serwerze mikrus"*
 - *"Skonfiguruj backup do Google Drive"*
 - *"Sprawdź czy wszystkie kontenery działają"*
 - *"Wystaw Dockge pod domeną panel.mojafirma.pl"*
@@ -268,7 +268,7 @@ Masz **Mikrus 4.1** (8GB RAM, 80GB dysk, 2x CPU)? Zainstaluj [Coolify](https://c
 | **Webowy panel** | Zarządzaj wszystkim przez przeglądarkę |
 
 ```bash
-./local/deploy.sh coolify --ssh=hanna
+./local/deploy.sh coolify --ssh=mikrus
 ```
 
 > Coolify przejmuje porty 80/443 (Traefik). Nie mieszaj z innymi apkami z toolboxa. Szczegóły: [apps/coolify/README.md](apps/coolify/README.md)

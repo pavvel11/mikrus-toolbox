@@ -5,7 +5,7 @@ Self-hosted konwerter plików obsługujący 1000+ formatów: obrazy, dokumenty, 
 ## Instalacja
 
 ```bash
-./local/deploy.sh convertx --ssh=hanna --domain-type=cytrus --domain=auto
+./local/deploy.sh convertx --ssh=mikrus --domain-type=cytrus --domain=auto
 ```
 
 ## Wymagania
@@ -19,7 +19,7 @@ Self-hosted konwerter plików obsługujący 1000+ formatów: obrazy, dokumenty, 
 1. Otwórz stronę → utwórz konto administratora
 2. **Wyłącz rejestrację** po utworzeniu konta:
    ```bash
-   ssh hanna 'cd /opt/stacks/convertx && sed -i "s/ACCOUNT_REGISTRATION=true/ACCOUNT_REGISTRATION=false/" docker-compose.yaml && docker compose up -d'
+   ssh mikrus 'cd /opt/stacks/convertx && sed -i "s/ACCOUNT_REGISTRATION=true/ACCOUNT_REGISTRATION=false/" docker-compose.yaml && docker compose up -d'
    ```
 
 ## Zmienne środowiskowe
@@ -60,7 +60,7 @@ ConvertX bundluje 20+ narzędzi w jednym obrazie Docker:
 ## Backup
 
 ```bash
-./local/setup-backup.sh hanna
+./local/setup-backup.sh mikrus
 ```
 
 Dane w `/opt/stacks/convertx/data/`:

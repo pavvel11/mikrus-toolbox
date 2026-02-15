@@ -5,8 +5,8 @@ Sprzedawaj e-booki, kursy, szablony i licencje bez miesięcznych opłat i prowiz
 
 **RAM:** ~300MB | **Dysk:** ~500MB | **Plan:** Mikrus 3.0+ (1GB RAM)
 
-> **Uwaga:** W przykładach używamy `--ssh=hanna` jako przykładowego aliasu SSH.
-> Zamień `hanna` na swój alias z `~/.ssh/config` (np. `mikrus`, `srv1`, `mojserwer`).
+> **Uwaga:** W przykładach używamy `--ssh=mikrus` jako domyślnego aliasu SSH.
+> Jeśli masz inny alias w `~/.ssh/config`, zamień `mikrus` na swój (np. `srv1`, `mojserwer`).
 
 ---
 
@@ -26,7 +26,7 @@ GateFlow obsługuje **dwa tryby** instalacji:
 ### Tryb interaktywny (najprostszy)
 
 ```bash
-./local/deploy.sh gateflow --ssh=hanna
+./local/deploy.sh gateflow --ssh=mikrus
 ```
 
 Skrypt przeprowadzi Cię przez:
@@ -43,7 +43,7 @@ Skrypt przeprowadzi Cię przez:
 ./local/setup-gateflow-config.sh
 
 # KROK 2: Deployment (w pełni automatyczny, bez pytań)
-./local/deploy.sh gateflow --ssh=hanna --yes
+./local/deploy.sh gateflow --ssh=mikrus --yes
 ```
 
 ---
@@ -79,13 +79,13 @@ Skrypt przeprowadzi Cię przez:
 
 ```bash
 # Z domeną Cytrus (automatyczna subdomena *.byst.re)
-./local/deploy.sh gateflow --ssh=hanna --domain=auto --domain-type=cytrus
+./local/deploy.sh gateflow --ssh=mikrus --domain=auto --domain-type=cytrus
 
 # Z własną domeną (Cloudflare DNS)
-./local/deploy.sh gateflow --ssh=hanna --domain=shop.example.com --domain-type=cloudflare
+./local/deploy.sh gateflow --ssh=mikrus --domain=shop.example.com --domain-type=cloudflare
 
 # Z konkretnym projektem Supabase (pomija wybór z listy)
-./local/deploy.sh gateflow --ssh=hanna --supabase-project=abcdefghijk
+./local/deploy.sh gateflow --ssh=mikrus --supabase-project=abcdefghijk
 ```
 
 ### Co się dzieje podczas instalacji
@@ -136,7 +136,7 @@ Skrypt zbiera i zapisuje do `~/.config/gateflow/deploy-config.env`:
 ### Krok 2: Automatyczny deployment
 
 ```bash
-./local/deploy.sh gateflow --ssh=hanna --yes
+./local/deploy.sh gateflow --ssh=mikrus --yes
 ```
 
 Flaga `--yes` oznacza:
@@ -148,7 +148,7 @@ Flaga `--yes` oznacza:
 
 | Parametr | Opis | Przykład |
 |----------|------|----------|
-| `--ssh=ALIAS` | SSH alias serwera | `--ssh=hanna` |
+| `--ssh=ALIAS` | SSH alias serwera | `--ssh=mikrus` |
 | `--domain=DOMAIN` | Domena lub `auto` | `--domain=auto` |
 | `--domain-type=TYPE` | `cytrus` lub `cloudflare` | `--domain-type=cytrus` |
 | `--supabase-project=REF` | Project ref (pomija wybór) | `--supabase-project=abc123` |
@@ -163,16 +163,16 @@ Flaga `--yes` oznacza:
 ./local/setup-gateflow-config.sh
 
 # Szybka konfiguracja z automatyczną domeną Cytrus
-./local/setup-gateflow-config.sh --ssh=hanna --domain=auto
+./local/setup-gateflow-config.sh --ssh=mikrus --domain=auto
 
 # Bez Stripe i Turnstile (tylko Supabase)
-./local/setup-gateflow-config.sh --ssh=hanna --no-stripe --no-turnstile
+./local/setup-gateflow-config.sh --ssh=mikrus --no-stripe --no-turnstile
 
 # Z konkretnym projektem Supabase
-./local/setup-gateflow-config.sh --ssh=hanna --supabase-project=grinnleqqyygznnbpjzc --domain=auto
+./local/setup-gateflow-config.sh --ssh=mikrus --supabase-project=grinnleqqyygznnbpjzc --domain=auto
 
 # Z własną domeną Cloudflare
-./local/setup-gateflow-config.sh --ssh=hanna --domain=shop.example.com --domain-type=cloudflare
+./local/setup-gateflow-config.sh --ssh=mikrus --domain=shop.example.com --domain-type=cloudflare
 ```
 
 ---
@@ -211,22 +211,22 @@ Flaga `--yes` oznacza:
 
 ```bash
 # Interaktywny z automatyczną domeną
-./local/deploy.sh gateflow --ssh=hanna --domain=auto --domain-type=cytrus
+./local/deploy.sh gateflow --ssh=mikrus --domain=auto --domain-type=cytrus
 
 # Automatyczny (wymaga wcześniejszej konfiguracji)
-./local/deploy.sh gateflow --ssh=hanna --yes
+./local/deploy.sh gateflow --ssh=mikrus --yes
 
 # Automatyczny z konkretnym projektem Supabase
-./local/deploy.sh gateflow --ssh=hanna --supabase-project=abc123 --yes
+./local/deploy.sh gateflow --ssh=mikrus --supabase-project=abc123 --yes
 
 # Z własną domeną Cloudflare
-./local/deploy.sh gateflow --ssh=hanna --domain=shop.example.com --domain-type=cloudflare --yes
+./local/deploy.sh gateflow --ssh=mikrus --domain=shop.example.com --domain-type=cloudflare --yes
 
 # Aktualizacja
-./local/deploy.sh gateflow --ssh=hanna --update
+./local/deploy.sh gateflow --ssh=mikrus --update
 
 # Z lokalnym buildem (prywatne repo)
-./local/deploy.sh gateflow --ssh=hanna --build-file=~/Downloads/gateflow-build.tar.gz --yes
+./local/deploy.sh gateflow --ssh=mikrus --build-file=~/Downloads/gateflow-build.tar.gz --yes
 ```
 
 ---
@@ -239,7 +239,7 @@ Flaga `--yes` oznacza:
 
 ```bash
 # Po prostu uruchom
-./local/deploy.sh gateflow --ssh=hanna
+./local/deploy.sh gateflow --ssh=mikrus
 
 # Skrypt:
 # 1. Otworzy przeglądarkę do logowania Supabase
@@ -255,10 +255,10 @@ Flaga `--yes` oznacza:
 
 ```bash
 # JEDNORAZOWO (na lokalnej maszynie):
-./local/setup-gateflow-config.sh --ssh=hanna --domain=auto
+./local/setup-gateflow-config.sh --ssh=mikrus --domain=auto
 
 # W CI/CD:
-./local/deploy.sh gateflow --ssh=hanna --yes
+./local/deploy.sh gateflow --ssh=mikrus --yes
 ```
 
 ### Case 3: Wiele serwerów Mikrus
@@ -267,11 +267,11 @@ Flaga `--yes` oznacza:
 
 ```bash
 # Konfiguracja dla każdego serwera
-./local/setup-gateflow-config.sh --ssh=hanna --domain=auto
+./local/setup-gateflow-config.sh --ssh=mikrus --domain=auto
 ./local/setup-gateflow-config.sh --ssh=gracz --domain=auto
 
 # Deploy (użyje zapisanej konfiguracji)
-./local/deploy.sh gateflow --ssh=hanna --yes
+./local/deploy.sh gateflow --ssh=mikrus --yes
 ./local/deploy.sh gateflow --ssh=gracz --yes
 ```
 
@@ -285,12 +285,12 @@ Flaga `--yes` oznacza:
 
 # 2. Konfiguracja
 ./local/setup-gateflow-config.sh \
-  --ssh=hanna \
+  --ssh=mikrus \
   --domain=shop.mojastrona.pl \
   --domain-type=cloudflare
 
 # 3. Deploy
-./local/deploy.sh gateflow --ssh=hanna --yes
+./local/deploy.sh gateflow --ssh=mikrus --yes
 ```
 
 ### Case 5: Wiele projektów Supabase na jednym koncie
@@ -302,10 +302,10 @@ Flaga `--yes` oznacza:
 # https://supabase.com/dashboard/project/TUTAJ_REF
 
 # Deploy na projekt testowy
-./local/deploy.sh gateflow --ssh=hanna-test --supabase-project=abc123test --yes
+./local/deploy.sh gateflow --ssh=mikrus-staging --supabase-project=abc123test --yes
 
 # Deploy na projekt produkcyjny
-./local/deploy.sh gateflow --ssh=hanna-prod --supabase-project=xyz789prod --yes
+./local/deploy.sh gateflow --ssh=mikrus-prod --supabase-project=xyz789prod --yes
 ```
 
 ### Case 6: Reinstalacja po wyczyszczeniu serwera
@@ -315,7 +315,7 @@ Flaga `--yes` oznacza:
 ```bash
 # Konfiguracja jest w ~/.config/gateflow/deploy-config.env
 # Po prostu uruchom:
-./local/deploy.sh gateflow --ssh=hanna --yes
+./local/deploy.sh gateflow --ssh=mikrus --yes
 
 # Skrypt użyje zapisanych kluczy Supabase, domeny, etc.
 ```
@@ -326,13 +326,13 @@ Flaga `--yes` oznacza:
 
 ```bash
 # Prosta aktualizacja (auto-wykrywa instancję)
-./local/deploy.sh gateflow --ssh=hanna --update
+./local/deploy.sh gateflow --ssh=mikrus --update
 
 # Aktualizacja konkretnej instancji
-./local/deploy.sh gateflow --ssh=hanna --update --domain=shop.example.com
+./local/deploy.sh gateflow --ssh=mikrus --update --domain=shop.example.com
 
 # Aktualizacja z lokalnym buildem (prywatne repo)
-./local/deploy.sh gateflow --ssh=hanna --update --build-file=~/Downloads/gateflow-build.tar.gz
+./local/deploy.sh gateflow --ssh=mikrus --update --build-file=~/Downloads/gateflow-build.tar.gz
 ```
 
 ### Case 8: Wiele instancji na jednym serwerze (ta sama baza)
@@ -341,13 +341,13 @@ Flaga `--yes` oznacza:
 
 ```bash
 # Pierwsza instancja - sklep główny
-./local/deploy.sh gateflow --ssh=hanna --domain=shop.example.com --domain-type=cloudflare
+./local/deploy.sh gateflow --ssh=mikrus --domain=shop.example.com --domain-type=cloudflare
 
 # Druga instancja - kursy online
-./local/deploy.sh gateflow --ssh=hanna --domain=courses.example.com --domain-type=cloudflare
+./local/deploy.sh gateflow --ssh=mikrus --domain=courses.example.com --domain-type=cloudflare
 
 # Trzecia instancja - inna domena
-./local/deploy.sh gateflow --ssh=hanna --domain=digital.innadomena.pl --domain-type=cloudflare
+./local/deploy.sh gateflow --ssh=mikrus --domain=digital.innadomena.pl --domain-type=cloudflare
 ```
 
 **Wynik na serwerze:**
@@ -364,7 +364,7 @@ Każda instancja:
 
 **Aktualizacja konkretnej instancji:**
 ```bash
-./local/deploy.sh gateflow --ssh=hanna --update --domain=courses.example.com
+./local/deploy.sh gateflow --ssh=mikrus --update --domain=courses.example.com
 ```
 
 ### Case 9: Wiele instancji z różnymi bazami danych
@@ -376,21 +376,21 @@ Każda instancja:
 # https://supabase.com/dashboard/projects
 
 # Instancja 1: Produkcja (projekt: gateflow-prod)
-./local/deploy.sh gateflow --ssh=hanna \
+./local/deploy.sh gateflow --ssh=mikrus \
   --supabase-project=abc123prod \
   --domain=shop.example.com \
   --domain-type=cloudflare \
   --yes
 
 # Instancja 2: Testy (projekt: gateflow-test)
-./local/deploy.sh gateflow --ssh=hanna \
+./local/deploy.sh gateflow --ssh=mikrus \
   --supabase-project=xyz789test \
   --domain=test.example.com \
   --domain-type=cloudflare \
   --yes
 
 # Instancja 3: Demo dla klienta (projekt: gateflow-demo)
-./local/deploy.sh gateflow --ssh=hanna \
+./local/deploy.sh gateflow --ssh=mikrus \
   --supabase-project=demo456client \
   --domain=demo.example.com \
   --domain-type=cloudflare \
@@ -409,7 +409,7 @@ Każda instancja:
 **Weryfikacja konfiguracji:**
 ```bash
 # Sprawdź który projekt używa która instancja
-ssh hanna "grep SUPABASE_URL /opt/stacks/gateflow-*/admin-panel/.env.local"
+ssh mikrus "grep SUPABASE_URL /opt/stacks/gateflow-*/admin-panel/.env.local"
 ```
 
 ---
@@ -454,28 +454,28 @@ ssh hanna "grep SUPABASE_URL /opt/stacks/gateflow-*/admin-panel/.env.local"
 
 ```bash
 # Status wszystkich instancji
-ssh hanna "pm2 status"
+ssh mikrus "pm2 status"
 
 # Logi pojedynczej instancji
-ssh hanna "pm2 logs gateflow-admin"           # auto-domena
-ssh hanna "pm2 logs gateflow-shop"            # shop.example.com
+ssh mikrus "pm2 logs gateflow-admin"           # auto-domena
+ssh mikrus "pm2 logs gateflow-shop"            # shop.example.com
 
 # Restart
-ssh hanna "pm2 restart gateflow-admin"
+ssh mikrus "pm2 restart gateflow-admin"
 
 # Restart wszystkich instancji GateFlow
-ssh hanna "pm2 restart all"
+ssh mikrus "pm2 restart all"
 
 # Logi na żywo
-ssh hanna "pm2 logs gateflow-shop --lines 50"
+ssh mikrus "pm2 logs gateflow-shop --lines 50"
 
 # Sprawdź konfigurację Supabase wszystkich instancji
-ssh hanna "grep SUPABASE_URL /opt/stacks/gateflow*/admin-panel/.env.local"
+ssh mikrus "grep SUPABASE_URL /opt/stacks/gateflow*/admin-panel/.env.local"
 ```
 
 > **Uwaga:** Jeśli `pm2: command not found`, dodaj PATH ręcznie:
 > ```bash
-> ssh hanna "echo 'export PATH=\"\$HOME/.bun/bin:\$PATH\"' >> ~/.bashrc"
+> ssh mikrus "echo 'export PATH=\"\$HOME/.bun/bin:\$PATH\"' >> ~/.bashrc"
 > ```
 > Nowe instalacje GateFlow dodają to automatycznie.
 
@@ -487,7 +487,7 @@ ssh hanna "grep SUPABASE_URL /opt/stacks/gateflow*/admin-panel/.env.local"
 
 ```bash
 # Automatycznie tworzy widget Turnstile dla domeny
-./local/setup-turnstile.sh shop.example.com hanna
+./local/setup-turnstile.sh shop.example.com mikrus
 ```
 
 ### setup-supabase-email.sh - SMTP
@@ -501,7 +501,7 @@ ssh hanna "grep SUPABASE_URL /opt/stacks/gateflow*/admin-panel/.env.local"
 
 ```bash
 # Ręczne uruchomienie migracji (normalnie automatyczne)
-SSH_ALIAS=hanna ./local/setup-supabase-migrations.sh
+SSH_ALIAS=mikrus ./local/setup-supabase-migrations.sh
 ```
 
 ---
@@ -517,8 +517,8 @@ SSH_ALIAS=hanna ./local/setup-supabase-migrations.sh
 4. Skopiuj Signing Secret (`whsec_...`)
 5. Dodaj do konfiguracji:
    ```bash
-   ssh hanna "echo 'STRIPE_WEBHOOK_SECRET=whsec_...' >> ~/gateflow/admin-panel/.env.local"
-   ssh hanna "pm2 restart gateflow-admin"
+   ssh mikrus "echo 'STRIPE_WEBHOOK_SECRET=whsec_...' >> ~/gateflow/admin-panel/.env.local"
+   ssh mikrus "pm2 restart gateflow-admin"
    ```
 
 ---
@@ -564,7 +564,7 @@ Możesz też użyć różnych projektów Supabase dla każdej instancji za pomoc
 
 **Q: Jak sprawdzić status wielu instancji?**
 
-A: `ssh hanna "pm2 list"` - pokaże wszystkie procesy GateFlow z ich statusem.
+A: `ssh mikrus "pm2 list"` - pokaże wszystkie procesy GateFlow z ich statusem.
 
 ---
 

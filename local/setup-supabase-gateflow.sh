@@ -8,7 +8,7 @@
 #   ./local/setup-supabase-gateflow.sh [ssh_alias]
 #
 # Przykłady:
-#   ./local/setup-supabase-gateflow.sh hanna    # Konfiguracja + migracje na serwerze
+#   ./local/setup-supabase-gateflow.sh mikrus    # Konfiguracja + migracje na serwerze
 #   ./local/setup-supabase-gateflow.sh          # Tylko konfiguracja
 
 set -e
@@ -238,11 +238,11 @@ echo "Konfiguracja zapisana w: $CONFIG_FILE"
 echo ""
 echo "Użycie z deploy.sh:"
 echo "   source ~/.config/gateflow/supabase.env"
-echo "   ./local/deploy.sh gateflow --ssh=hanna --domain=gf.example.com"
+echo "   ./local/deploy.sh gateflow --ssh=mikrus --domain=gf.example.com"
 echo ""
 echo "Lub ręcznie:"
 echo "   SUPABASE_URL='$SUPABASE_URL' \\"
 echo "   SUPABASE_ANON_KEY='$SUPABASE_ANON_KEY' \\"
 echo "   SUPABASE_SERVICE_KEY='$SUPABASE_SERVICE_KEY' \\"
-echo "   ./local/deploy.sh gateflow --ssh=hanna --domain=gf.example.com"
+echo "   ./local/deploy.sh gateflow --ssh=mikrus --domain=gf.example.com"
 echo ""

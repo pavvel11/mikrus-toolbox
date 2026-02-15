@@ -21,7 +21,7 @@ if [ -z "$PORT" ]; then
     echo "  $0 mojapp.byst.re 3001         # własna subdomena na byst.re"
     echo "  $0 mojapp.bieda.it 3001        # własna subdomena na bieda.it"
     echo "  $0 mojapp.toadres.pl 3001      # własna subdomena na toadres.pl"
-    echo "  $0 - 5001 hanna                # auto domena na serwerze 'hanna'"
+    echo "  $0 - 5001 mikrus                # auto domena na serwerze 'mikrus'"
     echo ""
     echo "💡 Obsługiwane domeny: *.byst.re, *.bieda.it, *.toadres.pl, *.tojest.dev"
     echo "   Dla własnych domen - użyj panelu: https://mikr.us/panel/?a=cytrus"
@@ -80,7 +80,7 @@ echo ""
 # 2. Pobierz SRV (pełna nazwa serwera) - potrzebny do API
 echo "🔍 Pobieram identyfikator serwera..."
 HOSTNAME=$(ssh "$SSH_ALIAS" 'hostname' 2>/dev/null)
-# Format: hanna107, srv42, etc - używamy pełnej nazwy
+# Format: mikrus107, srv42, etc - używamy pełnej nazwy
 SRV="$HOSTNAME"
 
 if [ -z "$SRV" ]; then

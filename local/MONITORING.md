@@ -8,23 +8,23 @@ Przewodnik po narzędziach do monitorowania wydajności i zużycia zasobów prze
 
 ```bash
 # Status aplikacji
-ssh hanna "pm2 status"
+ssh mikrus "pm2 status"
 
 # Monitoring w czasie rzeczywistym
-ssh hanna "pm2 monit"
+ssh mikrus "pm2 monit"
 
 # Logi (ostatnie 50 linii)
-ssh hanna "pm2 logs gateflow-admin --lines 50"
+ssh mikrus "pm2 logs gateflow-admin --lines 50"
 ```
 
 ### Pełny benchmark (test + monitoring)
 
 ```bash
 # Uruchom jedną komendą
-./local/benchmark-gateflow.sh https://shop.byst.re hanna
+./local/benchmark-gateflow.sh https://shop.byst.re mikrus
 
 # Z większym obciążeniem
-./local/benchmark-gateflow.sh https://shop.byst.re hanna 500 30
+./local/benchmark-gateflow.sh https://shop.byst.re mikrus 500 30
 ```
 
 ## 📊 Dostępne Narzędzia
@@ -41,13 +41,13 @@ Ciągłe monitorowanie zużycia CPU i RAM przez aplikację GateFlow.
 **Przykłady:**
 ```bash
 # Monitoruj przez 60 sekund (domyślnie)
-./local/monitor-gateflow.sh hanna
+./local/monitor-gateflow.sh mikrus
 
 # Monitoruj przez 5 minut
-./local/monitor-gateflow.sh hanna 300
+./local/monitor-gateflow.sh mikrus 300
 
 # Konkretna instancja (multi-instance setup)
-./local/monitor-gateflow.sh hanna 300 gateflow-shop
+./local/monitor-gateflow.sh mikrus 300 gateflow-shop
 ```
 
 **Output:**
@@ -137,13 +137,13 @@ Test obciążeniowy aplikacji - symuluje ruch użytkowników.
 **Przykłady:**
 ```bash
 # Szybki benchmark (100 requestów)
-./local/benchmark-gateflow.sh https://shop.byst.re hanna
+./local/benchmark-gateflow.sh https://shop.byst.re mikrus
 
 # Średni benchmark (200 requestów, 20 współbieżnych)
-./local/benchmark-gateflow.sh https://shop.byst.re hanna 200 20
+./local/benchmark-gateflow.sh https://shop.byst.re mikrus 200 20
 
 # Duży benchmark (500 requestów, 30 współbieżnych)
-./local/benchmark-gateflow.sh https://shop.byst.re hanna 500 30
+./local/benchmark-gateflow.sh https://shop.byst.re mikrus 500 30
 ```
 
 **Co robi:**
@@ -174,10 +174,10 @@ Test obciążeniowy aplikacji - symuluje ruch użytkowników.
 
 ```bash
 # 1. Zainstaluj aplikację na testowym serwerze
-./local/deploy.sh gateflow --ssh=hanna --domain=auto
+./local/deploy.sh gateflow --ssh=mikrus --domain=auto
 
 # 2. Uruchom benchmark
-./local/benchmark-gateflow.sh https://test.byst.re hanna 200 20
+./local/benchmark-gateflow.sh https://test.byst.re mikrus 200 20
 
 # 3. Sprawdź raport
 cat benchmark-*/REPORT.txt
@@ -192,7 +192,7 @@ cat benchmark-*/REPORT.txt
 
 ```bash
 # 1. Uruchom długi monitoring (10 minut)
-./local/monitor-gateflow.sh hanna 600 &
+./local/monitor-gateflow.sh mikrus 600 &
 
 # 2. W drugim terminalu - test obciążeniowy
 ./local/load-test-gateflow.sh https://shop.byst.re 1000 50
@@ -210,13 +210,13 @@ cat benchmark-*/REPORT.txt
 
 ```bash
 # PRZED optymalizacją
-./local/benchmark-gateflow.sh https://shop.byst.re hanna 300 30
+./local/benchmark-gateflow.sh https://shop.byst.re mikrus 300 30
 mv benchmark-* benchmark-before/
 
 # ... (wprowadzasz zmiany) ...
 
 # PO optymalizacji
-./local/benchmark-gateflow.sh https://shop.byst.re hanna 300 30
+./local/benchmark-gateflow.sh https://shop.byst.re mikrus 300 30
 mv benchmark-* benchmark-after/
 
 # Porównanie
@@ -231,7 +231,7 @@ Użyj PM2 Plus (darmowy dashboard):
 # 1. Zarejestruj się: https://app.pm2.io
 # 2. Utwórz bucket (darmowy)
 # 3. Na serwerze:
-ssh hanna "pm2 link <SECRET_KEY> <PUBLIC_KEY>"
+ssh mikrus "pm2 link <SECRET_KEY> <PUBLIC_KEY>"
 
 # Teraz masz:
 # - Dashboard w przeglądarce
@@ -249,7 +249,7 @@ ssh hanna "pm2 link <SECRET_KEY> <PUBLIC_KEY>"
 **Sprawdź:**
 ```bash
 # Czy są memory leaki?
-./local/monitor-gateflow.sh hanna 600  # 10 minut
+./local/monitor-gateflow.sh mikrus 600  # 10 minut
 # Otwórz CSV i zobacz czy RAM ciągle rośnie
 ```
 
@@ -260,18 +260,18 @@ ssh hanna "pm2 link <SECRET_KEY> <PUBLIC_KEY>"
 
 **Rozwiązanie:**
 - Dodaj `NODE_OPTIONS='--max-old-space-size=512'` w PM2 config
-- Zrestartuj: `ssh hanna "pm2 restart gateflow-admin"`
+- Zrestartuj: `ssh mikrus "pm2 restart gateflow-admin"`
 
 ### Problem: Wysoki CPU w idle (> 5% bez ruchu)
 
 **Sprawdź:**
 ```bash
 # Snapshot bez ruchu
-ssh hanna "pm2 list"
-ssh hanna "pm2 monit"  # Patrz przez 2 minuty
+ssh mikrus "pm2 list"
+ssh mikrus "pm2 monit"  # Patrz przez 2 minuty
 
 # Logi - szukaj powtarzających się operacji
-ssh hanna "pm2 logs gateflow-admin --lines 200"
+ssh mikrus "pm2 logs gateflow-admin --lines 200"
 ```
 
 **Możliwe przyczyny:**
@@ -280,7 +280,7 @@ ssh hanna "pm2 logs gateflow-admin --lines 200"
 - Hot reload (DEV mode - nie powinno być na produkcji!)
 
 **Rozwiązanie:**
-- Sprawdź `NODE_ENV`: `ssh hanna "grep NODE_ENV ~/gateflow/admin-panel/.env.local"`
+- Sprawdź `NODE_ENV`: `ssh mikrus "grep NODE_ENV ~/gateflow/admin-panel/.env.local"`
 - Musi być `NODE_ENV=production`!
 
 ### Problem: Wolne czasy odpowiedzi (> 1s średnia)
@@ -299,7 +299,7 @@ curl -w "@curl-format.txt" -o /dev/null -s https://shop.byst.re/products
 - Brak cache na Cloudflare (sprawdź cache rules)
 - Nieoptymalne queries do Supabase
 - Brak indeksów w bazie danych
-- Mikrus przeciążony (sprawdź `ssh hanna "htop"`)
+- Mikrus przeciążony (sprawdź `ssh mikrus "htop"`)
 
 **Rozwiązanie:**
 ```bash
@@ -320,10 +320,10 @@ curl -w "@curl-format.txt" -o /dev/null -s https://shop.byst.re/products
 ./local/load-test-gateflow.sh https://shop.byst.re 100 10 # Crash?
 
 # Logi podczas crashu
-ssh hanna "pm2 logs gateflow-admin --lines 500 --err"
+ssh mikrus "pm2 logs gateflow-admin --lines 500 --err"
 
 # Sprawdź ilość restartów
-ssh hanna "pm2 show gateflow-admin"
+ssh mikrus "pm2 show gateflow-admin"
 ```
 
 **Możliwe przyczyny:**
@@ -372,10 +372,10 @@ ssh hanna "pm2 show gateflow-admin"
 
 ```bash
 # Codziennie sprawdzaj
-ssh hanna "pm2 status"
+ssh mikrus "pm2 status"
 
 # Co tydzień - pełny raport
-./local/benchmark-gateflow.sh https://shop.byst.re hanna 100 10
+./local/benchmark-gateflow.sh https://shop.byst.re mikrus 100 10
 
 # Trzymaj historię
 mkdir -p benchmarks/
@@ -406,13 +406,13 @@ Skonfiguruj PM2 Plus (darmowy) dla alertów:
 
 ```bash
 # Przed każdym update
-./local/benchmark-gateflow.sh https://test.byst.re hanna 200 20
+./local/benchmark-gateflow.sh https://test.byst.re mikrus 200 20
 
 # Jeśli wyniki OK - deploy na produkcję
-./local/deploy.sh gateflow --ssh=hanna-prod --update
+./local/deploy.sh gateflow --ssh=mikrus-prod --update
 
 # Po deployu - sprawdź czy nie pogorszyło się
-./local/benchmark-gateflow.sh https://shop.example.com hanna-prod 200 20
+./local/benchmark-gateflow.sh https://shop.example.com mikrus-prod 200 20
 ```
 
 ---
@@ -422,7 +422,7 @@ Skonfiguruj PM2 Plus (darmowy) dla alertów:
 ### PM2 Keymetrics (darmowy)
 
 ```bash
-ssh hanna "pm2 link <SECRET> <PUBLIC>"
+ssh mikrus "pm2 link <SECRET> <PUBLIC>"
 ```
 
 **Dashboard:** https://app.pm2.io
@@ -452,8 +452,8 @@ Jeśli potrzebujesz profesjonalnego monitoringu:
 
 A: Tak! Benchmark każdą osobno:
 ```bash
-./local/benchmark-gateflow.sh https://shop1.example.com hanna
-./local/benchmark-gateflow.sh https://shop2.example.com hanna
+./local/benchmark-gateflow.sh https://shop1.example.com mikrus
+./local/benchmark-gateflow.sh https://shop2.example.com mikrus
 ```
 
 **Q: Jak często powinienem robić benchmark?**
@@ -486,8 +486,8 @@ wrk -t12 -c400 -d30s https://shop.byst.re
 
 A: Tak! Wszystkie skrypty PM2 działają z każdą aplikacją zarządzaną przez PM2. Podaj tylko nazwę procesu:
 ```bash
-./local/monitor-gateflow.sh hanna 300 n8n-server
-./local/monitor-gateflow.sh hanna 300 uptime-kuma
+./local/monitor-gateflow.sh mikrus 300 n8n-server
+./local/monitor-gateflow.sh mikrus 300 uptime-kuma
 ```
 
 ---

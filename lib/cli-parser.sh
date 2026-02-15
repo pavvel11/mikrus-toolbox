@@ -234,13 +234,13 @@ Tryby:
 
 Przykłady:
   # Interaktywny (pytania o brakujące dane)
-  $SCRIPT_NAME n8n --ssh=hanna
+  $SCRIPT_NAME n8n --ssh=mikrus
 
   # Pełna automatyzacja
-  $SCRIPT_NAME n8n --ssh=hanna --db-source=shared --domain=n8n.example.com --yes
+  $SCRIPT_NAME n8n --ssh=mikrus --db-source=shared --domain=n8n.example.com --yes
 
   # Custom database
-  $SCRIPT_NAME n8n --ssh=hanna --db-source=custom --db-host=psql.example.com \\
+  $SCRIPT_NAME n8n --ssh=mikrus --db-source=custom --db-host=psql.example.com \\
     --db-name=n8n --db-user=myuser --db-pass=secret --domain=n8n.example.com --yes
 
 Config file:

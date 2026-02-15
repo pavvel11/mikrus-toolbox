@@ -51,7 +51,7 @@ Google Drive (15GB free), Dropbox, OneDrive, Amazon S3, Wasabi, MinIO, Mega
 **Instalacja:**
 ```bash
 ./local/setup-backup.sh           # domyślnie 'mikrus'
-./local/setup-backup.sh hanna     # lub inny serwer
+./local/setup-backup.sh mikrus     # lub inny serwer
 ```
 
 Kreator poprowadzi Cię przez: wybór providera → logowanie → szyfrowanie (zalecane).
@@ -60,7 +60,7 @@ Serwer co noc o 3:00 wysyła dane do chmury.
 **Restore:**
 ```bash
 ./local/restore.sh           # domyślnie 'mikrus'
-./local/restore.sh hanna     # lub inny serwer
+./local/restore.sh mikrus     # lub inny serwer
 ```
 
 **Ręczny backup / sprawdzenie:**

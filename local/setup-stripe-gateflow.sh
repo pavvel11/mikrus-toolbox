@@ -239,7 +239,7 @@ echo ""
 echo "Użycie z deploy.sh:"
 echo "   source ~/.config/gateflow/stripe.env"
 echo "   STRIPE_PK=\"\$STRIPE_PUBLISHABLE_KEY\" STRIPE_SK=\"\$STRIPE_SECRET_KEY\" \\"
-echo "   ./local/deploy.sh gateflow --ssh=hanna --domain=gf.example.com"
+echo "   ./local/deploy.sh gateflow --ssh=mikrus --domain=gf.example.com"
 echo ""
 
 if [ "$KEY_PREFIX" = "test" ]; then

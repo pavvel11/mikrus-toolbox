@@ -40,9 +40,9 @@ docs/            → Dokumentacja (Cloudflare, CLI reference)
 #   --yes, -y             Pomiń wszystkie potwierdzenia
 
 # Przykłady:
-./local/deploy.sh n8n --ssh=hanna --domain-type=cytrus --domain=auto
-./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=local --yes
-./local/deploy.sh wordpress --ssh=hanna --domain-type=cytrus --domain=auto
+./local/deploy.sh n8n --ssh=mikrus --domain-type=cytrus --domain=auto
+./local/deploy.sh uptime-kuma --ssh=mikrus --domain-type=local --yes
+./local/deploy.sh wordpress --ssh=mikrus --domain-type=cytrus --domain=auto
 ```
 
 **WordPress env vars** (przekazywane jako opcje lub env):
@@ -51,7 +51,7 @@ docs/            → Dokumentacja (Cloudflare, CLI reference)
 
 **Post-install WordPress** - po ukończeniu kreatora w przeglądarce:
 ```bash
-ssh hanna 'cd /opt/stacks/wordpress && ./wp-init.sh'
+ssh mikrus 'cd /opt/stacks/wordpress && ./wp-init.sh'
 ```
 
 ## Aplikacje (25)

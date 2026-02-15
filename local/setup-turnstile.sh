@@ -8,7 +8,7 @@
 #   ./local/setup-turnstile.sh <domena> [ssh_alias]
 #
 # Przykłady:
-#   ./local/setup-turnstile.sh gf.automagicznie.pl hanna
+#   ./local/setup-turnstile.sh gf.automagicznie.pl mikrus
 #   ./local/setup-turnstile.sh myapp.example.com
 
 set -e
@@ -33,7 +33,7 @@ if [ -z "$DOMAIN" ]; then
     echo "Użycie: $0 <domena> [ssh_alias]"
     echo ""
     echo "Przykłady:"
-    echo "  $0 gf.automagicznie.pl hanna"
+    echo "  $0 gf.automagicznie.pl mikrus"
     echo "  $0 myapp.example.com"
     exit 1
 fi

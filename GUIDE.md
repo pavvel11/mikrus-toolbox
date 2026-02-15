@@ -27,7 +27,7 @@ Serwery Mikrus są dostępne przez SSH. Alias jest skonfigurowany w `~/.ssh/conf
 # Sprawdź dostępne aliasy
 grep "^Host " ~/.ssh/config
 
-# Typowe aliasy: mikrus, hanna, srv42, etc.
+# Typowe aliasy: mikrus, mikrus, srv42, etc.
 ```
 
 ### Weryfikacja połączenia
@@ -128,9 +128,9 @@ auto-tuning FPM na podstawie RAM i post-install skryptem `wp-init.sh`. Szczegó�
 #   --dry-run             Tylko pokaż co zostanie zrobione
 
 # Przykłady:
-./local/deploy.sh n8n --ssh=hanna --domain-type=cytrus --domain=auto
-./local/deploy.sh uptime-kuma --ssh=hanna --domain-type=local --yes
-./local/deploy.sh gateflow --ssh=hanna --domain-type=cloudflare --domain=gateflow.example.com
+./local/deploy.sh n8n --ssh=mikrus --domain-type=cytrus --domain=auto
+./local/deploy.sh uptime-kuma --ssh=mikrus --domain-type=local --yes
+./local/deploy.sh gateflow --ssh=mikrus --domain-type=cloudflare --domain=gateflow.example.com
 ```
 
 **Flow deploy.sh:**
@@ -152,7 +152,7 @@ auto-tuning FPM na podstawie RAM i post-install skryptem `wp-init.sh`. Szczegó�
 # Przykłady:
 ./local/cytrus-domain.sh - 3001 mikrus              # automatyczna (xyz123.byst.re)
 ./local/cytrus-domain.sh mojapp.byst.re 3001 mikrus # własna subdomena
-./local/cytrus-domain.sh app.bieda.it 8080 hanna    # inna domena Mikrusa
+./local/cytrus-domain.sh app.bieda.it 8080 mikrus    # inna domena Mikrusa
 ```
 
 Obsługiwane domeny Cytrus:
@@ -170,7 +170,7 @@ Obsługiwane domeny Cytrus:
 
 # Wymaga: ./local/setup-cloudflare.sh (jednorazowa konfiguracja)
 # Przykłady:
-./local/dns-add.sh app.example.com hanna        # rekord AAAA (IPv6)
+./local/dns-add.sh app.example.com mikrus        # rekord AAAA (IPv6)
 ./local/dns-add.sh api.mojadomena.pl mikrus ipv4  # rekord A (IPv4)
 ```
 
@@ -183,7 +183,7 @@ Obsługiwane domeny Cytrus:
 
 # Przykłady:
 ./local/add-static-hosting.sh static.byst.re
-./local/add-static-hosting.sh cdn.example.com hanna /var/www/assets 8097
+./local/add-static-hosting.sh cdn.example.com mikrus /var/www/assets 8097
 ```
 
 ---

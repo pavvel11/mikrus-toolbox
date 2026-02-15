@@ -5,7 +5,7 @@ REST API do crawlowania stron z headless Chromium. Ekstrakcja danych przez AI, o
 ## Instalacja
 
 ```bash
-./local/deploy.sh crawl4ai --ssh=hanna --domain-type=cytrus --domain=auto
+./local/deploy.sh crawl4ai --ssh=mikrus --domain-type=cytrus --domain=auto
 ```
 
 ## Wymagania

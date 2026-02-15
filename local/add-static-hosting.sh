@@ -11,7 +11,7 @@
 # Przykłady:
 #   ./local/add-static-hosting.sh static.byst.re
 #   ./local/add-static-hosting.sh static.byst.re mikrus /var/www/public 8096
-#   ./local/add-static-hosting.sh cdn.example.com hanna /var/www/assets 8097
+#   ./local/add-static-hosting.sh cdn.example.com mikrus /var/www/assets 8097
 
 set -e
 
@@ -25,7 +25,7 @@ if [ -z "$DOMAIN" ]; then
     echo ""
     echo "Przykłady:"
     echo "  $0 static.byst.re                              # Cytrus, domyślne ustawienia"
-    echo "  $0 cdn.example.com hanna                       # Cloudflare"
+    echo "  $0 cdn.example.com mikrus                       # Cloudflare"
     echo "  $0 assets.byst.re mikrus /var/www/assets 8097  # Własny katalog i port"
     echo ""
     echo "Domyślne:"

@@ -5,9 +5,9 @@ set -e
 # Użycie: ./local/monitor-gateflow.sh <ssh_alias> [czas_w_sekundach] [app_name]
 #
 # Przykłady:
-#   ./local/monitor-gateflow.sh hanna                    # 60 sekund, gateflow-admin
-#   ./local/monitor-gateflow.sh hanna 300                # 5 minut
-#   ./local/monitor-gateflow.sh hanna 300 gateflow-shop  # konkretna instancja
+#   ./local/monitor-gateflow.sh mikrus                    # 60 sekund, gateflow-admin
+#   ./local/monitor-gateflow.sh mikrus 300                # 5 minut
+#   ./local/monitor-gateflow.sh mikrus 300 gateflow-shop  # konkretna instancja
 
 SSH_ALIAS=${1:-mikrus}
 DURATION=${2:-60}

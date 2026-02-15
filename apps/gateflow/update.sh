@@ -5,9 +5,9 @@
 # Author: Paweł (Lazy Engineer)
 #
 # Użycie:
-#   ./local/deploy.sh gateflow --ssh=hanna --update
-#   ./local/deploy.sh gateflow --ssh=hanna --update --build-file=~/Downloads/gateflow-build.tar.gz
-#   ./local/deploy.sh gateflow --ssh=hanna --update --restart (restart bez aktualizacji)
+#   ./local/deploy.sh gateflow --ssh=mikrus --update
+#   ./local/deploy.sh gateflow --ssh=mikrus --update --build-file=~/Downloads/gateflow-build.tar.gz
+#   ./local/deploy.sh gateflow --ssh=mikrus --update --restart (restart bez aktualizacji)
 #
 # Zmienne środowiskowe:
 #   BUILD_FILE - ścieżka do lokalnego pliku tar.gz (zamiast pobierania z GitHub)
@@ -142,7 +142,7 @@ if [ "$RESTART_ONLY" = false ]; then
             echo -e "${RED}❌ Nie udało się pobrać nowej wersji${NC}"
             echo ""
             echo "Jeśli repo jest prywatne, użyj --build-file:"
-            echo "   ./local/deploy.sh gateflow --ssh=hanna --update --build-file=~/Downloads/gateflow-build.tar.gz"
+            echo "   ./local/deploy.sh gateflow --ssh=mikrus --update --build-file=~/Downloads/gateflow-build.tar.gz"
             exit 1
         fi
     fi

@@ -184,7 +184,7 @@ else
             echo "   • GitHub jest niedostępny"
             echo ""
             echo "   Rozwiązanie: Pobierz plik ręcznie i użyj flagi --build-file:"
-            echo "   ./local/deploy.sh gateflow --ssh=hanna --build-file=~/Downloads/gateflow-build.tar.gz"
+            echo "   ./local/deploy.sh gateflow --ssh=mikrus --build-file=~/Downloads/gateflow-build.tar.gz"
             exit 1
         fi
     fi

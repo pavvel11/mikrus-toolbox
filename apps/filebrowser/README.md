@@ -83,7 +83,7 @@ Skrypt automatycznie:
 # Przykłady:
 ./local/add-static-hosting.sh static.byst.re                    # domyślne
 ./local/add-static-hosting.sh cdn.byst.re mikrus /var/www/cdn   # własny katalog
-./local/add-static-hosting.sh assets.byst.re hanna /var/www/assets 8097  # własny port
+./local/add-static-hosting.sh assets.byst.re mikrus /var/www/assets 8097  # własny port
 ```
 
 ---
