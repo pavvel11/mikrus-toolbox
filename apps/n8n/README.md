@@ -28,19 +28,9 @@ Płacisz tylko za hosting (~16 zł/mies).
 
 ### PostgreSQL - opcje na Mikrusie
 
-#### Opcja A: Darmowa baza współdzielona (do 200MB)
+> ⚠️ **Współdzielona baza Mikrusa NIE działa!** n8n wymaga rozszerzenia `pgcrypto` (`gen_random_uuid()`), które nie jest dostępne na shared PostgreSQL 12. Potrzebujesz dedykowanej bazy.
 
-Idealna na start i testowanie.
-
-1. Wejdź w [Panel Mikrus → PostgreSQL](https://mikr.us/panel/?a=postgres)
-2. Kliknij **"Poproszę o nowe dane dostępowe"**
-3. Zapisz dane (host, user, password, database)
-
-> ⚠️ Limit 200MB. Założenie bazy na nowo zmienia hasło, ale nie usuwa danych.
-
-#### Opcja B: Dedykowana baza w chmurze (zalecane)
-
-Dla poważnego użytku lub wielu aplikacji.
+#### Dedykowana baza PostgreSQL (wymagana)
 
 | RAM | Dysk | Połączenia | Cena/rok |
 |---|---|---|---|

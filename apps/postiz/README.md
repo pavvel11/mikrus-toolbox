@@ -8,13 +8,13 @@ Alternatywa dla Buffer/Hootsuite. Planuj posty na Twitter/X, LinkedIn, Instagram
 ./local/deploy.sh postiz --ssh=mikrus --domain-type=cytrus --domain=auto
 ```
 
-Deploy.sh automatycznie skonfiguruje bazę PostgreSQL (shared Mikrus lub własna).
+Deploy.sh automatycznie skonfiguruje bazę PostgreSQL (wymagana dedykowana).
 
 ## Wymagania
 
 - **RAM:** zalecane 2GB (Mikrus 3.0+), ~1-1.5GB zużycia (Postiz + Redis)
 - **Dysk:** ~3GB (obraz Docker)
-- **Baza danych:** PostgreSQL (shared Mikrus lub własna)
+- **Baza danych:** PostgreSQL (dedykowana — shared Mikrus nie działa, PG 12 nie ma `gen_random_uuid()`)
 - **Redis:** Auto-detekcja external lub bundled (patrz niżej)
 
 ## Wersja
