@@ -137,25 +137,43 @@ The MCP server runs on your local machine:
 
 ## Smart Guidance (Roadmap)
 
-MCP isn't just a "run commands" interface. Because the AI model sees tool descriptions, app metadata (RAM requirements, DB dependencies, ports), and server state, it can **guide the user through the entire setup** like an expert sysadmin:
+MCP isn't just a "run commands" interface. Because the AI model sees tool descriptions, app metadata (RAM requirements, DB dependencies, ports), and server state, it can **guide the user through the entire setup** like an expert sysadmin. The key: **the model should always read the app's README first** (via `list_apps` metadata) before suggesting anything.
+
+**Example 1: Listmonk** (works with free shared DB)
+
+```
+User: "Install Listmonk for my newsletter"
+AI:   *reads apps/listmonk/README.md*
+      "Listmonk needs PostgreSQL. Your Mikrus has a free shared DB (200MB)
+       - that's plenty for a mailing list with up to ~50k subscribers.
+       Want me to use that, or set up a dedicated instance?"
+User: "Free one is fine"
+AI:   → deploy_app { app: "listmonk", db_source: "shared", ... }
+       "Done! Listmonk is live at https://xyz.byst.re"
+```
+
+**Example 2: n8n** (requires dedicated DB)
 
 ```
 User: "Install n8n"
-AI:   "n8n needs PostgreSQL. Your Mikrus has the free shared DB (200MB).
-       Want me to use that, or set up a dedicated instance (29 zł/year, 10GB)?
-       I'll also configure daily backups to keep your workflows safe."
-User: "Use shared, and yes to backups"
-AI:   → deploy_app { app: "n8n", db_source: "shared", ... }
-      → deploy_app { app: "n8n-backup", ... }
-       "Done! n8n is live at https://xyz.byst.re
-        Default login: admin@example.com / check server logs for password"
+AI:   *reads apps/n8n/README.md*
+      "n8n requires PostgreSQL with pgcrypto extension.
+       The free shared DB on Mikrus won't work here (no permission
+       to create extensions). You'll need a dedicated PostgreSQL
+       instance - the smallest one is 29 zł/year (512MB, 10GB).
+       Want me to proceed with that?"
+User: "Yes, go ahead"
+AI:   → deploy_app { app: "n8n", db_source: "custom", db_host: "...", ... }
+       "Done! n8n is live. I'd also recommend setting up daily backups
+        to protect your workflows."
 ```
 
 Planned improvements:
-- **Dependency awareness** - "You're deploying Postiz, it needs Redis. I'll bundle it automatically."
-- **Resource budgeting** - "You have 1.2GB free RAM. This app needs ~800MB. That leaves little room - want to upgrade to Mikrus 3.0 first?"
+- **Dependency awareness** - "Postiz needs Redis. I'll bundle it automatically."
+- **Resource budgeting** - "You have 1.2GB free RAM. This app needs ~800MB - want to upgrade to Mikrus 3.0 first?"
 - **Post-deploy checklist** - security hardening, SSL verification, backup setup, monitoring
 - **Multi-app orchestration** - "Set up my complete solopreneur stack" -> deploys n8n + Listmonk + Uptime Kuma + GateFlow in the right order
+- **README-driven intelligence** - model reads each app's README before proposing config, catching gotchas like pgcrypto requirements or RAM limits
 
 ## Development
 
