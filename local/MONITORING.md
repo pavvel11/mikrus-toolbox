@@ -185,7 +185,7 @@ cat benchmark-*/REPORT.txt
 # 4. Szukaj w raporcie:
 #    - Max RAM < 500 MB? ✅ Zmieści się
 #    - Max RAM 500-700 MB? ⚠️ Dopuszczalne
-#    - Max RAM > 700 MB? 🔥 Potrzeba Mikrus 4.0
+#    - Max RAM > 700 MB? 🔥 Potrzeba Mikrus 3.0 (2GB)
 ```
 
 ### Case 2: "Jak zachowuje się pod obciążeniem?"
@@ -332,7 +332,7 @@ ssh mikrus "pm2 show gateflow-admin"
 - Timeout na DB connections
 
 **Rozwiązanie:**
-- Zwiększ RAM limit: Mikrus 4.0 (2GB)
+- Zwiększ RAM limit: Mikrus 3.0 (2GB)
 - Dodaj error handling w API routes
 - Zwiększ connection pool Supabase
 
@@ -340,7 +340,7 @@ ssh mikrus "pm2 show gateflow-admin"
 
 ## 📈 Metryki Referencyjne
 
-### Mikrus 3.0 (1GB RAM)
+### Mikrus 2.1 (1GB RAM)
 
 | Metryka | Idle | Mały ruch | Średni ruch | Duży ruch |
 |---------|------|-----------|-------------|-----------|
@@ -349,7 +349,7 @@ ssh mikrus "pm2 show gateflow-admin"
 | Response time | 100-200ms | 200-400ms | 400-800ms | 800-1500ms |
 | Concurrent users | - | ~5 | ~10-15 | ~20-30 |
 
-### Mikrus 4.0 (2GB RAM)
+### Mikrus 3.0 (2GB RAM)
 
 | Metryka | Idle | Mały ruch | Średni ruch | Duży ruch |
 |---------|------|-----------|-------------|-----------|
@@ -468,7 +468,7 @@ A:
 A:
 1. Sprawdź czy nie ma memory leaków (monitoruj przez 10 min)
 2. Zoptymalizuj cache (dodaj limity)
-3. Jeśli nic nie pomaga - upgrade na Mikrus 4.0
+3. Jeśli nic nie pomaga - upgrade na Mikrus 3.0
 
 **Q: Jak symulować jeszcze większe obciążenie?**
 
@@ -492,4 +492,4 @@ A: Tak! Wszystkie skrypty PM2 działają z każdą aplikacją zarządzaną przez
 
 ---
 
-**💡 Pro Tip:** Uruchom benchmark przed zakupem Mikrusa. Zainstaluj GateFlow na darmowym serwisie (Railway, Render free tier) i uruchom `benchmark-gateflow.sh`. Jeśli RAM < 500 MB - Mikrus 3.0 wystarczy. Jeśli RAM > 500 MB - potrzeba Mikrus 4.0.
+**💡 Pro Tip:** Uruchom benchmark przed zakupem Mikrusa. Zainstaluj GateFlow na darmowym serwisie (Railway, Render free tier) i uruchom `benchmark-gateflow.sh`. Jeśli RAM < 500 MB - Mikrus 2.1 wystarczy. Jeśli RAM > 500 MB - potrzeba Mikrus 3.0.

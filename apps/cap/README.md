@@ -21,7 +21,7 @@ Cap jest **zasobożerny**. Wymaga:
 | MySQL | Baza danych | ~300-500 MB |
 | MinIO | Storage S3 (opcjonalnie) | ~200 MB |
 
-**Rekomendacja:** Mikrus 4.0 (2GB RAM) lub wyższy.
+**Rekomendacja:** Mikrus 3.0 (2GB RAM) lub wyższy.
 
 ### Optymalizacja dla Mikrus
 

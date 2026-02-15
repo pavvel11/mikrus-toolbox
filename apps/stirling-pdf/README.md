@@ -14,7 +14,7 @@ Kombajn do PDF-ów. Zastępuje Adobe Acrobat Pro i niebezpieczne strony "online 
 - **Dysk:** ~1GB
 - **Port:** 8087
 - **Baza danych:** Nie
-- **Minimum:** Mikrus 2.0+ (2GB RAM)
+- **Minimum:** Mikrus 3.0+ (2GB RAM)
 
 ## 💡 Co potrafi?
 - Łączenie i dzielenie PDF.

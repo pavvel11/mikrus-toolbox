@@ -12,7 +12,7 @@ Deploy.sh automatycznie skonfiguruje bazę PostgreSQL (shared Mikrus lub własna
 
 ## Wymagania
 
-- **RAM:** zalecane 2GB (Mikrus 2.0+), ~1-1.5GB zużycia (Postiz + Redis)
+- **RAM:** zalecane 2GB (Mikrus 3.0+), ~1-1.5GB zużycia (Postiz + Redis)
 - **Dysk:** ~3GB (obraz Docker)
 - **Baza danych:** PostgreSQL (shared Mikrus lub własna)
 - **Redis:** Auto-detekcja external lub bundled (patrz niżej)

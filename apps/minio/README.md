@@ -6,7 +6,7 @@ Self-hosted storage kompatybilny z Amazon S3 API.
 
 - **RAM**: ~256MB
 - **Dysk**: Zależy od ilości przechowywanych plików
-- **Plan**: Mikrus 1.0+ (wystarczy podstawowy)
+- **Plan**: Mikrus 2.1+ (wystarczy podstawowy)
 
 ## Instalacja
 

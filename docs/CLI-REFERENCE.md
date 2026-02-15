@@ -153,7 +153,7 @@ Ręczna konfiguracja bazy danych.
 
 ### --domain-type=cytrus
 
-Domena przydzielana przez system Cytrus (*.cytrus.app). Użyj `--domain=auto` dla automatycznego przydziału.
+Domena przydzielana przez system Cytrus (*.byst.re, *.bieda.it, *.toadres.pl, *.tojest.dev). Użyj `--domain=auto` dla automatycznego przydziału.
 
 ```bash
 ./local/deploy.sh uptime-kuma --ssh=mikrus --domain-type=cytrus --domain=auto --yes
@@ -336,7 +336,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...  # opcjonalne, dodasz po instalacji
 DOMAIN=shop.example.com
 ```
 
-**Wymagania:** Mikrus 3.0+ (1GB RAM), konto Supabase (darmowe), konto Stripe
+**Wymagania:** Mikrus 2.1+ (1GB RAM), konto Supabase (darmowe), konto Stripe
 
 ### FileBrowser
 

@@ -2,7 +2,7 @@
 
 Twoja własna strona "Link in Bio" (jak Linktree), ale na Twoim serwerze.
 
-**RAM:** ~200MB | **Dysk:** ~600MB | **Plan:** Mikrus 1.0+
+**RAM:** ~200MB | **Dysk:** ~600MB | **Plan:** Mikrus 2.1+
 
 ## 🚀 Instalacja
 

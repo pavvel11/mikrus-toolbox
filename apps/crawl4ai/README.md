@@ -10,11 +10,11 @@ REST API do crawlowania stron z headless Chromium. Ekstrakcja danych przez AI, o
 
 ## Wymagania
 
-- **RAM:** minimum 2GB (Mikrus 2.0+), ~1-1.5GB zużycia w runtime
+- **RAM:** minimum 2GB (Mikrus 3.0+), ~1-1.5GB zużycia w runtime
 - **Dysk:** ~3.5GB (obraz Docker z Chromium + Python + ML deps)
 - **Baza danych:** Nie wymaga (bezstanowy)
 
-**Crawl4AI NIE zadziała na Mikrus 1.0 (1GB RAM)!** Headless Chromium potrzebuje ~1-1.5GB RAM. Install.sh blokuje instalację przy <1800MB RAM.
+**Crawl4AI NIE zadziała na Mikrus 2.1 (1GB RAM)!** Headless Chromium potrzebuje ~1-1.5GB RAM. Install.sh blokuje instalację przy <1800MB RAM.
 
 ## Po instalacji
 

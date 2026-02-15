@@ -13,19 +13,19 @@ API do konwersji dokumentów. Lekka alternatywa dla Stirling-PDF.
 | RAM | ~150MB | ~450MB |
 | Technologia | Go | Java (Spring Boot) |
 | Interfejs | Tylko API | Web UI + API |
-| Mikrus 1.0 | ✅ Działa | ❌ Za ciężki |
+| Mikrus 2.1 | ✅ Działa | ❌ Za ciężki |
 
 ## Kiedy wybrać Gotenberg?
 
 - Potrzebujesz tylko API (bez UI)
-- Masz Mikrus 1.0 (1GB RAM)
+- Masz Mikrus 2.1 (1GB RAM)
 - Integrujesz z n8n, Make, czy własną aplikacją
 - Generujesz PDF-y automatycznie (faktury, raporty, certyfikaty)
 
 ## Kiedy wybrać Stirling-PDF?
 
 - Chcesz wygodny interfejs webowy (klikasz, przeciągasz pliki)
-- Masz Mikrus 2.0+ (2GB RAM)
+- Masz Mikrus 3.0+ (2GB RAM)
 - Potrzebujesz zaawansowanych funkcji (OCR, watermark, podpis cyfrowy)
 
 ## Obsługiwane konwersje

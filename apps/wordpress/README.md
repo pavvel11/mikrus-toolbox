@@ -73,7 +73,7 @@ REDIS_PASS=tajneHaslo WP_REDIS=external ./local/deploy.sh wordpress --ssh=mikrus
 
 ## Wymagania
 
-- **RAM:** ~80-100MB idle (WP + Nginx + Redis), działa na Mikrus 1.0 (512MB)
+- **RAM:** ~80-100MB idle (WP + Nginx + Redis), działa na Mikrus 2.1 (1GB RAM)
 - **Dysk:** ~550MB (obrazy Docker: WP+redis ext, Nginx, Redis)
 - **MySQL:** Shared Mikrus (darmowy) lub własny. SQLite nie wymaga.
 

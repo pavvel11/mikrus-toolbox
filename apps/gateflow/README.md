@@ -3,7 +3,7 @@
 **Open source alternatywa dla Gumroad, EasyCart, Teachable.**
 Sprzedawaj e-booki, kursy, szablony i licencje bez miesięcznych opłat i prowizji platformy.
 
-**RAM:** ~300MB | **Dysk:** ~500MB | **Plan:** Mikrus 3.0+ (1GB RAM)
+**RAM:** ~300MB | **Dysk:** ~500MB | **Plan:** Mikrus 2.1+ (1GB RAM)
 
 > **Uwaga:** W przykładach używamy `--ssh=mikrus` jako domyślnego aliasu SSH.
 > Jeśli masz inny alias w `~/.ssh/config`, zamień `mikrus` na swój (np. `srv1`, `mojserwer`).
@@ -52,7 +52,7 @@ Skrypt przeprowadzi Cię przez:
 
 | Usługa | Koszt | Do czego | Obowiązkowe |
 |--------|-------|----------|-------------|
-| **Mikrus 3.0+** | ~16 zł/mies | Hosting aplikacji | Tak |
+| **Mikrus 2.1+** | 75 zł/rok | Hosting aplikacji | Tak |
 | **Supabase** | Darmowe | Baza danych + Auth | Tak |
 | **Stripe** | 2.9% + 1.20 zł/transakcja | Płatności | Nie* |
 | **Cloudflare** | Darmowe | Turnstile CAPTCHA | Nie |

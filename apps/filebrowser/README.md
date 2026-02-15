@@ -2,7 +2,7 @@
 
 Prywatny dysk + publiczny hosting plików. Zamiennik Tiiny.host za ułamek ceny.
 
-**RAM:** ~160MB (FileBrowser + nginx) | **Dysk:** zależy od plików | **Plan:** Mikrus 1.0+
+**RAM:** ~160MB (FileBrowser + nginx) | **Dysk:** zależy od plików | **Plan:** Mikrus 2.1+
 
 ---
 
