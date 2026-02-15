@@ -139,17 +139,17 @@ The MCP server runs on your local machine:
 
 MCP isn't just a "run commands" interface. Because the AI model sees tool descriptions, app metadata (RAM requirements, DB dependencies, ports), and server state, it can **guide the user through the entire setup** like an expert sysadmin. The key: **the model should always read the app's README first** (via `list_apps` metadata) before suggesting anything.
 
-**Example 1: Listmonk** (works with free shared DB)
+**Example 1: Postiz** (works with free shared DB)
 
 ```
-User: "Install Listmonk for my newsletter"
-AI:   *reads apps/listmonk/README.md*
-      "Listmonk needs PostgreSQL. Your Mikrus has a free shared DB (200MB)
-       - that's plenty for a mailing list with up to ~50k subscribers.
-       Want me to use that, or set up a dedicated instance?"
-User: "Free one is fine"
-AI:   → deploy_app { app: "listmonk", db_source: "shared", ... }
-       "Done! Listmonk is live at https://xyz.byst.re"
+User: "Install Postiz for social media scheduling"
+AI:   *reads apps/postiz/README.md*
+      "Postiz needs PostgreSQL and Redis. Your Mikrus has a free
+       shared PostgreSQL (200MB) - enough for social media scheduling.
+       Redis will be bundled automatically. Want me to use the free DB?"
+User: "Yes, free one is fine"
+AI:   → deploy_app { app: "postiz", db_source: "shared", ... }
+       "Done! Postiz is live at https://xyz.byst.re"
 ```
 
 **Example 2: n8n** (requires dedicated DB)
@@ -157,14 +157,14 @@ AI:   → deploy_app { app: "listmonk", db_source: "shared", ... }
 ```
 User: "Install n8n"
 AI:   *reads apps/n8n/README.md*
-      "n8n requires PostgreSQL with pgcrypto extension.
-       The free shared DB on Mikrus won't work here (no permission
-       to create extensions). You'll need a dedicated PostgreSQL
-       instance - the smallest one is 29 zł/year (512MB, 10GB).
+      "n8n requires PostgreSQL with the pgcrypto extension.
+       The free shared DB on Mikrus won't work - no permission
+       to create extensions. You'll need a dedicated PostgreSQL
+       instance (29 zł/year for 512MB / 10GB).
        Want me to proceed with that?"
 User: "Yes, go ahead"
 AI:   → deploy_app { app: "n8n", db_source: "custom", db_host: "...", ... }
-       "Done! n8n is live. I'd also recommend setting up daily backups
+       "Done! n8n is live. I'd also recommend setting up backups
         to protect your workflows."
 ```
 

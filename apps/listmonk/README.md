@@ -23,21 +23,13 @@ Płacisz tylko za hosting (~16 zł/mies) i wysyłkę maili przez SMTP (np. Amazo
 
 ### PostgreSQL (obowiązkowe)
 
-Listmonk wymaga bazy PostgreSQL. Na Mikrusie masz dwie opcje:
+Listmonk wymaga bazy PostgreSQL z rozszerzeniem **pgcrypto** (od v6.0.0).
 
-#### Opcja A: Darmowa baza współdzielona (do 200MB)
+> ⚠️ **Współdzielona baza Mikrusa NIE działa!** Brak uprawnień do tworzenia rozszerzeń. Potrzebujesz dedykowanej bazy.
 
-Idealna na start i małe listy mailingowe.
+#### Dedykowana baza PostgreSQL
 
-1. Wejdź w [Panel Mikrus → PostgreSQL](https://mikr.us/panel/?a=postgres)
-2. Kliknij **"Poproszę o nowe dane dostępowe"**
-3. Zapisz dane (host, user, password, database)
-
-> ⚠️ Limit 200MB. Używaj rozsądnie. Założenie bazy na nowo zmienia hasło, ale nie usuwa danych.
-
-#### Opcja B: Dedykowana baza w chmurze (zalecane)
-
-Dla większych list lub wielu aplikacji (n8n + Listmonk + Umami).
+Zamów w [Panel Mikrus → Cloud](https://mikr.us/panel/?a=cloud):
 
 | RAM | Dysk | Połączenia | Cena/rok |
 |---|---|---|---|
