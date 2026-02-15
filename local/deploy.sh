@@ -31,6 +31,7 @@ source "$REPO_ROOT/lib/cli-parser.sh"
 source "$REPO_ROOT/lib/db-setup.sh"
 source "$REPO_ROOT/lib/domain-setup.sh"
 source "$REPO_ROOT/lib/gateflow-setup.sh" 2>/dev/null || true  # Opcjonalna dla GateFlow
+source "$REPO_ROOT/lib/port-utils.sh"
 
 # =============================================================================
 # CUSTOM HELP
@@ -482,25 +483,10 @@ if [ -n "$DEFAULT_PORT" ]; then
         echo ""
         echo -e "   ${YELLOW}⚠ Port $DEFAULT_PORT jest zajęty!${NC}"
 
-        # Znajdź wolny port (start od DEFAULT_PORT+1, max 10 prób)
-        for i in {1..10}; do
-            TEST_PORT=$((DEFAULT_PORT + i))
-            PORT_FREE=$(ssh -o ConnectTimeout=5 "$SSH_ALIAS" "ss -tlnp 2>/dev/null | grep -q ':${TEST_PORT} ' && echo 'no' || echo 'yes'" 2>/dev/null)
-            if [ "$PORT_FREE" == "yes" ]; then
-                PORT_OVERRIDE=$TEST_PORT
-                echo -e "   ${GREEN}✓ Używam portu $PORT_OVERRIDE zamiast $DEFAULT_PORT${NC}"
-                break
-            fi
-        done
-
-        if [ -z "$PORT_OVERRIDE" ]; then
-            echo -e "   ${RED}❌ Nie znaleziono wolnego portu w zakresie ${DEFAULT_PORT}-$((DEFAULT_PORT + 10))${NC}"
-            if [ "$YES_MODE" != "true" ]; then
-                if ! confirm "   Kontynuować mimo to?"; then
-                    echo "Anulowano."
-                    exit 1
-                fi
-            fi
+        # Jedno SSH → lista portów, szukanie w pamięci (bez limitu prób)
+        PORT_OVERRIDE=$(find_free_port_remote "$SSH_ALIAS" $((DEFAULT_PORT + 1)))
+        if [ -n "$PORT_OVERRIDE" ]; then
+            echo -e "   ${GREEN}✓ Używam portu $PORT_OVERRIDE zamiast $DEFAULT_PORT${NC}"
         fi
     fi
 fi

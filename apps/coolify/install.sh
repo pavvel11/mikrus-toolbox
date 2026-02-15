@@ -102,22 +102,17 @@ if [ "$PORTS_BUSY" -eq 1 ]; then
 fi
 
 # --- Port 8000 (Coolify UI) ---
+source /opt/mikrus-toolbox/lib/port-utils.sh 2>/dev/null || true
 COOLIFY_PORT=8000
 if ss -tlnp 2>/dev/null | grep -q ":8000 "; then
     echo "⚠️  Port 8000 jest zajęty! Szukam wolnego portu dla Coolify UI..."
-    COOLIFY_PORT=""
-    for i in $(seq 1 10); do
-        TRY_PORT=$((8000 + i))
-        if ! ss -tlnp 2>/dev/null | grep -q ":${TRY_PORT} "; then
-            COOLIFY_PORT=$TRY_PORT
-            echo "✅ Używam portu $COOLIFY_PORT dla Coolify UI"
-            break
-        fi
-    done
-    if [ -z "$COOLIFY_PORT" ]; then
-        echo "❌ Nie znaleziono wolnego portu w zakresie 8001-8010!"
-        exit 1
+    if type find_free_port &>/dev/null; then
+        COOLIFY_PORT=$(find_free_port 8001)
+    else
+        # Fallback bez lib
+        COOLIFY_PORT=$(ss -tlnp 2>/dev/null | awk '{print $4}' | grep -oE '[0-9]+$' | sort -un | awk 'BEGIN{p=8001} p==$1{p++} END{print p}')
     fi
+    echo "✅ Używam portu $COOLIFY_PORT dla Coolify UI"
 fi
 
 # --- Existing stacks warning ---
