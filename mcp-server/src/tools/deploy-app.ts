@@ -10,7 +10,10 @@ export const deployAppTool = {
   description:
     "Deploy an application to a Mikrus VPS server. Runs the local deploy.sh script with --yes flag (non-interactive). All required parameters must be provided. For apps requiring a database, specify db_source. For public access, specify domain_type and domain. Use list_apps first to see available apps and their requirements.\n\n" +
     "IMPORTANT: When domain_type is 'cytrus' or 'cloudflare', this tool automatically configures the domain — no need to call setup_domain separately.\n\n" +
-    "WORDPRESS SQLITE: WordPress can run without MySQL by passing extra_env: { WP_DB_MODE: 'sqlite' }. In this mode, no db_source is needed.\n\n" +
+    "WORDPRESS: Before deploying WordPress, ALWAYS ask the user which database mode they prefer:\n" +
+    "  - SQLite (recommended for small sites, blogs, portfolios) — pass extra_env: { WP_DB_MODE: 'sqlite' }, no db_source needed\n" +
+    "  - MySQL shared (free Mikrus DB) — pass db_source: 'shared'\n" +
+    "  - MySQL custom (own/paid DB) — pass db_source: 'custom' with db_host, db_name, db_user, db_pass\n\n" +
     "NOTE: On Windows without bash, the user can install the toolbox on the server first " +
     "('./local/install-toolbox.sh <alias>'), then SSH in and run 'deploy.sh' directly on the server.",
   inputSchema: {

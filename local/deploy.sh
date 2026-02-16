@@ -507,26 +507,32 @@ NEEDS_DOMAIN=false
 APP_PORT=""
 
 # Sprawdź czy aplikacja wymaga bazy danych
+# WordPress z WP_DB_MODE=sqlite nie potrzebuje MySQL
 if grep -qiE "DB_HOST|DATABASE_URL" "$SCRIPT_PATH" 2>/dev/null; then
-    NEEDS_DB=true
-
-    # Wykryj typ bazy
-    if grep -qi "mysql" "$SCRIPT_PATH"; then
-        DB_TYPE="mysql"
-    elif grep -qi "mongo" "$SCRIPT_PATH"; then
-        DB_TYPE="mongo"
+    if [ "$APP_NAME" = "wordpress" ] && [ "$WP_DB_MODE" = "sqlite" ]; then
+        echo ""
+        echo -e "${GREEN}✅ WordPress w trybie SQLite — baza MySQL nie jest wymagana${NC}"
     else
-        DB_TYPE="postgres"
-    fi
+        NEEDS_DB=true
 
-    echo ""
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║  🗄️  Ta aplikacja wymaga bazy danych ($DB_TYPE)                ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
+        # Wykryj typ bazy
+        if grep -qi "mysql" "$SCRIPT_PATH"; then
+            DB_TYPE="mysql"
+        elif grep -qi "mongo" "$SCRIPT_PATH"; then
+            DB_TYPE="mongo"
+        else
+            DB_TYPE="postgres"
+        fi
 
-    if ! ask_database "$DB_TYPE" "$APP_NAME"; then
-        echo "Błąd: Konfiguracja bazy danych nie powiodła się."
-        exit 1
+        echo ""
+        echo "╔════════════════════════════════════════════════════════════════╗"
+        echo "║  🗄️  Ta aplikacja wymaga bazy danych ($DB_TYPE)                ║"
+        echo "╚════════════════════════════════════════════════════════════════╝"
+
+        if ! ask_database "$DB_TYPE" "$APP_NAME"; then
+            echo "Błąd: Konfiguracja bazy danych nie powiodła się."
+            exit 1
+        fi
     fi
 fi
 
@@ -741,6 +747,7 @@ EXTRA_ENV=""
 [ -n "$MYSQL_ROOT_PASS" ] && EXTRA_ENV="$EXTRA_ENV MYSQL_ROOT_PASS='$MYSQL_ROOT_PASS'"
 [ -n "$DOMAIN_PUBLIC" ] && EXTRA_ENV="$EXTRA_ENV DOMAIN_PUBLIC='$DOMAIN_PUBLIC'"
 [ -n "$DOMAIN_TYPE" ] && EXTRA_ENV="$EXTRA_ENV DOMAIN_TYPE='$DOMAIN_TYPE'"
+[ -n "$WP_DB_MODE" ] && EXTRA_ENV="$EXTRA_ENV WP_DB_MODE='$WP_DB_MODE'"
 
 # Dla GateFlow - dodaj zmienne do EXTRA_ENV (zebrane wcześniej w FAZIE 1.5)
 if [ "$APP_NAME" = "gateflow" ]; then
