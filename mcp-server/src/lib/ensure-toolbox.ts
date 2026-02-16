@@ -2,7 +2,7 @@ import { sshExec } from "./ssh.js";
 
 const TOOLBOX_REPO_URL = "https://github.com/pavvel11/mikrus-toolbox.git";
 const TOOLBOX_SERVER_PATH = "/opt/mikrus-toolbox";
-const TOOLBOX_MARKER = `${TOOLBOX_SERVER_PATH}/lib/common.sh`;
+const TOOLBOX_MARKER = `${TOOLBOX_SERVER_PATH}/local/deploy.sh`;
 
 /**
  * Ensure mikrus-toolbox is installed on the server.
@@ -22,10 +22,11 @@ export async function ensureToolboxOnServer(
     return { ok: true, installed: false };
   }
 
-  // Git clone from GitHub
+  // Git clone from GitHub (remove stale directory if exists)
   const result = await sshExec(
     alias,
     `command -v git >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq git > /dev/null 2>&1) && ` +
+      `rm -rf ${TOOLBOX_SERVER_PATH} && ` +
       `git clone --depth 1 ${TOOLBOX_REPO_URL} ${TOOLBOX_SERVER_PATH} 2>&1`,
     120_000
   );
