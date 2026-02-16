@@ -9,6 +9,8 @@ export const deployAppTool = {
   name: "deploy_app",
   description:
     "Deploy an application to a Mikrus VPS server. Runs the local deploy.sh script with --yes flag (non-interactive). All required parameters must be provided. For apps requiring a database, specify db_source. For public access, specify domain_type and domain. Use list_apps first to see available apps and their requirements.\n\n" +
+    "IMPORTANT: When domain_type is 'cytrus' or 'cloudflare', this tool automatically configures the domain — no need to call setup_domain separately.\n\n" +
+    "WORDPRESS SQLITE: WordPress can run without MySQL by passing extra_env: { WP_DB_MODE: 'sqlite' }. In this mode, no db_source is needed.\n\n" +
     "NOTE: On Windows without bash, the user can install the toolbox on the server first " +
     "('./local/install-toolbox.sh <alias>'), then SSH in and run 'deploy.sh' directly on the server.",
   inputSchema: {
@@ -113,19 +115,26 @@ export async function handleDeployApp(
     };
   }
 
-  // 2. Check app requirements
+  // 2. Check app requirements (skip for WordPress SQLite mode)
   const meta = parseAppMetadata(appDir);
-  if (meta?.requiresDb && !dbSource) {
-    const dbInfo =
-      meta.dbType === "mysql"
-        ? "This app requires MySQL. Provide db_source: 'shared' or 'custom'."
-        : "This app requires PostgreSQL. Provide db_source: 'shared' or 'custom'.";
+  const skipDbCheck = appName === "wordpress" && extraEnv.WP_DB_MODE === "sqlite";
+  if (meta?.requiresDb && !dbSource && !skipDbCheck) {
+    const dbType = meta.dbType === "mysql" ? "MySQL" : "PostgreSQL";
     const pgcryptoNote = meta.specialNotes.some((n) => n.includes("pgcrypto"))
-      ? "\nNote: This app requires pgcrypto extension - use db_source: 'custom' (shared DB does not support pgcrypto)."
+      ? `\n\nIMPORTANT: This app requires pgcrypto extension — the free shared Mikrus DB (PostgreSQL 12) does NOT support it. The user MUST use db_source: 'custom' with a dedicated PostgreSQL instance.`
+      : "";
+    const wpNote = appName === "wordpress"
+      ? `\n\nALTERNATIVE: WordPress can run without MySQL using SQLite mode. Pass extra_env: { WP_DB_MODE: "sqlite" } to skip database requirement entirely.`
       : "";
     return {
       isError: true,
-      content: [{ type: "text", text: `${dbInfo}${pgcryptoNote}` }],
+      content: [{
+        type: "text",
+        text: `This app requires ${dbType}. Ask the user which database to use:\n` +
+          `- db_source: 'shared' — free Mikrus DB (no extra params needed)\n` +
+          `- db_source: 'custom' — dedicated DB (ask user for db_host, db_port, db_name, db_user, db_pass)` +
+          pgcryptoNote + wpNote,
+      }],
     };
   }
 

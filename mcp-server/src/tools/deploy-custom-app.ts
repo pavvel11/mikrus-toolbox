@@ -16,7 +16,10 @@ export const deployCustomAppTool = {
     "2. Show them the docker-compose.yaml you generated\n" +
     "3. Get their explicit confirmation to proceed\n" +
     "4. Set confirmed: true only after user says yes\n\n" +
-    "The compose file is uploaded to /opt/stacks/{name}/ on the server and started with docker compose.",
+    "The compose file is uploaded to /opt/stacks/{name}/ on the server and started with docker compose.\n\n" +
+    "IMPORTANT: This tool does NOT configure a public domain. After deployment, use the setup_domain tool " +
+    "to assign a Cytrus subdomain (e.g. setup_domain with port and domain='auto'). " +
+    "If the user wants a public URL, you MUST call setup_domain as a follow-up step.",
   inputSchema: {
     type: "object" as const,
     properties: {

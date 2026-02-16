@@ -51,7 +51,7 @@ In Claude Desktop:
 - **mikrus-toolbox** repo cloned locally
 - **Mikrus VPS** account (SSH credentials from mikr.us panel)
 
-## Available Tools (6)
+## Available Tools (7)
 
 ### `setup_server`
 
@@ -141,6 +141,26 @@ Supported project types (auto-detected): static HTML, Node.js (PM2), Next.js, Py
 | `port` | No | Override default port |
 
 **Typical flow:** call with `analyze_only: true` first, then with `confirmed: true` after user agrees.
+
+### `setup_domain`
+
+Configure a Cytrus domain (free Mikrus subdomain) for an app on a specific port.
+
+```
+{
+  port: 3001,
+  domain: "auto",
+  ssh_alias: "mikrus"
+}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `port` | Yes | Port the app is listening on (1-65535) |
+| `domain` | No | `auto` for random subdomain, or `myapp.byst.re` etc. |
+| `ssh_alias` | No | SSH alias (default: configured server) |
+
+**When to use:** after `deploy_custom_app`, or to add a domain to any running app. NOT needed after `deploy_app` with `domain_type=cytrus` (it handles domain automatically).
 
 ### `server_status`
 

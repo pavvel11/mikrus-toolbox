@@ -15,6 +15,7 @@ import { handleListApps } from "./src/tools/list-apps.js";
 import { handleDeployCustomApp } from "./src/tools/deploy-custom-app.js";
 import { resolveRepoRoot, getAppsDir, getDeployShPath } from "./src/lib/repo.js";
 import { handleSetupServer } from "./src/tools/configure-server.js";
+import { handleSetupDomain } from "./src/tools/configure-domain.js";
 
 const TEST_ROOT = join(tmpdir(), "mikrus-mcp-test-" + Date.now());
 let passed = 0;
@@ -647,6 +648,50 @@ async function testSetupServerHostNoPort() {
 }
 
 // ══════════════════════════════════════════════════════
+// 7b. handleSetupDomain() — validation only
+// ══════════════════════════════════════════════════════
+
+async function testSetupDomainNoPort() {
+  console.log("\n\ud83c\udf0d handleSetupDomain -- no port");
+  const result = await handleSetupDomain({});
+  assert(result.isError === true, "returns error");
+  assert(
+    result.content[0].text.includes("port"),
+    "error mentions port"
+  );
+}
+
+async function testSetupDomainInvalidPort() {
+  console.log("\n\ud83c\udf0d handleSetupDomain -- invalid port");
+  const result = await handleSetupDomain({ port: 99999 });
+  assert(result.isError === true, "returns error");
+  assert(
+    result.content[0].text.includes("port"),
+    "error mentions port"
+  );
+}
+
+async function testSetupDomainInvalidDomain() {
+  console.log("\n\ud83c\udf0d handleSetupDomain -- invalid domain");
+  const result = await handleSetupDomain({ port: 3001, domain: "invalid.com" });
+  assert(result.isError === true, "returns error");
+  assert(
+    result.content[0].text.includes("byst.re"),
+    "error mentions supported TLDs"
+  );
+}
+
+async function testSetupDomainInvalidAlias() {
+  console.log("\n\ud83c\udf0d handleSetupDomain -- invalid alias");
+  const result = await handleSetupDomain({ port: 3001, ssh_alias: "--inject" });
+  assert(result.isError === true, "returns error");
+  assert(
+    result.content[0].text.includes("Invalid SSH alias"),
+    "error mentions invalid alias"
+  );
+}
+
+// ══════════════════════════════════════════════════════
 // 8. index.ts — tool registration integrity
 // ══════════════════════════════════════════════════════
 
@@ -674,6 +719,7 @@ function testToolRegistrationIntegrity() {
     "deploy_custom_app",
     "deploy_site",
     "server_status",
+    "setup_domain",
   ];
 
   for (const tool of expectedTools) {
@@ -718,6 +764,7 @@ function testToolDefinitions() {
     "deployCustomAppTool",
     "deploySiteTool",
     "serverStatusTool",
+    "setupDomainTool",
   ];
 
   for (const imp of imports) {
@@ -856,6 +903,12 @@ async function main() {
     // 7. handleSetupServer validation
     await testSetupServerNoArgs();
     await testSetupServerHostNoPort();
+
+    // 7b. handleSetupDomain validation
+    await testSetupDomainNoPort();
+    await testSetupDomainInvalidPort();
+    await testSetupDomainInvalidDomain();
+    await testSetupDomainInvalidAlias();
 
     // 8. index.ts integrity
     testToolRegistrationIntegrity();

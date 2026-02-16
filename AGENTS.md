@@ -74,6 +74,14 @@ Skrypt interaktywnie pyta o 5 rzeczy — prowadź użytkownika krok po kroku:
 
 Alternatywa bez `start`: `curl -fsSL https://get.docker.com | sh`
 
+## Domeny Cytrus (MCP: `setup_domain`)
+
+Konfiguracja darmowej subdomeny Mikrusa (*.byst.re, *.bieda.it, *.toadres.pl, *.tojest.dev):
+
+- **Po `deploy_app` z `domain_type=cytrus`** — domena konfigurowana automatycznie, nie trzeba nic robić
+- **Po `deploy_custom_app`** — użyj `setup_domain { port: PORT, domain: "auto" }` żeby przypisać domenę
+- **Ręcznie** — `./local/cytrus-domain.sh DOMENA PORT [SSH]`
+
 ## Deploy aplikacji
 
 ```bash
