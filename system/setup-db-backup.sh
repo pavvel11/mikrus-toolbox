@@ -89,7 +89,7 @@ if [ -f "$CREDENTIALS_FILE" ]; then
     fi
 fi
 
-read -p "Czy chcesz dodać/edytować dedykowaną bazę? (t/N): " ADD_CUSTOM
+read -p "Czy chcesz dodać/edytować dedykowaną bazę? (t/N): " ADD_CUSTOM || true
 if [[ "$ADD_CUSTOM" =~ ^[tTyY] ]]; then
 
     while true; do
