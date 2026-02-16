@@ -51,7 +51,7 @@ In Claude Desktop:
 - **mikrus-toolbox** repo cloned locally
 - **Mikrus VPS** account (SSH credentials from mikr.us panel)
 
-## Available Tools (5)
+## Available Tools (6)
 
 ### `setup_server`
 
@@ -116,9 +116,35 @@ Deploy ANY Docker application - not limited to the built-in list. AI researches 
 
 User must explicitly confirm before deployment (`confirmed: true`).
 
+### `deploy_site`
+
+Deploy a LOCAL project directory (website, Node.js app, Python app, Docker project) directly to a Mikrus VPS. Auto-detects project type and deploys accordingly.
+
+```
+{
+  project_path: "/path/to/my-project",
+  analyze_only: true
+}
+```
+
+Supported project types (auto-detected): static HTML, Node.js (PM2), Next.js, Python, Dockerfile, Docker Compose.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `project_path` | Yes | Absolute path to local project |
+| `analyze_only` | No | Just detect type, no deploy (default: false) |
+| `confirmed` | For deploy | Must be `true` to actually deploy |
+| `strategy` | No | `auto`, `static`, `node`, `docker` |
+| `ssh_alias` | No | SSH alias (default: configured server) |
+| `domain_type` | No | `cytrus`, `cloudflare`, or `local` |
+| `domain` | No | Domain name or `auto` |
+| `port` | No | Override default port |
+
+**Typical flow:** call with `analyze_only: true` first, then with `confirmed: true` after user agrees.
+
 ### `server_status`
 
-Check server state: containers, RAM, disk, ports.
+Check server state: containers, RAM, disk, ports. Warns if Docker is not installed (suggests running `start`).
 
 ```
 { ssh_alias: "mikrus" }
@@ -221,7 +247,10 @@ Planned improvements:
 npm run dev    # Run with tsx (no build needed)
 npm run build  # Compile TypeScript
 npm start      # Run compiled version
+npm test       # Run test suite (no SSH required)
 ```
+
+Tests cover project detection, input validation, metadata parsing, and tool registration integrity — all locally, without connecting to any server.
 
 ## License
 
