@@ -18,6 +18,10 @@ import {
   handleDeployCustomApp,
 } from "./tools/deploy-custom-app.js";
 import {
+  deploySiteTool,
+  handleDeploySite,
+} from "./tools/deploy-site.js";
+import {
   serverStatusTool,
   handleServerStatus,
 } from "./tools/server-status.js";
@@ -33,6 +37,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     listAppsTool,
     deployAppTool,
     deployCustomAppTool,
+    deploySiteTool,
     serverStatusTool,
   ],
 }));
@@ -49,6 +54,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       return handleDeployApp(args ?? {});
     case "deploy_custom_app":
       return handleDeployCustomApp(args ?? {});
+    case "deploy_site":
+      return handleDeploySite(args ?? {});
     case "server_status":
       return handleServerStatus(args ?? {});
     default:

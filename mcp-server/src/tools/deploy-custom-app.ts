@@ -1,5 +1,4 @@
-import { spawn } from "node:child_process";
-import { sshExec } from "../lib/ssh.js";
+import { sshExec, sshExecWithStdin } from "../lib/ssh.js";
 import { getDefaultAlias } from "../lib/config.js";
 
 type ToolResult = {
@@ -204,28 +203,3 @@ export async function handleDeployCustomApp(
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }
 
-// Helper: SSH with stdin data (for uploading file content)
-function sshExecWithStdin(
-  alias: string,
-  command: string,
-  stdinData: string,
-  timeoutMs = 30_000
-): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  return new Promise((resolve) => {
-    let stdout = "";
-    let stderr = "";
-    const proc = spawn("ssh", ["-o", "ConnectTimeout=10", alias, command], {
-      timeout: timeoutMs,
-    });
-    proc.stdout.on("data", (d) => (stdout += d.toString()));
-    proc.stderr.on("data", (d) => (stderr += d.toString()));
-    proc.on("close", (code) => {
-      resolve({ stdout, stderr, exitCode: code ?? 1 });
-    });
-    proc.on("error", (err) => {
-      resolve({ stdout, stderr: err.message, exitCode: 1 });
-    });
-    proc.stdin.write(stdinData);
-    proc.stdin.end();
-  });
-}

@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "tsx test-mcp.ts",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts"
   },

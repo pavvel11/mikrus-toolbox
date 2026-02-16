@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import {
   existsSync,
   readFileSync,
@@ -153,4 +153,72 @@ export function getSSHCopyIdCommand(opts: {
   user: string;
 }): string {
   return `ssh-copy-id -p ${opts.port} ${opts.user}@${opts.host}`;
+}
+
+// --- Shared helpers ---
+
+export function sshExecWithStdin(
+  alias: string,
+  command: string,
+  stdinData: string,
+  timeoutMs = 30_000
+): Promise<ExecResult> {
+  return new Promise((resolve) => {
+    let stdout = "";
+    let stderr = "";
+    const proc = spawn("ssh", ["-o", "ConnectTimeout=10", alias, command], {
+      timeout: timeoutMs,
+    });
+    proc.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
+    proc.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
+    proc.on("close", (code) => {
+      resolve({ stdout, stderr, exitCode: code ?? 1 });
+    });
+    proc.on("error", (err) => {
+      resolve({ stdout, stderr: err.message, exitCode: 1 });
+    });
+    proc.stdin.write(stdinData);
+    proc.stdin.end();
+  });
+}
+
+const DEFAULT_RSYNC_EXCLUDES = [
+  ".git",
+  "node_modules",
+  ".env",
+  ".env.*",
+  "__pycache__",
+  ".next",
+  ".DS_Store",
+  "*.pyc",
+  ".venv",
+  "venv",
+];
+
+export function rsyncToServer(
+  alias: string,
+  localPath: string,
+  remotePath: string,
+  excludes: string[] = DEFAULT_RSYNC_EXCLUDES,
+  timeoutMs = 300_000
+): Promise<ExecResult> {
+  return new Promise((resolve) => {
+    const src = localPath.endsWith("/") ? localPath : localPath + "/";
+    const args = [
+      "-avz",
+      "--delete",
+      ...excludes.flatMap((e) => ["--exclude", e]),
+      "-e",
+      "ssh -o ConnectTimeout=10",
+      src,
+      `${alias}:${remotePath}/`,
+    ];
+    execFile("rsync", args, { timeout: timeoutMs }, (error, stdout, stderr) => {
+      resolve({
+        stdout: stdout?.toString() ?? "",
+        stderr: stderr?.toString() ?? "",
+        exitCode: error ? (error as any).code ?? 1 : 0,
+      });
+    });
+  });
 }
