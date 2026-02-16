@@ -9,6 +9,16 @@ export interface DomainResult {
   error: string | null;
 }
 
+const DOMAIN_REGEX = /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i;
+
+function validateDomainInput(domain: string): string | null {
+  if (domain === "-") return null; // auto-assign sentinel
+  if (!DOMAIN_REGEX.test(domain) || domain.includes("..")) {
+    return `Invalid domain: ${domain}. Use only letters, numbers, dots, and dashes.`;
+  }
+  return null;
+}
+
 /**
  * Register a Cytrus domain using local/cytrus-domain.sh.
  * The script handles: SSH → get API key + hostname, curl Mikrus API, parse response.
@@ -31,6 +41,11 @@ export async function setupCytrusDomain(
 
   const domain =
     !requestedDomain || requestedDomain === "auto" ? "-" : requestedDomain;
+
+  const domainErr = validateDomainInput(domain);
+  if (domainErr) {
+    return { ok: false, url: null, domain: null, error: domainErr };
+  }
 
   const result = await execLocalScript(
     script,
@@ -71,6 +86,11 @@ export async function setupCloudflareProxy(
   domain: string,
   port: number
 ): Promise<DomainResult> {
+  const domainErr = validateDomainInput(domain);
+  if (domainErr) {
+    return { ok: false, url: null, domain, error: domainErr };
+  }
+
   // Step 1: DNS record via dns-add.sh (runs locally, manages Cloudflare API)
   const dnsScript = localScript("dns-add.sh");
   if (existsSync(dnsScript)) {
@@ -102,6 +122,11 @@ export async function setupCloudflareStatic(
   domain: string,
   webRoot: string
 ): Promise<DomainResult> {
+  const domainErr = validateDomainInput(domain);
+  if (domainErr) {
+    return { ok: false, url: null, domain, error: domainErr };
+  }
+
   const dnsScript = localScript("dns-add.sh");
   if (existsSync(dnsScript)) {
     await execLocalScript(dnsScript, [domain, alias], 30_000);

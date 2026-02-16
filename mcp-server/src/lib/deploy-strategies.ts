@@ -37,6 +37,25 @@ export async function deploy(
   config: DeployConfig,
   analysis: ProjectAnalysis
 ): Promise<DeployResult> {
+  // --- Input validation (prevent command injection) ---
+  const aliasErr = validateAlias(config.alias);
+  if (aliasErr) return { ok: false, lines: [], url: null, error: aliasErr };
+
+  if (config.domain && config.domain !== "auto") {
+    const domainErr = validateDomain(config.domain);
+    if (domainErr) return { ok: false, lines: [], url: null, error: domainErr };
+  }
+
+  if (config.installCommand) {
+    const cmdErr = validateShellCommand(config.installCommand, "install_command");
+    if (cmdErr) return { ok: false, lines: [], url: null, error: cmdErr };
+  }
+
+  if (config.startCommand) {
+    const cmdErr = validateShellCommand(config.startCommand, "start_command");
+    if (cmdErr) return { ok: false, lines: [], url: null, error: cmdErr };
+  }
+
   // Python without Dockerfile → generate Dockerfile on server, then Docker flow
   if (analysis.type === "python" && !analysis.files.includes("Dockerfile")) {
     return deployPythonAsDocker(config);
@@ -258,7 +277,7 @@ async function deployNode(config: DeployConfig): Promise<DeployResult> {
   await sshExec(alias, `pm2 delete ${name} 2>/dev/null || true`, 10_000);
   const pm2Start = await sshExec(
     alias,
-    `cd ${remoteDir} && PORT=${port} pm2 start ${quoteArg(startCommand)} --name ${name}`,
+    `cd ${remoteDir} && PORT=${port} pm2 start "${startCommand}" --name ${name}`,
     30_000
   );
   if (pm2Start.exitCode !== 0) {
@@ -595,7 +614,39 @@ function appendDomainResult(
   }
 }
 
-function quoteArg(cmd: string): string {
-  if (cmd.includes(" ")) return `"${cmd}"`;
-  return cmd;
+/** Shell metacharacters that indicate command injection attempts. */
+const SHELL_METACHARS = /[;|&`$(){}!<>\n\r\\]/;
+
+/**
+ * Validate a shell command string (start_command, install_command).
+ * Rejects anything containing shell metacharacters that could enable injection.
+ */
+function validateShellCommand(cmd: string, paramName: string): string | null {
+  if (SHELL_METACHARS.test(cmd)) {
+    return `${paramName} contains unsafe shell characters: ${cmd}. Only simple commands are allowed (e.g. 'npm start', 'npm install --production').`;
+  }
+  return null;
+}
+
+/**
+ * Validate a domain string. Only allows [a-z0-9.-] to prevent shell injection.
+ */
+function validateDomain(domain: string): string | null {
+  if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i.test(domain)) {
+    return `Invalid domain format: ${domain}. Use only letters, numbers, dots, and dashes.`;
+  }
+  if (domain.includes("..")) {
+    return `Invalid domain: ${domain}. Double dots not allowed.`;
+  }
+  return null;
+}
+
+/**
+ * Validate an SSH alias. Only allows [a-zA-Z0-9_-] to prevent option injection.
+ */
+function validateAlias(alias: string): string | null {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(alias)) {
+    return `Invalid SSH alias: ${alias}. Use only letters, numbers, dashes, and underscores.`;
+  }
+  return null;
 }

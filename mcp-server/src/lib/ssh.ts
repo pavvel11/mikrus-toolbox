@@ -127,12 +127,41 @@ export function aliasExists(alias: string): boolean {
   return regex.test(content);
 }
 
+/**
+ * Validate SSH config parameter against injection (newline, control chars).
+ * Throws on invalid input.
+ */
+function validateSSHParam(value: string, name: string): void {
+  if (/[\n\r\0]/.test(value)) {
+    throw new Error(`${name} contains invalid characters (newline/null).`);
+  }
+  if (name === "alias" && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(value)) {
+    throw new Error(
+      `Invalid SSH alias '${value}'. Use only letters, numbers, dashes, underscores.`
+    );
+  }
+  if (name === "host" && !/^[a-zA-Z0-9._-]+$/.test(value)) {
+    throw new Error(
+      `Invalid hostname '${value}'. Use only letters, numbers, dots, dashes.`
+    );
+  }
+  if (name === "user" && !/^[a-zA-Z0-9._-]+$/.test(value)) {
+    throw new Error(
+      `Invalid username '${value}'. Use only letters, numbers, dots, dashes, underscores.`
+    );
+  }
+}
+
 export function writeSSHConfig(opts: {
   alias: string;
   host: string;
   port: number;
   user: string;
 }): void {
+  validateSSHParam(opts.alias, "alias");
+  validateSSHParam(opts.host, "host");
+  validateSSHParam(opts.user, "user");
+
   mkdirSync(SSH_DIR, { recursive: true, mode: 0o700 });
   const entry = [
     "",

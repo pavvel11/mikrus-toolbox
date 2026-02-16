@@ -22,6 +22,15 @@ export async function handleServerStatus(
 ): Promise<{ content: Array<{ type: string; text: string }>; isError?: boolean }> {
   const alias = (args.ssh_alias as string) ?? getDefaultAlias();
 
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(alias)) {
+    return {
+      isError: true,
+      content: [
+        { type: "text", text: `Invalid SSH alias '${alias}'. Use only letters, numbers, dashes, underscores.` },
+      ],
+    };
+  }
+
   const cmd = [
     'echo "===RESOURCES==="',
     'echo "RAM_TOTAL=$(free -m 2>/dev/null | awk \'/^Mem:/ {print $2}\')"',

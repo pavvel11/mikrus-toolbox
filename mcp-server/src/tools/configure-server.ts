@@ -86,6 +86,32 @@ async function handleSetup(args: Record<string, unknown>): Promise<ToolResult> {
   const user = (args.user as string) ?? "root";
   const alias = (args.alias as string) ?? "mikrus";
 
+  // Validate inputs (prevent SSH config injection)
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(alias)) {
+    return {
+      isError: true,
+      content: [
+        { type: "text", text: `Invalid alias '${alias}'. Use only letters, numbers, dashes, underscores.` },
+      ],
+    };
+  }
+  if (/[\n\r\0]/.test(host) || !/^[a-zA-Z0-9._-]+$/.test(host)) {
+    return {
+      isError: true,
+      content: [
+        { type: "text", text: `Invalid hostname '${host}'. Use only letters, numbers, dots, dashes.` },
+      ],
+    };
+  }
+  if (/[\n\r\0]/.test(user) || !/^[a-zA-Z0-9._-]+$/.test(user)) {
+    return {
+      isError: true,
+      content: [
+        { type: "text", text: `Invalid username '${user}'. Use only letters, numbers, dots, dashes, underscores.` },
+      ],
+    };
+  }
+
   if (!port) {
     return {
       isError: true,
@@ -161,6 +187,15 @@ async function handleSetup(args: Record<string, unknown>): Promise<ToolResult> {
 async function handleTest(args: Record<string, unknown>): Promise<ToolResult> {
   const alias = args.ssh_alias as string;
   const setDefault = (args.set_as_default as boolean) ?? true;
+
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(alias)) {
+    return {
+      isError: true,
+      content: [
+        { type: "text", text: `Invalid SSH alias '${alias}'. Use only letters, numbers, dashes, underscores.` },
+      ],
+    };
+  }
 
   // 1. Test connectivity
   const conn = await testConnection(alias);

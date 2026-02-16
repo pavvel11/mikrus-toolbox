@@ -57,6 +57,19 @@ export async function handleDeployCustomApp(
   const port = args.port as number | undefined;
   const confirmed = args.confirmed as boolean;
 
+  // 0. Validate alias (prevent SSH option injection)
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(alias)) {
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text",
+          text: `Invalid SSH alias '${alias}'. Use only letters, numbers, dashes, and underscores.`,
+        },
+      ],
+    };
+  }
+
   // 1. Require explicit confirmation
   if (!confirmed) {
     return {

@@ -78,6 +78,16 @@ export async function handleDeployApp(
   const dryRun = (args.dry_run as boolean) ?? false;
   const extraEnv = (args.extra_env as Record<string, string>) ?? {};
 
+  // 0. Validate alias (prevent SSH option injection)
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(alias)) {
+    return {
+      isError: true,
+      content: [
+        { type: "text", text: `Invalid SSH alias '${alias}'. Use only letters, numbers, dashes, underscores.` },
+      ],
+    };
+  }
+
   // 1. Validate app exists
   const appDir = join(getAppsDir(), appName);
   if (!existsSync(appDir)) {
