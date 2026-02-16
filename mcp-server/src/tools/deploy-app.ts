@@ -196,7 +196,7 @@ export async function handleDeployApp(
 
         if (error) {
           // Timeout
-          if ((error as any).killed) {
+          if (error.killed) {
             resolve({
               isError: true,
               content: [
@@ -214,7 +214,7 @@ export async function handleDeployApp(
             content: [
               {
                 type: "text",
-                text: `Deployment failed (exit code ${(error as any).code ?? "?"}).\n\nOutput:\n${output}`,
+                text: `Deployment failed (exit code ${error.code ?? "?"}).\n\nOutput:\n${output}`,
               },
             ],
           });

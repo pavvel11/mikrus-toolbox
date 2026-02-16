@@ -51,7 +51,7 @@ In Claude Desktop:
 - **mikrus-toolbox** repo cloned locally
 - **Mikrus VPS** account (SSH credentials from mikr.us panel)
 
-## Available Tools (7)
+## Available Tools (8)
 
 ### `setup_server`
 
@@ -161,6 +161,26 @@ Configure a Cytrus domain (free Mikrus subdomain) for an app on a specific port.
 | `ssh_alias` | No | SSH alias (default: configured server) |
 
 **When to use:** after `deploy_custom_app`, or to add a domain to any running app. NOT needed after `deploy_app` with `domain_type=cytrus` (it handles domain automatically).
+
+### `setup_backup`
+
+Configure automatic backups on a Mikrus VPS. Auto-installs the toolbox on the server if needed (via `git clone` from GitHub).
+
+```
+{ backup_type: "db" }
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `backup_type` | Yes | `db`, `mikrus`, or `cloud` |
+| `ssh_alias` | No | SSH alias (default: configured server) |
+
+**Backup types:**
+- `db` — automatic daily database backup (auto-detects shared PostgreSQL/MySQL). Runs on server via cron.
+- `mikrus` — built-in Mikrus backup (200MB, free). Backs up /etc, /home, /var/log to Mikrus backup server. User must first activate in panel: https://mikr.us/panel/?a=backup
+- `cloud` — cloud backup via rclone (Google Drive, Dropbox, S3). Cannot be configured remotely — returns instructions for the user to run locally.
+
+**Note:** After any `deploy_app`, `deploy_custom_app`, or `deploy_site`, the server is checked for backup configuration. If no backup is found, a warning is returned suggesting `setup_backup`.
 
 ### `server_status`
 

@@ -79,11 +79,9 @@ REDIS_PASS=tajneHaslo WP_REDIS=external ./local/deploy.sh wordpress --ssh=mikrus
 
 ## Po instalacji
 
-1. Otwórz stronę → kreator instalacji WordPress
-2. Zastosuj optymalizacje wp-config.php + zainstaluj Redis Object Cache:
-   ```bash
-   ssh mikrus 'cd /opt/stacks/wordpress && ./wp-init.sh'
-   ```
+1. Otwórz stronę → kreator instalacji WordPress (jedyny ręczny krok)
+
+Optymalizacje `wp-init.sh` uruchamiają się **automatycznie** podczas instalacji. Nie trzeba nic robić ręcznie.
 
 `wp-init.sh` automatycznie:
 - Dodaje fix HTTPS za reverse proxy

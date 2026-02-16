@@ -3,7 +3,7 @@
 # Mikrus Toolbox - Cookie Hub (Klaro!)
 # Centralized Cookie Consent Manager for all your domains.
 # Supports both Docker (Cytrus) and Caddy (Cloudflare) modes.
-# Author: Pawel (Lazy Engineer)
+# Author: Paweł (Lazy Engineer)
 #
 # IMAGE_SIZE_MB=50  # nginx:alpine (only for Docker mode)
 

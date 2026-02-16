@@ -82,6 +82,17 @@ Konfiguracja darmowej subdomeny Mikrusa (*.byst.re, *.bieda.it, *.toadres.pl, *.
 - **Po `deploy_custom_app`** — użyj `setup_domain { port: PORT, domain: "auto" }` żeby przypisać domenę
 - **Ręcznie** — `./local/cytrus-domain.sh DOMENA PORT [SSH]`
 
+## Backup (MCP: `setup_backup`)
+
+Po deploymencie sprawdzany jest status backupu. Jeśli nie ma żadnego — agent dostaje ostrzeżenie i powinien zasugerować konfigurację.
+
+Typy backupu:
+- `setup_backup(backup_type='db')` — automatyczny codzienny backup baz danych (cron na serwerze)
+- `setup_backup(backup_type='mikrus')` — wbudowany backup Mikrusa (200MB, za darmo, wymaga aktywacji w panelu: https://mikr.us/panel/?a=backup)
+- `setup_backup(backup_type='cloud')` — backup w chmurze (Google Drive, Dropbox, S3) — wymaga lokalnego uruchomienia `./local/setup-backup.sh` (OAuth w przeglądarce)
+
+Toolbox jest automatycznie instalowany na serwerze (git clone z GitHub) jeśli jeszcze go tam nie ma.
+
 ## Deploy aplikacji
 
 ```bash
@@ -104,10 +115,8 @@ Konfiguracja darmowej subdomeny Mikrusa (*.byst.re, *.bieda.it, *.toadres.pl, *.
 - `WP_DB_MODE=sqlite|mysql` - tryb bazy (domyślnie: mysql)
 - `WP_REDIS=auto|external|bundled` - auto-detekcja Redisa na hoście
 
-**Post-install WordPress** - po ukończeniu kreatora w przeglądarce:
-```bash
-ssh mikrus 'cd /opt/stacks/wordpress && ./wp-init.sh'
-```
+**Post-install WordPress** — `wp-init.sh` uruchamia się automatycznie podczas instalacji.
+Jedyny ręczny krok: otworzyć stronę w przeglądarce → kreator WordPress.
 
 ## Synchronizacja plików (sync.sh)
 

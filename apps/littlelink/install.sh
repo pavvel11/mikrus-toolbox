@@ -3,7 +3,7 @@
 # Mikrus Toolbox - LittleLink
 # Link-in-bio page (Linktree alternative).
 # Supports both Docker (Cytrus) and Caddy (Cloudflare) modes.
-# Author: Pawel (Lazy Engineer)
+# Author: Paweł (Lazy Engineer)
 #
 # IMAGE_SIZE_MB=50  # nginx:alpine (only for Docker mode)
 

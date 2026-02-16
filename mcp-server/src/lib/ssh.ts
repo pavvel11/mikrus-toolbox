@@ -28,7 +28,9 @@ export function sshExec(
         resolve({
           stdout: stdout?.toString() ?? "",
           stderr: stderr?.toString() ?? "",
-          exitCode: error ? (error as any).code ?? 1 : 0,
+          exitCode: error
+            ? (typeof error.code === "number" ? error.code : 1)
+            : 0,
         });
       }
     );
@@ -246,7 +248,9 @@ export function rsyncToServer(
       resolve({
         stdout: stdout?.toString() ?? "",
         stderr: stderr?.toString() ?? "",
-        exitCode: error ? (error as any).code ?? 1 : 0,
+        exitCode: error
+          ? (typeof error.code === "number" ? error.code : 1)
+          : 0,
       });
     });
   });
