@@ -23,10 +23,33 @@ Pomagasz użytkownikom zarządzać ich serwerami Mikrus. Możesz:
 ```
 local/           → Skrypty użytkownika (deploy, backup, setup)
 apps/<app>/      → Instalatory aplikacji (install.sh + README.md)
-lib/             → Biblioteki pomocnicze (cli-parser, db-setup, domain-setup, health-check, resource-check)
+lib/             → Biblioteki pomocnicze (cli-parser, db-setup, domain-setup, server-exec, port-utils)
 system/          → Skrypty systemowe (docker, caddy, backup-core)
 docs/            → Dokumentacja (Cloudflare, CLI reference)
 ```
+
+## Tryb dual-mode (lokalne + na serwerze)
+
+Skrypty działają **zarówno z komputera** (przez SSH) **jak i bezpośrednio na serwerze**.
+Detekcja: plik `/klucz_api` istnieje TYLKO na serwerach Mikrusa.
+
+```bash
+# Z komputera (jak dotychczas):
+./local/deploy.sh uptime-kuma --ssh=mikrus
+
+# Na serwerze (po zainstalowaniu toolboxa):
+ssh mikrus
+deploy.sh uptime-kuma
+```
+
+Instalacja toolboxa na serwerze: `./local/install-toolbox.sh [ssh_alias]`
+
+Biblioteka `lib/server-exec.sh` zapewnia transparentne wrappery:
+- `server_exec "cmd"` → ssh lub bash -c
+- `server_copy src dst` → scp lub cp
+- `server_hostname` → ssh -G lub hostname
+
+Skrypty local-only (nie działają na serwerze): `setup-ssh.sh`, `sync.sh`
 
 ## Deploy aplikacji
 

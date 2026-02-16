@@ -23,7 +23,10 @@ export const setupServerTool = {
     "1. SETUP (new connection): Provide host + port to generate SSH key, write ~/.ssh/config, " +
     "and get the ssh-copy-id command for the user to run (they type their password once in terminal).\n" +
     "2. TEST (existing connection): Provide ssh_alias to test connectivity and check server resources.\n\n" +
-    "Typical flow: setup_server with host+port → user runs ssh-copy-id → setup_server with ssh_alias to verify.",
+    "Typical flow: setup_server with host+port → user runs ssh-copy-id → setup_server with ssh_alias to verify.\n\n" +
+    "WINDOWS USERS: After SSH setup, Windows users can install the toolbox ON the server " +
+    "with './local/install-toolbox.sh <alias>', then SSH in and run scripts directly " +
+    "(e.g. 'ssh mikrus' → 'deploy.sh uptime-kuma'). This avoids needing bash on Windows.",
   inputSchema: {
     type: "object" as const,
     properties: {

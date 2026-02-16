@@ -13,6 +13,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/server-exec.sh"
+
 DOMAIN="$1"
 SSH_ALIAS="${2:-mikrus}"
 
@@ -452,16 +455,16 @@ if echo "$CREATE_RESPONSE" | grep -q '"success":true'; then
         PM2_NAME="gateflow-${INSTANCE_NAME}"
 
         # Sprawdź czy istnieje katalog instancji, jeśli nie - szukaj dalej
-        if ! ssh "$SSH_ALIAS" "test -d $GATEFLOW_DIR" 2>/dev/null; then
+        if ! server_exec "test -d $GATEFLOW_DIR" 2>/dev/null; then
             GATEFLOW_DIR="/opt/stacks/gateflow"
             PM2_NAME="gateflow"
         fi
         # Fallback do starej lokalizacji
-        if ! ssh "$SSH_ALIAS" "test -d $GATEFLOW_DIR" 2>/dev/null; then
+        if ! server_exec "test -d $GATEFLOW_DIR" 2>/dev/null; then
             GATEFLOW_DIR="/root/gateflow-${INSTANCE_NAME}"
             PM2_NAME="gateflow-${INSTANCE_NAME}"
         fi
-        if ! ssh "$SSH_ALIAS" "test -d $GATEFLOW_DIR" 2>/dev/null; then
+        if ! server_exec "test -d $GATEFLOW_DIR" 2>/dev/null; then
             GATEFLOW_DIR="/root/gateflow"
             PM2_NAME="gateflow"
         fi
@@ -470,12 +473,12 @@ if echo "$CREATE_RESPONSE" | grep -q '"success":true'; then
         STANDALONE_ENV="$GATEFLOW_DIR/admin-panel/.next/standalone/admin-panel/.env.local"
 
         # Sprawdź czy istnieje
-        if ssh "$SSH_ALIAS" "test -f $ENV_FILE" 2>/dev/null; then
+        if server_exec "test -f $ENV_FILE" 2>/dev/null; then
             # Dodaj do głównego .env.local (z aliasem TURNSTILE_SECRET_KEY dla Supabase)
-            ssh "$SSH_ALIAS" "echo '' >> $ENV_FILE && echo '# Cloudflare Turnstile' >> $ENV_FILE && echo 'CLOUDFLARE_TURNSTILE_SITE_KEY=$SITE_KEY' >> $ENV_FILE && echo 'CLOUDFLARE_TURNSTILE_SECRET_KEY=$SECRET_KEY' >> $ENV_FILE && echo 'TURNSTILE_SECRET_KEY=$SECRET_KEY' >> $ENV_FILE"
+            server_exec "echo '' >> $ENV_FILE && echo '# Cloudflare Turnstile' >> $ENV_FILE && echo 'CLOUDFLARE_TURNSTILE_SITE_KEY=$SITE_KEY' >> $ENV_FILE && echo 'CLOUDFLARE_TURNSTILE_SECRET_KEY=$SECRET_KEY' >> $ENV_FILE && echo 'TURNSTILE_SECRET_KEY=$SECRET_KEY' >> $ENV_FILE"
 
             # Skopiuj do standalone
-            ssh "$SSH_ALIAS" "cp $ENV_FILE $STANDALONE_ENV 2>/dev/null || true"
+            server_exec "cp $ENV_FILE $STANDALONE_ENV 2>/dev/null || true"
 
             echo -e "${GREEN}   ✅ Klucze dodane${NC}"
 
@@ -486,7 +489,7 @@ if echo "$CREATE_RESPONSE" | grep -q '"success":true'; then
             # WAŻNE: użyj --interpreter node, NIE 'node server.js' w cudzysłowach (bash nie dziedziczy env)
             RESTART_CMD="export PATH=\"\$HOME/.bun/bin:\$PATH\" && pm2 delete $PM2_NAME 2>/dev/null; cd $STANDALONE_DIR && set -a && source .env.local && set +a && export PORT=\${PORT:-3333} && export HOSTNAME=\${HOSTNAME:-::} && pm2 start server.js --name $PM2_NAME --interpreter node && pm2 save"
 
-            if ssh "$SSH_ALIAS" "$RESTART_CMD" 2>/dev/null; then
+            if server_exec "$RESTART_CMD" 2>/dev/null; then
                 echo -e "${GREEN}   ✅ Aplikacja zrestartowana${NC}"
             else
                 echo -e "${YELLOW}   ⚠️  Restart nieudany - zrób ręcznie: pm2 restart $PM2_NAME${NC}"

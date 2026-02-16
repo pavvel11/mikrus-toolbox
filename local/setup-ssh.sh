@@ -8,6 +8,12 @@
 #   bash local/setup-ssh.sh
 #   bash <(curl -s https://raw.githubusercontent.com/pavvel11/mikrus-toolbox/main/local/setup-ssh.sh)
 
+# Ten skrypt działa tylko na komputerze lokalnym (konfiguruje SSH DO serwera)
+if [ -f /klucz_api ]; then
+    echo "Ten skrypt działa tylko na komputerze lokalnym (nie na serwerze Mikrus)."
+    exit 1
+fi
+
 GREEN='\x1b[0;32m'
 BLUE='\x1b[0;34m'
 YELLOW='\x1b[1;33m'

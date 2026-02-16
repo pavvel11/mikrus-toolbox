@@ -12,10 +12,14 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
 fi
 
 MIKRUS_HOST="${1:-mikrus}" # First argument or default to 'mikrus'
+SSH_ALIAS="$MIKRUS_HOST"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/server-exec.sh"
 
 # Get remote server info for confirmation
-REMOTE_HOST=$(ssh -G "$MIKRUS_HOST" 2>/dev/null | grep "^hostname " | cut -d' ' -f2)
-REMOTE_USER=$(ssh -G "$MIKRUS_HOST" 2>/dev/null | grep "^user " | cut -d' ' -f2)
+REMOTE_HOST=$(server_hostname)
+REMOTE_USER=$(server_user)
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
@@ -37,9 +41,9 @@ fi
 read -p "Naciśnij [Enter] aby połączyć się z serwerem..."
 
 # 1. Deploy the restore core script (ensure it's up to date)
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
-cat "$REPO_ROOT/system/restore-core.sh" | ssh "$MIKRUS_HOST" "cat > ~/restore-core.sh && chmod +x ~/restore-core.sh"
+REPO_ROOT="$SCRIPT_DIR/.."
+server_pipe_to "$REPO_ROOT/system/restore-core.sh" ~/restore-core.sh
 
 # 2. Execute it interactively
 # -t is crucial here to allow user input (typing 'YES') inside the SSH session
-ssh -t "$MIKRUS_HOST" "./restore-core.sh"
+server_exec_tty "./restore-core.sh"

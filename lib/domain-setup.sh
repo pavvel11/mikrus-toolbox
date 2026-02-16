@@ -23,6 +23,11 @@ if ! type ask_if_empty &>/dev/null; then
     source "$SCRIPT_DIR/cli-parser.sh"
 fi
 
+# Załaduj server-exec jeśli nie załadowany
+if ! type is_on_server &>/dev/null; then
+    source "$SCRIPT_DIR/server-exec.sh"
+fi
+
 CLOUDFLARE_CONFIG="$HOME/.config/cloudflare/config"
 
 # Kolory (jeśli nie zdefiniowane przez cli-parser)
@@ -370,7 +375,7 @@ configure_domain_cytrus() {
     local REQUIRED_SUCCESSES=3  # Wymagamy 3 udanych odpowiedzi pod rząd
 
     while [ "$WAITED" -lt "$MAX_WAIT" ]; do
-        local SERVICE_CHECK=$(ssh "$SSH_ALIAS" "curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://localhost:$PORT 2>/dev/null" || echo "000")
+        local SERVICE_CHECK=$(server_exec "curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://localhost:$PORT 2>/dev/null" || echo "000")
         if [ "$SERVICE_CHECK" -ge 200 ] && [ "$SERVICE_CHECK" -lt 500 ]; then
             SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
             if [ "$SUCCESS_COUNT" -ge "$REQUIRED_SUCCESSES" ]; then
@@ -394,13 +399,13 @@ configure_domain_cytrus() {
     echo ""
 
     # Pobierz klucz API
-    local API_KEY=$(ssh "$SSH_ALIAS" 'cat /klucz_api 2>/dev/null' 2>/dev/null)
+    local API_KEY=$(server_exec 'cat /klucz_api 2>/dev/null' 2>/dev/null)
     if [ -z "$API_KEY" ]; then
         echo -e "${RED}❌ Brak klucza API. Włącz API: https://mikr.us/panel/?a=api${NC}"
         return 1
     fi
 
-    local HOSTNAME=$(ssh "$SSH_ALIAS" 'hostname' 2>/dev/null)
+    local HOSTNAME=$(server_exec 'hostname' 2>/dev/null)
 
     local RESPONSE=$(curl -s -X POST "https://api.mikr.us/domain" \
         -d "key=$API_KEY" \
@@ -471,7 +476,7 @@ configure_domain_cloudflare() {
 
     # Sprawdź czy to static site (szukamy pliku /tmp/APP_webroot, nie domain_public_webroot)
     # domain_public_webroot jest dla DOMAIN_PUBLIC, obsługiwane osobno w deploy.sh
-    local WEBROOT=$(ssh "$SSH_ALIAS" "ls /tmp/*_webroot 2>/dev/null | grep -v domain_public_webroot | head -1 | xargs cat 2>/dev/null" 2>/dev/null)
+    local WEBROOT=$(server_exec "ls /tmp/*_webroot 2>/dev/null | grep -v domain_public_webroot | head -1 | xargs cat 2>/dev/null" 2>/dev/null)
 
     if [ -n "$WEBROOT" ]; then
         # Walidacja domeny (zapobieganie Caddyfile/shell injection)
@@ -482,10 +487,10 @@ configure_domain_cloudflare() {
 
         # Static site (littlelink, etc.) - użyj trybu file_server
         echo "   Wykryto static site: $WEBROOT"
-        if ssh "$SSH_ALIAS" "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$WEBROOT' static"; then
+        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$WEBROOT' static"; then
             echo -e "${GREEN}✅ HTTPS skonfigurowany (file_server)${NC}"
             # Usuń marker (nie usuwaj domain_public_webroot!)
-            ssh "$SSH_ALIAS" "ls /tmp/*_webroot 2>/dev/null | grep -v domain_public_webroot | xargs rm -f" 2>/dev/null
+            server_exec "ls /tmp/*_webroot 2>/dev/null | grep -v domain_public_webroot | xargs rm -f" 2>/dev/null
         else
             echo -e "${YELLOW}⚠️  mikrus-expose niedostępny${NC}"
         fi
@@ -497,11 +502,11 @@ configure_domain_cloudflare() {
         fi
 
         # Docker app - użyj reverse_proxy
-        if ssh "$SSH_ALIAS" "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$PORT'" 2>/dev/null; then
+        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$PORT'" 2>/dev/null; then
             echo -e "${GREEN}✅ HTTPS skonfigurowany (reverse_proxy)${NC}"
         else
             # Sprawdź czy domena już jest w Caddyfile
-            if ssh "$SSH_ALIAS" "grep -q '$DOMAIN' /etc/caddy/Caddyfile 2>/dev/null"; then
+            if server_exec "grep -q '$DOMAIN' /etc/caddy/Caddyfile 2>/dev/null"; then
                 echo -e "${GREEN}✅ HTTPS już skonfigurowany w Caddy${NC}"
             else
                 echo -e "${YELLOW}⚠️  mikrus-expose niedostępny${NC}"

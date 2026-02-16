@@ -15,6 +15,12 @@
 
 set -e
 
+# Ten skrypt działa tylko na komputerze lokalnym (rsync wymaga SSH)
+if [ -f /klucz_api ]; then
+    echo "Ten skrypt działa tylko na komputerze lokalnym (nie na serwerze Mikrus)."
+    exit 1
+fi
+
 # Znajdź katalog repo
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

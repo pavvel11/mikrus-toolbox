@@ -7,6 +7,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/server-exec.sh"
+
 CONFIG_FILE="$HOME/.config/cloudflare/config"
 
 # IP Cytrusa (Mikrus reverse proxy)
@@ -47,7 +50,7 @@ else
     PROXY="true"
     echo "☁️  Tryb Cloudflare"
     echo "🔍 Pobieram IPv6 serwera '$SSH_ALIAS'..."
-    IP_ADDRESS=$(ssh "$SSH_ALIAS" "ip -6 addr show scope global | grep -oP '(?<=inet6 )[0-9a-f:]+' | head -1" 2>/dev/null)
+    IP_ADDRESS=$(server_exec "ip -6 addr show scope global | grep -oP '(?<=inet6 )[0-9a-f:]+' | head -1" 2>/dev/null)
 
     if [ -z "$IP_ADDRESS" ]; then
         echo "❌ Nie udało się pobrać IPv6 z serwera '$SSH_ALIAS'"

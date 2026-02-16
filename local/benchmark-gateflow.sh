@@ -22,6 +22,7 @@ if [ -z "$URL" ] || [ -z "$SSH_ALIAS" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/server-exec.sh"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 BENCHMARK_DIR="benchmark-$TIMESTAMP"
 
@@ -57,10 +58,10 @@ echo ""
 echo "🔍 PRZED testem - snapshot zasobów:"
 
 # Snapshot przed testem
-ssh "$SSH_ALIAS" "pm2 list | grep gateflow" || true
+server_exec "pm2 list | grep gateflow" || true
 
 # Pobierz metryki przez Python (kompatybilne z macOS)
-BEFORE=$(ssh "$SSH_ALIAS" "pm2 jlist 2>/dev/null | python3 -c \"
+BEFORE=$(server_exec "pm2 jlist 2>/dev/null | python3 -c \"
 import sys, json
 try:
   data = json.load(sys.stdin)
@@ -114,7 +115,7 @@ wait $MONITOR_PID
 echo ""
 echo "🔍 PO teście - snapshot zasobów:"
 
-AFTER=$(ssh "$SSH_ALIAS" "pm2 jlist 2>/dev/null | python3 -c \"
+AFTER=$(server_exec "pm2 jlist 2>/dev/null | python3 -c \"
 import sys, json
 try:
   data = json.load(sys.stdin)

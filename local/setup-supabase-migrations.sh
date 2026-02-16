@@ -16,6 +16,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/server-exec.sh"
+
 GITHUB_REPO="pavvel11/gateflow"
 MIGRATIONS_PATH="supabase/migrations"
 
@@ -165,13 +168,13 @@ MIGRATIONS_SOURCE=""
 # Znajdź katalog instalacji GateFlow
 # Nowa lokalizacja: /opt/stacks/gateflow*
 # Stara lokalizacja: /root/gateflow* (dla kompatybilności)
-GATEFLOW_DIR=$(ssh "$SSH_ALIAS" "ls -d /opt/stacks/gateflow-* 2>/dev/null | head -1" 2>/dev/null)
+GATEFLOW_DIR=$(server_exec "ls -d /opt/stacks/gateflow-* 2>/dev/null | head -1" 2>/dev/null)
 if [ -z "$GATEFLOW_DIR" ]; then
-    GATEFLOW_DIR=$(ssh "$SSH_ALIAS" "ls -d /opt/stacks/gateflow 2>/dev/null" 2>/dev/null)
+    GATEFLOW_DIR=$(server_exec "ls -d /opt/stacks/gateflow 2>/dev/null" 2>/dev/null)
 fi
 if [ -z "$GATEFLOW_DIR" ]; then
     # Fallback do starej lokalizacji
-    GATEFLOW_DIR=$(ssh "$SSH_ALIAS" "ls -d /root/gateflow-* 2>/dev/null | head -1" 2>/dev/null)
+    GATEFLOW_DIR=$(server_exec "ls -d /root/gateflow-* 2>/dev/null | head -1" 2>/dev/null)
 fi
 if [ -z "$GATEFLOW_DIR" ]; then
     GATEFLOW_DIR="/root/gateflow"
@@ -179,13 +182,17 @@ fi
 REMOTE_MIGRATIONS_DIR="$GATEFLOW_DIR/admin-panel/supabase/migrations"
 
 # Pobierz listę migracji z serwera przez SSH
-MIGRATIONS_LIST=$(ssh "$SSH_ALIAS" "ls '$REMOTE_MIGRATIONS_DIR'/*.sql 2>/dev/null | xargs -n1 basename 2>/dev/null | sort" 2>/dev/null)
+MIGRATIONS_LIST=$(server_exec "ls '$REMOTE_MIGRATIONS_DIR'/*.sql 2>/dev/null | xargs -n1 basename 2>/dev/null | sort" 2>/dev/null)
 
 if [ -n "$MIGRATIONS_LIST" ]; then
     echo "   ✅ Znaleziono migracje w paczce instalacyjnej"
     MIGRATIONS_SOURCE="server"
     # Skopiuj z serwera do temp
-    scp -q "$SSH_ALIAS:$REMOTE_MIGRATIONS_DIR/"*.sql "$TEMP_DIR/" 2>/dev/null
+    if is_on_server; then
+        cp "$REMOTE_MIGRATIONS_DIR/"*.sql "$TEMP_DIR/" 2>/dev/null
+    else
+        scp -q "$SSH_ALIAS:$REMOTE_MIGRATIONS_DIR/"*.sql "$TEMP_DIR/" 2>/dev/null
+    fi
 fi
 
 # Fallback - pobierz z GitHub

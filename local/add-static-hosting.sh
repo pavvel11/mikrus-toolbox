@@ -36,6 +36,7 @@ if [ -z "$DOMAIN" ]; then
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+source "$SCRIPT_DIR/../lib/server-exec.sh"
 
 echo ""
 echo "🌍 Dodawanie Static Hosting"
@@ -58,10 +59,10 @@ if is_cytrus_domain "$DOMAIN"; then
     echo "🍊 Tryb: Cytrus (nginx w Dockerze)"
 
     # Utwórz katalog
-    ssh "$SSH_ALIAS" "sudo mkdir -p '$WEB_ROOT' && sudo chown -R 1000:1000 '$WEB_ROOT' && sudo chmod -R o+rX '$WEB_ROOT'"
+    server_exec "sudo mkdir -p '$WEB_ROOT' && sudo chown -R 1000:1000 '$WEB_ROOT' && sudo chmod -R o+rX '$WEB_ROOT'"
 
     # Sprawdź czy port wolny
-    if ssh "$SSH_ALIAS" "netstat -tlnp 2>/dev/null | grep -q ':$PORT ' || ss -tlnp | grep -q ':$PORT '"; then
+    if server_exec "netstat -tlnp 2>/dev/null | grep -q ':$PORT ' || ss -tlnp | grep -q ':$PORT '"; then
         echo "❌ Port $PORT jest już zajęty!"
         echo "   Użyj innego portu: $0 $DOMAIN $SSH_ALIAS $WEB_ROOT INNY_PORT"
         exit 1
@@ -69,7 +70,7 @@ if is_cytrus_domain "$DOMAIN"; then
 
     # Uruchom nginx
     STACK_NAME="static-$(echo "$DOMAIN" | sed 's/\./-/g')"
-    ssh "$SSH_ALIAS" "mkdir -p /opt/stacks/$STACK_NAME && cat > /opt/stacks/$STACK_NAME/docker-compose.yaml << 'EOF'
+    server_exec "mkdir -p /opt/stacks/$STACK_NAME && cat > /opt/stacks/$STACK_NAME/docker-compose.yaml << 'EOF'
 services:
   nginx:
     image: nginx:alpine
@@ -95,13 +96,13 @@ else
     echo "☁️  Tryb: Cloudflare (Caddy file_server)"
 
     # Utwórz katalog
-    ssh "$SSH_ALIAS" "sudo mkdir -p '$WEB_ROOT' && sudo chown -R 1000:1000 '$WEB_ROOT' && sudo chmod -R o+rX '$WEB_ROOT'"
+    server_exec "sudo mkdir -p '$WEB_ROOT' && sudo chown -R 1000:1000 '$WEB_ROOT' && sudo chmod -R o+rX '$WEB_ROOT'"
 
     # Skonfiguruj DNS
     "$SCRIPT_DIR/dns-add.sh" "$DOMAIN" "$SSH_ALIAS" || echo "DNS może już istnieć"
 
     # Skonfiguruj Caddy
-    ssh "$SSH_ALIAS" "mikrus-expose '$DOMAIN' '$WEB_ROOT' static"
+    server_exec "mikrus-expose '$DOMAIN' '$WEB_ROOT' static"
 
     echo "✅ Caddy skonfigurowany"
 fi

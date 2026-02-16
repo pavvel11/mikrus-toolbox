@@ -56,6 +56,27 @@ ssh mikrus 'cat /klucz_api'
 Jeśli klucz nie istnieje, użytkownik musi włączyć API w panelu:
 https://mikr.us/panel/?a=api
 
+### Uruchamianie skryptów na serwerze (Windows/PowerShell)
+
+Użytkownicy Windows po konfiguracji SSH (`setup-ssh.ps1`) mogą uruchamiać skrypty bezpośrednio na serwerze:
+
+```bash
+# 1. Z komputera lokalnego - zainstaluj toolbox na serwerze:
+./local/install-toolbox.sh mikrus
+
+# 2. Połącz się z serwerem:
+ssh mikrus
+
+# 3. Uruchamiaj skrypty bezpośrednio:
+deploy.sh uptime-kuma
+cytrus-domain.sh - 3001
+monitor-gateflow.sh mikrus 60
+```
+
+Detekcja środowiska: skrypty automatycznie wykrywają czy działają na serwerze (plik `/klucz_api`) i pomijają SSH — komendy wykonują się bezpośrednio.
+
+Skrypty **tylko lokalne** (nie działają na serwerze): `setup-ssh.sh`, `sync.sh`
+
 ---
 
 ## Dostępne aplikacje

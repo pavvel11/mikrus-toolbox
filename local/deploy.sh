@@ -213,7 +213,7 @@ if [ "$UPDATE_MODE" = true ]; then
 
     # Skopiuj skrypt na serwer
     REMOTE_SCRIPT="/tmp/mikrus-update-$$.sh"
-    scp -q "$UPDATE_SCRIPT" "$SSH_ALIAS:$REMOTE_SCRIPT"
+    server_copy "$UPDATE_SCRIPT" "$REMOTE_SCRIPT"
 
     # Jeśli mamy lokalny plik builda, skopiuj go na serwer
     REMOTE_BUILD_FILE=""
@@ -228,7 +228,7 @@ if [ "$UPDATE_MODE" = true ]; then
 
         echo "📤 Kopiuję plik buildu na serwer..."
         REMOTE_BUILD_FILE="/tmp/gateflow-build-$$.tar.gz"
-        scp -q "$BUILD_FILE" "$SSH_ALIAS:$REMOTE_BUILD_FILE"
+        server_copy "$BUILD_FILE" "$REMOTE_BUILD_FILE"
         echo "   ✅ Skopiowano"
     fi
 
@@ -259,7 +259,7 @@ if [ "$UPDATE_MODE" = true ]; then
         CLEANUP_CMD="$CLEANUP_CMD '$REMOTE_BUILD_FILE'"
     fi
 
-    if ssh -t "$SSH_ALIAS" "export $ENV_VARS; bash '$REMOTE_SCRIPT' $UPDATE_SCRIPT_ARGS; EXIT_CODE=\$?; $CLEANUP_CMD; exit \$EXIT_CODE"; then
+    if server_exec_tty "export $ENV_VARS; bash '$REMOTE_SCRIPT' $UPDATE_SCRIPT_ARGS; EXIT_CODE=\$?; $CLEANUP_CMD; exit \$EXIT_CODE"; then
         echo ""
         if [ "$RESTART_ONLY" = true ]; then
             echo -e "${GREEN}✅ GateFlow zrestartowany!${NC}"
@@ -317,13 +317,17 @@ fi
 # POTWIERDZENIE
 # =============================================================================
 
-REMOTE_HOST=$(ssh -G "$SSH_ALIAS" 2>/dev/null | grep "^hostname " | cut -d' ' -f2)
-REMOTE_USER=$(ssh -G "$SSH_ALIAS" 2>/dev/null | grep "^user " | cut -d' ' -f2)
+REMOTE_HOST=$(server_hostname)
+REMOTE_USER=$(server_user)
 SCRIPT_DISPLAY="${SCRIPT_PATH#$REPO_ROOT/}"
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
+if is_on_server; then
+echo "║  ⚠️   UWAGA: INSTALACJA NA TYM SERWERZE!                       ║"
+else
 echo "║  ⚠️   UWAGA: INSTALACJA NA ZDALNYM SERWERZE!                   ║"
+fi
 echo "╠════════════════════════════════════════════════════════════════╣"
 echo "║  Serwer:  $REMOTE_USER@$REMOTE_HOST"
 echo "║  Skrypt:  $SCRIPT_DISPLAY"
@@ -408,7 +412,7 @@ echo "╔═══════════════════════�
 echo "║  📊 Sprawdzanie zasobów serwera...                             ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 
-RESOURCES=$(ssh -o ConnectTimeout=10 "$SSH_ALIAS" "free -m | awk '/^Mem:/ {print \$7}'; df -m / | awk 'NR==2 {print \$4}'; free -m | awk '/^Mem:/ {print \$2}'" 2>/dev/null)
+RESOURCES=$(server_exec_timeout 10 "free -m | awk '/^Mem:/ {print \$7}'; df -m / | awk 'NR==2 {print \$4}'; free -m | awk '/^Mem:/ {print \$2}'" 2>/dev/null)
 AVAILABLE_RAM=$(echo "$RESOURCES" | sed -n '1p')
 AVAILABLE_DISK=$(echo "$RESOURCES" | sed -n '2p')
 TOTAL_RAM=$(echo "$RESOURCES" | sed -n '3p')
@@ -477,7 +481,7 @@ PORT_OVERRIDE=""
 
 if [ -n "$DEFAULT_PORT" ]; then
     # Sprawdź czy port jest zajęty na serwerze
-    PORT_IN_USE=$(ssh -o ConnectTimeout=5 "$SSH_ALIAS" "ss -tlnp 2>/dev/null | grep -q ':${DEFAULT_PORT} ' && echo 'yes' || echo 'no'" 2>/dev/null)
+    PORT_IN_USE=$(server_exec_timeout 5 "ss -tlnp 2>/dev/null | grep -q ':${DEFAULT_PORT} ' && echo 'yes' || echo 'no'" 2>/dev/null)
 
     if [ "$PORT_IN_USE" == "yes" ]; then
         echo ""
@@ -792,22 +796,35 @@ if [ -n "$BUILD_FILE" ]; then
 
     echo "📦 Przesyłam plik instalacyjny na serwer..."
     REMOTE_BUILD_FILE="/tmp/gateflow-build-$$.tar.gz"
-    scp -q "$BUILD_FILE" "$SSH_ALIAS:$REMOTE_BUILD_FILE"
+    server_copy "$BUILD_FILE" "$REMOTE_BUILD_FILE"
     echo "   ✅ Plik przesłany"
 
     EXTRA_ENV="$EXTRA_ENV BUILD_FILE='$REMOTE_BUILD_FILE'"
 fi
 
-REMOTE_SCRIPT="/tmp/mikrus-deploy-$$.sh"
-scp -q "$SCRIPT_PATH" "$SSH_ALIAS:$REMOTE_SCRIPT"
+DEPLOY_SUCCESS=false
+if is_on_server; then
+    # Na serwerze: uruchom skrypt bezpośrednio (bez scp/cleanup)
+    if (export DEPLOY_SSH_ALIAS="$SSH_ALIAS" SSH_ALIAS="$SSH_ALIAS" $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV $EXTRA_ENV; bash "$SCRIPT_PATH"); then
+        DEPLOY_SUCCESS=true
+    fi
+    [ -n "$REMOTE_BUILD_FILE" ] && rm -f "$REMOTE_BUILD_FILE"
+else
+    REMOTE_SCRIPT="/tmp/mikrus-deploy-$$.sh"
+    scp -q "$SCRIPT_PATH" "$SSH_ALIAS:$REMOTE_SCRIPT"
 
-# Cleanup remote build file after install
-CLEANUP_CMD=""
-if [ -n "$REMOTE_BUILD_FILE" ]; then
-    CLEANUP_CMD="rm -f '$REMOTE_BUILD_FILE';"
+    # Cleanup remote build file after install
+    CLEANUP_CMD=""
+    if [ -n "$REMOTE_BUILD_FILE" ]; then
+        CLEANUP_CMD="rm -f '$REMOTE_BUILD_FILE';"
+    fi
+
+    if ssh -t "$SSH_ALIAS" "export DEPLOY_SSH_ALIAS='$SSH_ALIAS' SSH_ALIAS='$SSH_ALIAS' $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV $EXTRA_ENV; bash '$REMOTE_SCRIPT'; EXIT_CODE=\$?; rm -f '$REMOTE_SCRIPT'; $CLEANUP_CMD exit \$EXIT_CODE"; then
+        DEPLOY_SUCCESS=true
+    fi
 fi
 
-if ssh -t "$SSH_ALIAS" "export DEPLOY_SSH_ALIAS='$SSH_ALIAS' SSH_ALIAS='$SSH_ALIAS' $PORT_ENV $DB_ENV_VARS $DOMAIN_ENV $EXTRA_ENV; bash '$REMOTE_SCRIPT'; EXIT_CODE=\$?; rm -f '$REMOTE_SCRIPT'; $CLEANUP_CMD exit \$EXIT_CODE"; then
+if [ "$DEPLOY_SUCCESS" = true ]; then
     : # Sukces - kontynuuj do przygotowania bazy i konfiguracji domeny
 else
     echo ""
@@ -849,7 +866,7 @@ fi
 # =============================================================================
 
 # Sprawdź czy install.sh zapisał port (dla dynamicznych portów jak Docker static sites)
-INSTALLED_PORT=$(ssh "$SSH_ALIAS" "cat /tmp/app_port 2>/dev/null; rm -f /tmp/app_port" 2>/dev/null)
+INSTALLED_PORT=$(server_exec "cat /tmp/app_port 2>/dev/null; rm -f /tmp/app_port" 2>/dev/null)
 if [ -n "$INSTALLED_PORT" ]; then
     APP_PORT="$INSTALLED_PORT"
 fi
@@ -864,10 +881,10 @@ if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ]; then
             echo "🔄 Aktualizuję konfigurację z prawdziwą domeną: $DOMAIN"
             if [ "$REQUIRES_DOMAIN_UPFRONT" = true ]; then
                 # Static sites - update Caddyfile
-                ssh "$SSH_ALIAS" "sudo sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' /etc/caddy/Caddyfile && sudo systemctl reload caddy" 2>/dev/null || true
+                server_exec "sudo sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' /etc/caddy/Caddyfile && sudo systemctl reload caddy" 2>/dev/null || true
             elif [ "$APP_NAME" != "gateflow" ]; then
                 # Docker apps - update docker-compose (skip for standalone apps like GateFlow)
-                ssh "$SSH_ALIAS" "cd /opt/stacks/$APP_NAME && sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' docker-compose.yaml && docker compose up -d" 2>/dev/null || true
+                server_exec "cd /opt/stacks/$APP_NAME && sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' docker-compose.yaml && docker compose up -d" 2>/dev/null || true
             fi
         fi
 
@@ -875,7 +892,7 @@ if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ]; then
         if [ "$APP_NAME" = "gateflow" ] && [ "$ORIGINAL_DOMAIN" = "-" ] && [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
             # 1. Dodaj konfigurację domeny do .env.local (install.sh pominął dla DOMAIN="-")
             echo "📝 Aktualizuję .env.local z prawdziwą domeną..."
-            ssh "$SSH_ALIAS" "
+            server_exec "
                 cd /opt/stacks/gateflow/admin-panel
                 # Dodaj konfigurację domeny
                 cat >> .env.local <<'DOMAIN_EOF'
@@ -897,7 +914,7 @@ DOMAIN_EOF
             # Dla auto-cytrus początkowa instalacja używa PM2_NAME="gateflow"
             # Po poznaniu domeny możemy zachować tę nazwę (single instance)
             echo "🔄 Restartuję GateFlow..."
-            ssh "$SSH_ALIAS" "
+            server_exec "
                 export PATH=\"\$HOME/.bun/bin:\$PATH\"
                 cd /opt/stacks/gateflow/admin-panel/.next/standalone/admin-panel
                 pm2 delete gateflow 2>/dev/null || true
@@ -989,7 +1006,7 @@ if [ -n "$DOMAIN_PUBLIC" ]; then
     }
 
     # Pobierz port dla public (domyślnie 8096)
-    PUBLIC_PORT=$(ssh "$SSH_ALIAS" "cat /tmp/app_public_port 2>/dev/null || echo 8096")
+    PUBLIC_PORT=$(server_exec "cat /tmp/app_public_port 2>/dev/null || echo 8096")
 
     if is_cytrus_domain "$DOMAIN_PUBLIC"; then
         # Cytrus: rejestruj domenę przez API
@@ -998,17 +1015,17 @@ if [ -n "$DOMAIN_PUBLIC" ]; then
     else
         # Cloudflare: skonfiguruj DNS i Caddy file_server
         echo "   ☁️  Konfiguruję przez Cloudflare..."
-        WEBROOT=$(ssh "$SSH_ALIAS" "cat /tmp/domain_public_webroot 2>/dev/null || echo /var/www/public")
+        WEBROOT=$(server_exec "cat /tmp/domain_public_webroot 2>/dev/null || echo /var/www/public")
         # DNS może już istnieć - to OK, kontynuujemy z Caddy
         "$REPO_ROOT/local/dns-add.sh" "$DOMAIN_PUBLIC" "$SSH_ALIAS" || echo "   DNS już skonfigurowany lub błąd - kontynuuję"
         # Konfiguruj Caddy file_server
-        if ssh "$SSH_ALIAS" "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN_PUBLIC' '$WEBROOT' static"; then
+        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN_PUBLIC' '$WEBROOT' static"; then
             echo -e "   ${GREEN}✅ Static hosting skonfigurowany: https://$DOMAIN_PUBLIC${NC}"
         else
             echo -e "   ${YELLOW}⚠️  Nie udało się skonfigurować Caddy dla $DOMAIN_PUBLIC${NC}"
         fi
         # Cleanup
-        ssh "$SSH_ALIAS" "rm -f /tmp/domain_public_webroot" 2>/dev/null
+        server_exec "rm -f /tmp/domain_public_webroot" 2>/dev/null
     fi
 fi
 

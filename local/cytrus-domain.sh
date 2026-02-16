@@ -7,6 +7,9 @@
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/server-exec.sh"
+
 # Argumenty
 FULL_DOMAIN="$1"
 PORT="$2"
@@ -63,7 +66,7 @@ fi
 
 # 1. Pobierz klucz API z serwera
 echo "🔑 Pobieram klucz API z serwera..."
-API_KEY=$(ssh "$SSH_ALIAS" 'cat /klucz_api 2>/dev/null' 2>/dev/null)
+API_KEY=$(server_exec 'cat /klucz_api 2>/dev/null' 2>/dev/null)
 
 if [ -z "$API_KEY" ]; then
     echo "❌ Nie znaleziono klucza API na serwerze!"
@@ -79,7 +82,7 @@ echo ""
 
 # 2. Pobierz SRV (pełna nazwa serwera) - potrzebny do API
 echo "🔍 Pobieram identyfikator serwera..."
-HOSTNAME=$(ssh "$SSH_ALIAS" 'hostname' 2>/dev/null)
+HOSTNAME=$(server_exec 'hostname' 2>/dev/null)
 # Format: mikrus107, srv42, etc - używamy pełnej nazwy
 SRV="$HOSTNAME"
 

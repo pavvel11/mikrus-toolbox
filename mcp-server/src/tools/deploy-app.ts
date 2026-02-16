@@ -8,7 +8,9 @@ import { parseAppMetadata } from "../lib/app-metadata.js";
 export const deployAppTool = {
   name: "deploy_app",
   description:
-    "Deploy an application to a Mikrus VPS server. Runs the local deploy.sh script with --yes flag (non-interactive). All required parameters must be provided. For apps requiring a database, specify db_source. For public access, specify domain_type and domain. Use list_apps first to see available apps and their requirements.",
+    "Deploy an application to a Mikrus VPS server. Runs the local deploy.sh script with --yes flag (non-interactive). All required parameters must be provided. For apps requiring a database, specify db_source. For public access, specify domain_type and domain. Use list_apps first to see available apps and their requirements.\n\n" +
+    "NOTE: On Windows without bash, the user can install the toolbox on the server first " +
+    "('./local/install-toolbox.sh <alias>'), then SSH in and run 'deploy.sh' directly on the server.",
   inputSchema: {
     type: "object" as const,
     properties: {

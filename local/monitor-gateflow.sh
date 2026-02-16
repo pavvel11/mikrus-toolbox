@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../lib/server-exec.sh"
+
 # Monitorowanie zużycia zasobów przez GateFlow
 # Użycie: ./local/monitor-gateflow.sh <ssh_alias> [czas_w_sekundach] [app_name]
 #
@@ -26,7 +29,7 @@ INTERVAL=1
 
 if [ -z "$APP_NAME" ]; then
   echo "🔍 Wykrywam instancje GateFlow na serwerze..."
-  INSTANCES=$(ssh "$SSH_ALIAS" "pm2 list | grep gateflow | awk '{print \$2}'")
+  INSTANCES=$(server_exec "pm2 list | grep gateflow | awk '{print \$2}'")
 
   if [ -z "$INSTANCES" ]; then
     echo "❌ Nie znaleziono instancji GateFlow"
@@ -57,7 +60,7 @@ echo "timestamp,cpu_percent,memory_mb,memory_percent,uptime_min,restarts,status"
 
 # Funkcja do pobrania metryk (kompatybilne z macOS i Linux)
 get_metrics() {
-  ssh "$SSH_ALIAS" "pm2 jlist 2>/dev/null | python3 -c \"
+  server_exec "pm2 jlist 2>/dev/null | python3 -c \"
 import sys, json
 try:
   data = json.load(sys.stdin)
