@@ -26,7 +26,11 @@ export const setupServerTool = {
     "Typical flow: setup_server with host+port → user runs ssh-copy-id → setup_server with ssh_alias to verify.\n\n" +
     "WINDOWS USERS: After SSH setup, Windows users can install the toolbox ON the server " +
     "with './local/install-toolbox.sh <alias>', then SSH in and run scripts directly " +
-    "(e.g. 'ssh mikrus' → 'deploy.sh uptime-kuma'). This avoids needing bash on Windows.",
+    "(e.g. 'ssh mikrus' → 'deploy.sh uptime-kuma'). This avoids needing bash on Windows.\n\n" +
+    "FRESH SERVER: When testing a new server, check if Docker is installed. If not, " +
+    "suggest the user run the built-in 'start' script (ssh <alias> then 'start'). " +
+    "It sets timezone, installs Docker, updates the system, and optionally sets up zsh. " +
+    "Guide the user step by step: T for timezone, 1 for nano, T/N for zsh, T for Docker (required!), T for updates.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -225,12 +229,14 @@ async function handleTest(args: Record<string, unknown>): Promise<ToolResult> {
     };
   }
 
-  // 2. Gather server resources
+  // 2. Gather server resources + initial setup detection
   const resourceCmd = [
     'echo "RAM_TOTAL=$(free -m 2>/dev/null | awk \'/^Mem:/ {print $2}\')"',
     'echo "RAM_AVAILABLE=$(free -m 2>/dev/null | awk \'/^Mem:/ {print $7}\')"',
     'echo "DISK_TOTAL=$(df -m / 2>/dev/null | awk \'NR==2 {print $2}\')"',
     'echo "DISK_AVAILABLE=$(df -m / 2>/dev/null | awk \'NR==2 {print $4}\')"',
+    'echo "DOCKER_OK=$(docker --version 2>/dev/null && echo YES || echo NO)"',
+    'echo "TIMEZONE=$(timedatectl show --property=Timezone --value 2>/dev/null || echo unknown)"',
     'echo "===CONTAINERS==="',
     "docker ps --format '{{.Names}}\\t{{.Status}}\\t{{.Ports}}' 2>/dev/null || echo 'NO_DOCKER'",
     'echo "===STACKS==="',
@@ -244,6 +250,8 @@ async function handleTest(args: Record<string, unknown>): Promise<ToolResult> {
   const ramAvail = output.match(/RAM_AVAILABLE=(\d+)/)?.[1] ?? "?";
   const diskTotal = output.match(/DISK_TOTAL=(\d+)/)?.[1] ?? "?";
   const diskAvail = output.match(/DISK_AVAILABLE=(\d+)/)?.[1] ?? "?";
+  const hasDocker = output.includes("DOCKER_OK=Docker version");
+  const timezone = output.match(/TIMEZONE=(.+)/)?.[1]?.trim() ?? "unknown";
 
   const containerSection =
     output.split("===CONTAINERS===")[1]?.split("===STACKS===")[0] ?? "";
@@ -290,6 +298,35 @@ async function handleTest(args: Record<string, unknown>): Promise<ToolResult> {
 
   if (setDefault) {
     lines.push("", `Default server set to: ${alias}`);
+  }
+
+  // 5. Detect if initial setup needed (no Docker = fresh server)
+  const needsSetup = !hasDocker;
+  const nonPolishTz = timezone !== "Europe/Warsaw" && timezone !== "unknown";
+
+  if (needsSetup || nonPolishTz) {
+    lines.push("", "--- RECOMMENDED: Initial Server Setup ---");
+    lines.push("");
+    lines.push("This looks like a fresh server. Mikrus provides a built-in 'start' script");
+    lines.push("that configures essential settings. Tell the user to run it via SSH:");
+    lines.push("");
+    lines.push(`  ssh ${alias}`);
+    lines.push("  start");
+    lines.push("");
+    lines.push("The script is interactive and asks about:");
+    lines.push("  1. Timezone → answer T (Tak/Yes) to set Europe/Warsaw");
+    lines.push("  2. Default editor → type 1 (nano, easiest for beginners)");
+    lines.push("  3. Shell → zsh with Oh My Zsh: T if user wants a modern shell, N to keep bash");
+    lines.push("  4. Docker → answer T (required for deploying apps with the toolbox)");
+    lines.push("  5. System update → answer T (recommended for security)");
+    lines.push("");
+    lines.push("Guide the user through each step — explain what each question means.");
+    if (!hasDocker) {
+      lines.push("");
+      lines.push("IMPORTANT: Docker is NOT installed. Most toolbox apps require Docker.");
+      lines.push("The user MUST answer T (Yes) to the Docker question in 'start',");
+      lines.push("or install it manually: curl -fsSL https://get.docker.com | sh");
+    }
   }
 
   return { content: [{ type: "text", text: lines.join("\n") }] };

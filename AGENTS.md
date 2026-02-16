@@ -51,6 +51,29 @@ Biblioteka `lib/server-exec.sh` zapewnia transparentne wrappery:
 
 Skrypty local-only (nie działają na serwerze): `setup-ssh.sh`, `sync.sh`
 
+## Pierwsza konfiguracja serwera (skrypt `start`)
+
+Na świeżym serwerze Mikrus warto uruchomić wbudowany skrypt konfiguracyjny:
+
+```bash
+ssh mikrus
+start
+```
+
+Skrypt interaktywnie pyta o 5 rzeczy — prowadź użytkownika krok po kroku:
+
+| Krok | Pytanie | Zalecana odpowiedź | Uwagi |
+|------|---------|---------------------|-------|
+| 1 | Strefa czasowa → polska? | **T** (Tak) | Ustawia Europe/Warsaw |
+| 2 | Wybierz edytor | **1** (nano) | Najprostszy dla początkujących |
+| 3 | Zmienić shell na zsh? | **T** lub N | T = Oh My Zsh, ładniejszy terminal; N = zostaje bash |
+| 4 | Zainstalować Dockera? | **T** (Tak) | **Wymagane** do deployowania aplikacji toolboxem |
+| 5 | Aktualizacja systemu? | **T** (Tak) | Zalecane dla bezpieczeństwa |
+
+**Ważne:** Docker jest niezbędny. Jeśli `docker --version` na serwerze nie działa → zasugeruj `start`.
+
+Alternatywa bez `start`: `curl -fsSL https://get.docker.com | sh`
+
 ## Deploy aplikacji
 
 ```bash

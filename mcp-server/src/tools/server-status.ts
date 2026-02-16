@@ -37,6 +37,7 @@ export async function handleServerStatus(
     'echo "RAM_AVAILABLE=$(free -m 2>/dev/null | awk \'/^Mem:/ {print $7}\')"',
     'echo "DISK_TOTAL=$(df -m / 2>/dev/null | awk \'NR==2 {print $2}\')"',
     'echo "DISK_AVAILABLE=$(df -m / 2>/dev/null | awk \'NR==2 {print $4}\')"',
+    'echo "DOCKER_OK=$(docker --version 2>/dev/null && echo YES || echo NO)"',
     'echo "===CONTAINERS==="',
     "docker ps -a --format '{{.Names}}\\t{{.Image}}\\t{{.Status}}\\t{{.Ports}}' 2>/dev/null || echo 'NO_DOCKER'",
     'echo "===PORTS==="',
@@ -71,6 +72,7 @@ export async function handleServerStatus(
   const ramAvail = output.match(/RAM_AVAILABLE=(\d+)/)?.[1] ?? "?";
   const diskTotal = output.match(/DISK_TOTAL=(\d+)/)?.[1] ?? "?";
   const diskAvail = output.match(/DISK_AVAILABLE=(\d+)/)?.[1] ?? "?";
+  const hasDocker = output.includes("DOCKER_OK=Docker version");
 
   // Parse containers
   const containerSection =
@@ -119,6 +121,14 @@ export async function handleServerStatus(
 
   if (stacks.length > 0) {
     lines.push("", `Installed Stacks: ${stacks.join(", ")}`);
+  }
+
+  if (!hasDocker) {
+    lines.push("");
+    lines.push("WARNING: Docker is NOT installed on this server.");
+    lines.push("Most toolbox apps require Docker. Suggest the user run the");
+    lines.push("built-in 'start' script: ssh <alias> → start → answer T to Docker question.");
+    lines.push("Or install manually: curl -fsSL https://get.docker.com | sh");
   }
 
   return { content: [{ type: "text", text: lines.join("\n") }] };

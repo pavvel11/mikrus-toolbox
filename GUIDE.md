@@ -56,6 +56,30 @@ ssh mikrus 'cat /klucz_api'
 Jeśli klucz nie istnieje, użytkownik musi włączyć API w panelu:
 https://mikr.us/panel/?a=api
 
+### Pierwsza konfiguracja serwera (skrypt `start`)
+
+Każdy serwer Mikrus ma wbudowany skrypt `start` do początkowej konfiguracji. Warto go uruchomić zaraz po zakupie:
+
+```bash
+ssh mikrus
+start
+```
+
+Skrypt interaktywnie przeprowadza przez 5 kroków:
+
+1. **Strefa czasowa** → `T` (Tak) — ustawia Europe/Warsaw
+2. **Edytor** → `1` (nano) — najprostszy wybór
+3. **Shell zsh + Oh My Zsh** → `T` (modern shell) lub `N` (zostaje bash)
+4. **Docker** → `T` (**wymagane** do deployowania aplikacji toolboxem!)
+5. **Aktualizacja systemu** → `T` (zalecane dla bezpieczeństwa)
+
+Sprawdzenie czy Docker jest zainstalowany:
+```bash
+ssh mikrus 'docker --version'
+# Jeśli nie: ssh mikrus → start → odpowiedz T na pytanie o Dockera
+# Alternatywa: ssh mikrus 'curl -fsSL https://get.docker.com | sh'
+```
+
 ### Uruchamianie skryptów na serwerze (Windows/PowerShell)
 
 Użytkownicy Windows po konfiguracji SSH (`setup-ssh.ps1`) mogą uruchamiać skrypty bezpośrednio na serwerze:
