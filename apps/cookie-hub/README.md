@@ -192,9 +192,9 @@ Konfiguracja znajduje się na Twoim Mikrusie w pliku:
 `/var/www/cookie-hub/public/config.js`
 
 Aby edytować plik lokalnie:
-1. Pobierz go: `./local/sync.sh down /var/www/cookie-hub/public/config.js ./config.js`
+1. Pobierz go: `./local/sync.sh down /var/www/cookie-hub/public/config.js ./config.js --ssh=mikrus`
 2. Wyedytuj w VS Code (dodaj nowe usługi do tablicy `services`).
-3. Wyślij z powrotem: `./local/sync.sh up ./config.js /var/www/cookie-hub/public/config.js`
+3. Wyślij z powrotem: `./local/sync.sh up ./config.js /var/www/cookie-hub/public/config.js --ssh=mikrus`
 
 ## 🇵🇱 Język Polski
 System jest w pełni skonfigurowany w języku polskim. Przyciski ("Zaakceptuj wszystko", "Odrzuć"), opisy celów i komunikaty są gotowe do użycia bez żadnych dodatkowych zmian.

@@ -91,7 +91,7 @@ send_request() {
 }
 
 export -f send_request
-export URL
+export URL DETAILS_LOG
 
 # Wykonaj testy współbieżnie
 cat "$TEST_FILE" | xargs -P "$CONCURRENT" -I {} bash -c 'send_request "{}"' | while read -r code duration; do
@@ -117,19 +117,22 @@ done
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
-# Wczytaj finalne statystyki (xargs może nadpisać zmienne)
-RESULTS=$(cat "$TEST_FILE" | xargs -P "$CONCURRENT" -I {} bash -c 'send_request "{}"')
-SUCCESS=$(echo "$RESULTS" | grep -c '^200\|^304' || echo 0)
-FAILED=$((TOTAL_REQUESTS - SUCCESS))
-
-# Oblicz średni czas
+# Wczytaj finalne statystyki z DETAILS_LOG (pipe-subshell traci zmienne)
+SUCCESS=0
+FAILED=0
 AVG_TIME=0
-if [ "$SUCCESS" -gt 0 ]; then
-  TIMES=$(echo "$RESULTS" | awk '{print $2}')
-  TOTAL_TIME=$(echo "$TIMES" | awk '{sum+=$1} END {print sum}')
-  AVG_TIME=$((TOTAL_TIME / SUCCESS))
-  MIN_TIME=$(echo "$TIMES" | sort -n | head -1)
-  MAX_TIME=$(echo "$TIMES" | sort -n | tail -1)
+MIN_TIME=99999
+MAX_TIME=0
+if [ -f "$DETAILS_LOG" ]; then
+  SUCCESS=$(grep -c '|200\||304|' "$DETAILS_LOG" 2>/dev/null || true)
+  SUCCESS=${SUCCESS:-0}
+  FAILED=$((TOTAL_REQUESTS - SUCCESS))
+  if [ "$SUCCESS" -gt 0 ]; then
+    TOTAL_TIME=$(awk -F'|' '{sum+=$3} END {print int(sum)}' "$DETAILS_LOG")
+    AVG_TIME=$((TOTAL_TIME / TOTAL_REQUESTS))
+    MIN_TIME=$(awk -F'|' '{print $3}' "$DETAILS_LOG" | sort -n | head -1)
+    MAX_TIME=$(awk -F'|' '{print $3}' "$DETAILS_LOG" | sort -n | tail -1)
+  fi
 fi
 
 echo ""
@@ -143,7 +146,11 @@ echo "  Błędy:          $FAILED"
 echo "  Success rate:   $((SUCCESS * 100 / TOTAL_REQUESTS))%"
 echo ""
 echo "Czasy odpowiedzi:"
-echo "  Min:            ${MIN_TIME}ms"
+if [ "$MIN_TIME" -eq 99999 ]; then
+  echo "  Min:            -"
+else
+  echo "  Min:            ${MIN_TIME}ms"
+fi
 echo "  Średnia:        ${AVG_TIME}ms"
 echo "  Max:            ${MAX_TIME}ms"
 echo ""
@@ -153,33 +160,34 @@ echo "🔍 Statystyki per endpoint:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 if [ -f "$DETAILS_LOG" ]; then
-  # Home
-  HOME_TOTAL=$(grep -c "^$URL|" "$DETAILS_LOG" || echo 0)
-  HOME_SUCCESS=$(grep "^$URL|200\|^$URL|304" "$DETAILS_LOG" | wc -l | xargs)
+  # Funkcja pomocnicza: zlicz linie pasujące do wzorca
+  count_lines() { grep -cE "$1" "$DETAILS_LOG" 2>/dev/null || true; }
+
+  # Home (dokładne dopasowanie URL bez podścieżki)
+  HOME_TOTAL=$(count_lines "^${URL}\|[0-9]")
+  HOME_SUCCESS=$(count_lines "^${URL}\|(200|304)\|")
   HOME_FAILED=$((HOME_TOTAL - HOME_SUCCESS))
-  HOME_404=$(grep "^$URL|404" "$DETAILS_LOG" | wc -l | xargs)
-  HOME_AVG=$(grep "^$URL|" "$DETAILS_LOG" | awk -F'|' '{sum+=$3} END {printf "%.0f", sum/NR}')
+  HOME_404=$(count_lines "^${URL}\|404\|")
+  HOME_AVG=$(grep -E "^${URL}\|[0-9]" "$DETAILS_LOG" 2>/dev/null | awk -F'|' '{sum+=$3} END {if(NR>0) printf "%.0f", sum/NR; else print "-"}')
 
   # Products
-  PRODUCTS_URL="$URL/products"
-  PRODUCTS_TOTAL=$(grep -c "^$PRODUCTS_URL|" "$DETAILS_LOG" || echo 0)
-  PRODUCTS_SUCCESS=$(grep "^$PRODUCTS_URL|200\|^$PRODUCTS_URL|304" "$DETAILS_LOG" | wc -l | xargs)
+  PRODUCTS_TOTAL=$(count_lines "^${URL}/products\|[0-9]")
+  PRODUCTS_SUCCESS=$(count_lines "^${URL}/products\|(200|304)\|")
   PRODUCTS_FAILED=$((PRODUCTS_TOTAL - PRODUCTS_SUCCESS))
-  PRODUCTS_AVG=$(grep "^$PRODUCTS_URL|" "$DETAILS_LOG" | awk -F'|' '{sum+=$3} END {printf "%.0f", sum/NR}')
+  PRODUCTS_AVG=$(grep -E "^${URL}/products\|[0-9]" "$DETAILS_LOG" 2>/dev/null | awk -F'|' '{sum+=$3} END {if(NR>0) printf "%.0f", sum/NR; else print "-"}')
 
   # Product Details (agreguj wszystkie demo-product-X)
-  DETAILS_TOTAL=$(grep -c "^$URL/products/demo-product-" "$DETAILS_LOG" || echo 0)
-  DETAILS_SUCCESS=$(grep "^$URL/products/demo-product-|200\|^$URL/products/demo-product-|304" "$DETAILS_LOG" | wc -l | xargs)
+  DETAILS_TOTAL=$(count_lines "^${URL}/products/demo-product-")
+  DETAILS_SUCCESS=$(count_lines "^${URL}/products/demo-product-[0-9]+\|(200|304)\|")
   DETAILS_FAILED=$((DETAILS_TOTAL - DETAILS_SUCCESS))
-  DETAILS_404=$(grep "^$URL/products/demo-product-|404" "$DETAILS_LOG" | wc -l | xargs)
-  DETAILS_AVG=$(grep "^$URL/products/demo-product-" "$DETAILS_LOG" | awk -F'|' '{sum+=$3} END {printf "%.0f", sum/NR}')
+  DETAILS_404=$(count_lines "^${URL}/products/demo-product-[0-9]+\|404\|")
+  DETAILS_AVG=$(grep -E "^${URL}/products/demo-product-" "$DETAILS_LOG" 2>/dev/null | awk -F'|' '{sum+=$3} END {if(NR>0) printf "%.0f", sum/NR; else print "-"}')
 
   # Profile
-  PROFILE_URL="$URL/profile"
-  PROFILE_TOTAL=$(grep -c "^$PROFILE_URL|" "$DETAILS_LOG" || echo 0)
-  PROFILE_SUCCESS=$(grep "^$PROFILE_URL|200\|^$PROFILE_URL|304" "$DETAILS_LOG" | wc -l | xargs)
+  PROFILE_TOTAL=$(count_lines "^${URL}/profile\|[0-9]")
+  PROFILE_SUCCESS=$(count_lines "^${URL}/profile\|(200|304)\|")
   PROFILE_FAILED=$((PROFILE_TOTAL - PROFILE_SUCCESS))
-  PROFILE_AVG=$(grep "^$PROFILE_URL|" "$DETAILS_LOG" | awk -F'|' '{sum+=$3} END {printf "%.0f", sum/NR}')
+  PROFILE_AVG=$(grep -E "^${URL}/profile\|[0-9]" "$DETAILS_LOG" 2>/dev/null | awk -F'|' '{sum+=$3} END {if(NR>0) printf "%.0f", sum/NR; else print "-"}')
 
   # Wyświetl tabelkę
   printf "%-20s %10s %10s %10s %10s\n" "Endpoint" "Total" "Success" "Failed" "Avg(ms)"
@@ -204,15 +212,18 @@ if [ -f "$DETAILS_LOG" ]; then
   # Kody błędów
   echo ""
   echo "📋 Kod błędów:"
-  grep "|000\|400\|401\|403\|404\|500\|502\|503\|504\|429\|" "$DETAILS_LOG" 2>/dev/null | \
+  grep -vE '\|(200|304)\|' "$DETAILS_LOG" 2>/dev/null | \
     awk -F'|' '{codes[$2]++} END {for (c in codes) printf "  %s: %d\n", c, codes[c]}' | sort -k2 -rn || echo "  Brak błędów"
 
   # Przykłady błędnych requestów
-  echo ""
-  echo "❌ Przykłady błędnych requestów:"
-  grep -v "|200\|304\|" "$DETAILS_LOG" | head -5 | while IFS='|' read url code duration; do
-    printf "  %s -> %s (%sms)\n" "$url" "$code" "$duration"
-  done
+  ERRORS=$(grep -vE '\|(200|304)\|' "$DETAILS_LOG" 2>/dev/null | head -5 || true)
+  if [ -n "$ERRORS" ]; then
+    echo ""
+    echo "❌ Przykłady błędnych requestów:"
+    echo "$ERRORS" | while IFS='|' read -r url code duration; do
+      printf "  %s -> %s (%sms)\n" "$url" "$code" "$duration"
+    done
+  fi
 
   echo ""
   echo "💡 Szczegóły zapisane w: $DETAILS_LOG"

@@ -6,6 +6,15 @@
 
 set -e
 
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    echo "Użycie: $0 [ssh_alias]"
+    echo ""
+    echo "Konfiguruje automatyczne backupy do chmury (Google Drive, Dropbox, S3, itp.)."
+    echo "Wymaga zainstalowanego rclone lokalnie."
+    echo "Domyślny alias SSH: mikrus"
+    exit 0
+fi
+
 # Configuration
 MIKRUS_HOST="${1:-mikrus}" # First argument or default to 'mikrus'
 REMOTE_NAME="backup_remote"

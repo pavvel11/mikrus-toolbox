@@ -10,6 +10,7 @@ Toolbox automatyzuje instalację aplikacji Docker, konfigurację domen, backupy 
 Pomagasz użytkownikom zarządzać ich serwerami Mikrus. Możesz:
 - Instalować aplikacje (`./local/deploy.sh`)
 - Konfigurować backupy i domeny
+- Synchronizować pliki z serwerem (`./local/sync.sh`)
 - Diagnozować problemy (logi, porty, RAM)
 - Tworzyć nowe instalatory (`apps/<app>/install.sh`)
 
@@ -53,6 +54,24 @@ docs/            → Dokumentacja (Cloudflare, CLI reference)
 ```bash
 ssh mikrus 'cd /opt/stacks/wordpress && ./wp-init.sh'
 ```
+
+## Synchronizacja plików (sync.sh)
+
+```bash
+./local/sync.sh up   <local_path> <remote_path> [--ssh=ALIAS]
+./local/sync.sh down <remote_path> <local_path> [--ssh=ALIAS]
+
+# Opcje:
+#   --ssh=ALIAS    SSH alias (domyślnie: mikrus)
+#   --dry-run      Pokaż co się wykona bez wykonania
+
+# Przykłady:
+./local/sync.sh up ./my-website /var/www/html --ssh=mikrus
+./local/sync.sh down /opt/stacks/n8n/.env ./backup/ --ssh=hanna
+./local/sync.sh up ./dist /var/www/public/app --dry-run
+```
+
+Prosty wrapper na rsync — do szybkiego przesyłania plików bez pełnego deployu.
 
 ## Aplikacje (25)
 

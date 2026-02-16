@@ -9,7 +9,17 @@ set -e
 #   ./local/monitor-gateflow.sh mikrus 300                # 5 minut
 #   ./local/monitor-gateflow.sh mikrus 300 gateflow-shop  # konkretna instancja
 
-SSH_ALIAS=${1:-mikrus}
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ] || [ -z "${1:-}" ]; then
+  echo "Użycie: $0 <ssh_alias> [czas_w_sekundach] [app_name]"
+  echo ""
+  echo "Przykłady:"
+  echo "  $0 mikrus                    # 60 sekund, auto-detekcja"
+  echo "  $0 mikrus 300                # 5 minut"
+  echo "  $0 mikrus 300 gateflow-shop  # konkretna instancja"
+  exit 0
+fi
+
+SSH_ALIAS=${1}
 DURATION=${2:-60}
 APP_NAME=${3:-""}
 INTERVAL=1

@@ -110,7 +110,7 @@ auto-tuning FPM na podstawie RAM i post-install skryptem `wp-init.sh`. Szczegó�
 | `restore.sh` | Przywracanie backupu | `./local/restore.sh [SSH]` |
 | `setup-cloudflare.sh` | Konfiguracja Cloudflare API | `./local/setup-cloudflare.sh` |
 | `setup-turnstile.sh` | Konfiguracja Turnstile (CAPTCHA) | `./local/setup-turnstile.sh DOMENA [SSH]` |
-| `sync.sh` | Synchronizacja plików | `./local/sync.sh up/down SRC DEST` |
+| `sync.sh` | Synchronizacja plików (rsync) | `./local/sync.sh up/down SRC DEST [--ssh=ALIAS]` |
 
 ---
 
@@ -141,6 +141,29 @@ auto-tuning FPM na podstawie RAM i post-install skryptem `wp-init.sh`. Szczegó�
 5. Wykonuje instalację
 6. Konfiguruje domenę (po uruchomieniu usługi!)
 7. Pokazuje podsumowanie
+
+---
+
+### sync.sh - Synchronizacja plików
+
+```bash
+./local/sync.sh up   <local_path> <remote_path> [--ssh=ALIAS]
+./local/sync.sh down <remote_path> <local_path> [--ssh=ALIAS]
+
+# Opcje:
+#   --ssh=ALIAS    SSH alias (domyślnie: mikrus)
+#   --dry-run      Pokaż co się wykona bez wykonania
+
+# Przykłady:
+./local/sync.sh up ./my-website /var/www/html --ssh=mikrus
+./local/sync.sh down /opt/stacks/n8n/.env ./backup/ --ssh=hanna
+./local/sync.sh up ./dist /var/www/public/app --dry-run
+```
+
+Prosty wrapper na rsync do szybkiego przesyłania plików. Idealne do:
+- Edycji konfiguracji lokalnie (pobierz → edytuj → wyślij)
+- Uploadu stron statycznych na serwer
+- Backupu pojedynczych plików
 
 ---
 

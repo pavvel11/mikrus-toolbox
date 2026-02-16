@@ -3,6 +3,14 @@
 # Mikrus Toolbox - Emergency Restore
 # Trigger a full system restore from the latest cloud backup.
 
+if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    echo "Użycie: $0 [ssh_alias]"
+    echo ""
+    echo "Przywraca dane z chmury (wymaga wcześniejszej konfiguracji backupu)."
+    echo "Domyślny alias SSH: mikrus"
+    exit 0
+fi
+
 MIKRUS_HOST="${1:-mikrus}" # First argument or default to 'mikrus'
 
 # Get remote server info for confirmation
