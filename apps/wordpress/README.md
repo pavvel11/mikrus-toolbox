@@ -65,17 +65,19 @@ Ceny odnowienia (nie promocyjne pierwszego roku). Plany porównywalne z 1 GB RAM
 | LH.pl Orange | 199 PLN* | 1 GB | **brak** | **brak** | brak | brak |
 | MyDevil MD1 | 200 PLN | 1 GB | tak (ręczna konfig.) | **brak** | brak | brak |
 | dhosting EWH | 359 PLN* | auto-scale | tak | LSCache | plugin | ręcznie |
-| cyber_Folks wp_IN! | 389 PLN* | 1 GB | tak | LSCache | plugin | ręcznie |
+| cyber_Folks wp_START! | 328 PLN** | 2 GB NVMe | tak | LSCache | plugin | ręcznie |
 | nazwa.pl WP Start | 360 PLN* | 8 GB | b/d | b/d | b/d | b/d |
 | Zenbox Firma 10k | 648 PLN | b/d | **brak** | LSCache | plugin | ręcznie |
 
-\* cena netto (bez VAT 23%)
+\* cena netto (bez VAT 23%) | \*\* 299 PLN plan + 29 PLN SSL, limit transferu 250 GB/mies
 
 **Co Mikrus + Toolbox daje za 75 PLN/rok, a czego brak na shared hostingu:**
-- Redis Object Cache — u LH.pl dopiero od planu Mango (399 PLN/rok), u Kinsta addon $100/mies
-- Nginx FastCGI cache z auto-purge — na shared hostingach trzeba zainstalować i skonfigurować LiteSpeed Cache plugin ręcznie
-- WooCommerce skip rules — na shared hostingach trzeba kupić WP Rocket (~$59/rok) albo konfigurować ręcznie
+- Redis Object Cache — u LH.pl dopiero od planu Mango (399 PLN/rok netto), u Kinsta addon $100/mies
+- Nginx FastCGI cache z auto-purge — na shared hostingach trzeba ręcznie konfigurować LiteSpeed Cache plugin
+- WooCommerce skip rules — trzeba kupić WP Rocket (~$59/rok) albo konfigurować ręcznie
 - Breakdance/Elementor session fix — na żadnym shared hostingu, trzeba wiedzieć co ustawić
+- Nielimitowany transfer — np. cyber_Folks wp_START! (328 PLN/rok) ma limit 250 GB/mies
+- Darmowy SSL (Cytrus/Caddy) — u cyber_Folks SSL to dodatkowe 29 PLN/rok
 - Pełny root + Docker — na shared hostingach niedostępny
 
 ## Instalacja
