@@ -182,6 +182,24 @@ ssh mikrus 'cd /opt/stacks/wordpress && ./flush-cache.sh'
 
 Header `X-FastCGI-Cache` w odpowiedzi HTTP pokazuje status: `HIT`, `MISS`, `BYPASS`.
 
+### Dlaczego Nginx, a nie LiteSpeed?
+
+Wiele polskich hostingów reklamuje się "LiteSpeed Cache". To brzmi jak przewaga, ale w praktyce:
+
+**Obie technologie robią dokładnie to samo** — serwują stronę z cache na poziomie serwera, bez dotykania PHP i bazy danych. Różnica w TTFB jest w granicach szumu pomiarowego.
+
+| | Nginx FastCGI cache (my) | LiteSpeed LSCache |
+|---|---|---|
+| TTFB (cache HIT) | ~200ms | ~200ms |
+| Mechanizm | Nginx serwuje z dysku/RAM | LiteSpeed serwuje z dysku/RAM |
+| Auto-purge | Nginx Helper (plugin) | LSCache (plugin) |
+| Redis Object Cache | tak (bundled) | tak (jeśli hosting daje) |
+| Gzip | tak (-82% transferu) | tak |
+| WooCommerce rules | auto (skip_cache) | ręczna konfig. w plugin |
+| Breakdance/Elementor fix | auto (session.cache_limiter) | ręczna konfig. |
+
+Hostingi chwalą się LiteSpeed, bo mają go w infrastrukturze. My mamy Nginx z FastCGI cache — **ten sam efekt, te same czasy odpowiedzi**. "LiteSpeed" to nazwa serwera, nie magiczne przyspieszenie.
+
 ## Dodatkowa optymalizacja (ręczna)
 
 ### Cloudflare Edge Cache
