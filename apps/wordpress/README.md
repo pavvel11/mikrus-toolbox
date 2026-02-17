@@ -63,7 +63,7 @@ Ceny odnowienia (nie promocyjne pierwszego roku). Plany porównywalne z 1 GB RAM
 | **Mikrus 2.1 + Toolbox** | **75 PLN** | 1 GB | wbudowany | FastCGI 24h | Nginx Helper | auto |
 | Smarthost Pro Mini | ~170 PLN | 1 GB | tak | LSCache | plugin | ręcznie |
 | LH.pl Orange | 199 PLN* | 1 GB | **brak** | **brak** | brak | brak |
-| MyDevil MD1 | 200 PLN | 1 GB | ręcznie (SSH) | **brak** | brak | brak |
+| MyDevil MD1 | 200 PLN | 1 GB | tak (ręczna konfig.) | **brak** | brak | brak |
 | dhosting EWH | 359 PLN* | auto-scale | tak | LSCache | plugin | ręcznie |
 | cyber_Folks wp_IN! | 389 PLN* | 1 GB | tak | LSCache | plugin | ręcznie |
 | nazwa.pl WP Start | 360 PLN* | 8 GB | b/d | b/d | b/d | b/d |
