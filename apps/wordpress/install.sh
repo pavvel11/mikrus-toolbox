@@ -162,7 +162,7 @@ echo ""
 # 3. PRZYGOTOWANIE KATALOGÓW
 # =============================================================================
 
-sudo mkdir -p "$STACK_DIR"/{config,wp-content,nginx-cache,redis-data}
+sudo mkdir -p "$STACK_DIR"/{config,wp-content,nginx-cache/fastcgi_temp,redis-data}
 cd "$STACK_DIR"
 
 # Zapisz Redis config dla wp-init.sh
@@ -186,6 +186,10 @@ RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .build-deps
+
+# MySQL client (dla WP-CLI db check/export/import)
+RUN apk add --no-cache mysql-client \
+    && printf '[client]\nssl=0\n' > /etc/my.cnf.d/disable-ssl.cnf
 
 # WP-CLI (zarządzanie WordPress z konsoli)
 RUN curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /usr/local/bin/wp \
@@ -259,6 +263,10 @@ realpath_cache_ttl = 600
 session.cookie_secure = On
 session.cookie_httponly = On
 session.cookie_samesite = Lax
+
+; Nie wysyłaj Cache-Control: no-store przy session_start()
+; Kontrolę cachowania przejmuje Nginx (FastCGI cache + skip_cache rules)
+session.cache_limiter =
 PHPINI_EOF
 
 # =============================================================================
@@ -398,8 +406,13 @@ http {
             set $skip_cache 1;
         }
 
-        # Zalogowani użytkownicy - zawsze świeże
-        if ($http_cookie ~* "comment_author|wordpress_[a-f0-9]+|wp-postpass|wordpress_logged_in") {
+        # Zalogowani użytkownicy + WooCommerce koszyk - zawsze świeże
+        if ($http_cookie ~* "comment_author|wordpress_[a-f0-9]+|wp-postpass|wordpress_logged_in|woocommerce_cart_hash|woocommerce_items_in_cart") {
+            set $skip_cache 1;
+        }
+
+        # WooCommerce dynamiczne strony - zawsze świeże
+        if ($request_uri ~* "/cart/|/checkout/|/my-account/|/addons/") {
             set $skip_cache 1;
         }
 
@@ -429,6 +442,7 @@ http {
             fastcgi_cache wordpress;
             fastcgi_cache_valid 200 24h;
             fastcgi_cache_bypass $skip_cache;
+            fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
             fastcgi_no_cache $skip_cache;
             add_header X-FastCGI-Cache $upstream_cache_status;
         }
@@ -510,6 +524,7 @@ $WP_ENV_BLOCK
       - ./config/php-opcache.ini:/usr/local/etc/php/conf.d/opcache.ini:ro
       - ./config/php-performance.ini:/usr/local/etc/php/conf.d/performance.ini:ro
       - ./config/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
+      - ./nginx-cache:/var/cache/nginx
       - wp-html:/var/www/html
     tmpfs:
       - /tmp:size=128M,mode=1777
@@ -648,7 +663,7 @@ fi
 
 REDIS_PASS_LINE=""
 if [ -n "$REDIS_PASS" ]; then
-    REDIS_PASS_LINE="define('WP_REDIS_PASSWORD', '$REDIS_PASS');"
+    REDIS_PASS_LINE="defined('WP_REDIS_PASSWORD') || define('WP_REDIS_PASSWORD', '$REDIS_PASS');"
 fi
 
 # Generuj wp-config-performance.php (zawsze nadpisuje — idempotentne)
@@ -662,20 +677,20 @@ if (isset(\$_SERVER["HTTP_X_FORWARDED_PROTO"]) && \$_SERVER["HTTP_X_FORWARDED_PR
     \$_SERVER["HTTPS"] = "on";
 }
 
-// Performance & Security
-define('DISABLE_WP_CRON', true);
-define('WP_POST_REVISIONS', 5);
-define('EMPTY_TRASH_DAYS', 14);
-define('WP_MEMORY_LIMIT', '256M');
-define('WP_MAX_MEMORY_LIMIT', '512M');
-define('AUTOSAVE_INTERVAL', 300);
-define('DISALLOW_FILE_EDIT', true);
+// Performance & Security (defined() guard — Docker env vars mogą definiować te same stałe)
+defined('DISABLE_WP_CRON')    || define('DISABLE_WP_CRON', true);
+defined('WP_POST_REVISIONS')  || define('WP_POST_REVISIONS', 5);
+defined('EMPTY_TRASH_DAYS')   || define('EMPTY_TRASH_DAYS', 14);
+defined('WP_MEMORY_LIMIT')    || define('WP_MEMORY_LIMIT', '256M');
+defined('WP_MAX_MEMORY_LIMIT')|| define('WP_MAX_MEMORY_LIMIT', '512M');
+defined('AUTOSAVE_INTERVAL')  || define('AUTOSAVE_INTERVAL', 300);
+defined('DISALLOW_FILE_EDIT') || define('DISALLOW_FILE_EDIT', true);
 
 // Redis Object Cache
-define('WP_REDIS_HOST', '$WP_REDIS_ADDR');
-define('WP_REDIS_PORT', 6379);
+defined('WP_REDIS_HOST') || define('WP_REDIS_HOST', '$WP_REDIS_ADDR');
+defined('WP_REDIS_PORT') || define('WP_REDIS_PORT', 6379);
 ${REDIS_PASS_LINE}
-define('WP_CACHE', true);
+defined('WP_CACHE')      || define('WP_CACHE', true);
 PERFEOF
 
 docker exec "$CONTAINER" chown www-data:www-data "$PERF_CONFIG"
@@ -694,7 +709,7 @@ fi
 REDIS_OK=false
 if docker exec "$CONTAINER" test -f /usr/local/bin/wp; then
     # Sprawdź czy DB jest gotowa (tabele istnieją)
-    if docker exec -u www-data "$CONTAINER" wp db check --path=/var/www/html > /dev/null 2>&1; then
+    if docker exec -u www-data "$CONTAINER" wp core is-installed --path=/var/www/html > /dev/null 2>&1; then
         if ! docker exec -u www-data "$CONTAINER" wp plugin is-installed redis-cache --path=/var/www/html 2>/dev/null; then
             log "   📥 Instaluję plugin Redis Object Cache..."
             if docker exec -u www-data "$CONTAINER" wp plugin install redis-cache --activate --path=/var/www/html 2>/dev/null; then
@@ -712,8 +727,23 @@ if docker exec "$CONTAINER" test -f /usr/local/bin/wp; then
                 && log "   ✅ Redis Object Cache włączony (drop-in aktywny)" \
                 || log "   ⚠️  Nie udało się włączyć Redis drop-in"
         fi
+
+        # Nginx Helper — automatyczny purge FastCGI cache przy edycji treści
+        if ! docker exec -u www-data "$CONTAINER" wp plugin is-installed nginx-helper --path=/var/www/html 2>/dev/null; then
+            log "   📥 Instaluję plugin Nginx Helper (cache purge)..."
+            if docker exec -u www-data "$CONTAINER" wp plugin install nginx-helper --activate --path=/var/www/html 2>/dev/null; then
+                log "   ✅ Plugin Nginx Helper zainstalowany"
+            fi
+        else
+            docker exec -u www-data "$CONTAINER" wp plugin activate nginx-helper --path=/var/www/html 2>/dev/null || true
+            log "   ℹ️  Plugin Nginx Helper już zainstalowany"
+        fi
+        # Konfiguracja: file-based purge, ścieżka /var/cache/nginx
+        docker exec -u www-data "$CONTAINER" wp option update rt_wp_nginx_helper_options \
+            '{"enable_purge":"1","cache_method":"enable_fastcgi","purge_method":"unlink_files","purge_homepage_on_edit":"1","purge_homepage_on_del":"1","purge_archive_on_edit":"1","purge_archive_on_del":"1","purge_archive_on_new_comment":"1","purge_archive_on_deleted_comment":"1","purge_page_on_mod":"1","purge_page_on_new_comment":"1","purge_page_on_deleted_comment":"1","log_level":"NONE","log_filesize":"5","nginx_cache_path":"/var/cache/nginx"}' \
+            --format=json --path=/var/www/html 2>/dev/null || true
     else
-        log "   ℹ️  Baza danych jeszcze nie zainicjalizowana — Redis plugin zostanie zainstalowany automatycznie"
+        log "   ℹ️  Baza danych jeszcze nie zainicjalizowana — pluginy zostaną zainstalowane automatycznie"
     fi
 fi
 
