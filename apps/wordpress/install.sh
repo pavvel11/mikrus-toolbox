@@ -29,9 +29,44 @@
 
 set -e
 
-APP_NAME="wordpress"
-STACK_DIR="/opt/stacks/$APP_NAME"
 PORT=${PORT:-8080}
+
+# =============================================================================
+# MULTI-INSTANCE: nazwa instancji z domeny (wzór GateFlow)
+# =============================================================================
+# blog.example.com → wordpress-blog
+# shop.example.com → wordpress-shop
+# Auto-cytrus (__CYTRUS_PENDING__) / brak domeny → wordpress (bez suffixu)
+#
+# UWAGA: Auto-cytrus bez konkretnej domeny = tylko SINGLE INSTANCE!
+# Dla wielu stron WordPress musisz podać konkretne domeny.
+
+if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ] && [[ "$DOMAIN" != *"__CYTRUS_PENDING__"* ]]; then
+    INSTANCE_NAME="${DOMAIN%%.*}"
+else
+    INSTANCE_NAME=""
+fi
+
+if [ -n "$INSTANCE_NAME" ]; then
+    APP_NAME="wordpress-${INSTANCE_NAME}"
+else
+    APP_NAME="wordpress"
+fi
+
+STACK_DIR="/opt/stacks/$APP_NAME"
+
+# Zapobiegaj nadpisaniu istniejącej instalacji
+if [ -z "$INSTANCE_NAME" ] && [ -d "$STACK_DIR" ] && [ -f "$STACK_DIR/docker-compose.yaml" ]; then
+    echo "❌ Katalog $STACK_DIR już istnieje!"
+    echo ""
+    echo "   Dla wielu stron WordPress użyj konkretnych domen:"
+    echo "   ./local/deploy.sh wordpress --domain=blog.example.com"
+    echo "   ./local/deploy.sh wordpress --domain=shop.example.com"
+    echo ""
+    echo "   Lub usuń istniejącą instalację:"
+    echo "   ssh <server> 'cd $STACK_DIR && docker compose down -v && rm -rf $STACK_DIR'"
+    exit 1
+fi
 
 echo "--- 📝 WordPress Setup (Performance Edition) ---"
 echo ""
@@ -77,6 +112,48 @@ else
     echo "✅ Redis: bundled (lib/redis-detect.sh niedostępne)"
 fi
 
+# Shared Redis: jeśli bundled wybrany (brak Redis na hoście),
+# zainstaluj współdzielony Redis kontener zamiast bundlowania w każdym stacku.
+# Oszczędza ~96MB RAM per dodatkowa instancja WordPress.
+if [ "$REDIS_HOST" = "redis" ]; then
+    REDIS_SHARED_DIR="/opt/stacks/redis-shared"
+    if [ ! -f "$REDIS_SHARED_DIR/docker-compose.yaml" ]; then
+        echo "📦 Instaluję współdzielony Redis (dla wielu stron WP)..."
+        sudo mkdir -p "$REDIS_SHARED_DIR"
+        cat <<'REDISEOF' | sudo tee "$REDIS_SHARED_DIR/docker-compose.yaml" > /dev/null
+services:
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: redis-server --maxmemory 96mb --maxmemory-policy allkeys-lru --save 60 1 --loglevel warning
+    volumes:
+      - ./data:/data
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+REDISEOF
+        sudo docker compose -f "$REDIS_SHARED_DIR/docker-compose.yaml" up -d
+        sleep 2
+    fi
+    REDIS_HOST="host-gateway"
+    echo "✅ Redis: współdzielony (127.0.0.1:6379)"
+fi
+
 # Hasło Redis (user podaje przez REDIS_PASS env var)
 REDIS_PASS="${REDIS_PASS:-}"
 if [ -n "$REDIS_PASS" ] && [ "$REDIS_HOST" = "host-gateway" ]; then
@@ -119,7 +196,7 @@ else
         exit 1
     fi
     DB_PORT=${DB_PORT:-3306}
-    DB_NAME=${DB_NAME:-wordpress}
+    DB_NAME=${DB_NAME:-$APP_NAME}
     echo "   Host: $DB_HOST:$DB_PORT | User: $DB_USER | DB: $DB_NAME"
 
     # Sprawdź czy baza ma istniejące tabele WordPress
@@ -526,7 +603,7 @@ $WP_ENV_BLOCK
       - ./config/php-performance.ini:/usr/local/etc/php/conf.d/performance.ini:ro
       - ./config/www.conf:/usr/local/etc/php-fpm.d/www.conf:ro
       - ./nginx-cache:/var/cache/nginx
-      - wp-html:/var/www/html
+      - ${APP_NAME}-html:/var/www/html
     tmpfs:
       - /tmp:size=128M,mode=1777
 $WP_DEPENDS
@@ -559,7 +636,7 @@ $REDIS_SERVICE
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
       - /dev/null:/etc/nginx/conf.d/default.conf:ro
       - ./nginx-cache:/var/cache/nginx
-      - wp-html:/var/www/html:ro
+      - ${APP_NAME}-html:/var/www/html:ro
       - ./wp-content:/var/www/html/wp-content:ro
     depends_on:
       - wordpress
@@ -582,7 +659,7 @@ $REDIS_SERVICE
           memory: $NGINX_MEMORY
 
 volumes:
-  wp-html:
+  ${APP_NAME}-html:
 EOF
 
 # Wyczyść puste linie z YAML (z pustych bloków warunkowych)
@@ -600,10 +677,11 @@ cat <<'INITEOF' | sudo tee "$STACK_DIR/wp-init.sh" > /dev/null
 # Redis Object Cache plugin via WP-CLI
 
 cd "$(dirname "$0")"
+STACK_DIR="$(pwd)"
 
 QUIET=false
 RETRY_MODE=false
-RETRY_COUNT_FILE="/opt/stacks/wordpress/.wp-init-retries"
+RETRY_COUNT_FILE="$STACK_DIR/.wp-init-retries"
 MAX_RETRIES=30
 
 if [ "$1" = "--retry" ]; then
@@ -638,7 +716,7 @@ if ! docker exec "$CONTAINER" test -f "$WP_CONFIG"; then
     log "⏳ WordPress jeszcze nie wygenerował wp-config.php"
     log "   Otwórz stronę w przeglądarce, a optymalizacje zastosują się automatycznie."
     if ! crontab -l 2>/dev/null | grep -q "wp-init-retry"; then
-        RETRY="* * * * * /opt/stacks/wordpress/wp-init.sh --retry > /dev/null 2>&1 # wp-init-retry"
+        RETRY="* * * * * $STACK_DIR/wp-init.sh --retry > /dev/null 2>&1 # wp-init-retry"
         (crontab -l 2>/dev/null; echo "$RETRY") | crontab -
         log "   ⏰ Retry co minutę aż wp-config.php będzie gotowy"
     fi
@@ -649,12 +727,12 @@ log "🔧 Optymalizuję wp-config.php..."
 
 # Redis config
 REDIS_HOST="redis"
-if [ -f "/opt/stacks/wordpress/.redis-host" ]; then
-    REDIS_HOST=$(cat /opt/stacks/wordpress/.redis-host)
+if [ -f "$STACK_DIR/.redis-host" ]; then
+    REDIS_HOST=$(cat "$STACK_DIR/.redis-host")
 fi
 REDIS_PASS=""
-if [ -f "/opt/stacks/wordpress/.redis-pass" ]; then
-    REDIS_PASS=$(cat /opt/stacks/wordpress/.redis-pass)
+if [ -f "$STACK_DIR/.redis-pass" ]; then
+    REDIS_PASS=$(cat "$STACK_DIR/.redis-pass")
 fi
 if [ "$REDIS_HOST" = "host-gateway" ]; then
     WP_REDIS_ADDR="host-gateway"
@@ -666,6 +744,9 @@ REDIS_PASS_LINE=""
 if [ -n "$REDIS_PASS" ]; then
     REDIS_PASS_LINE="defined('WP_REDIS_PASSWORD') || define('WP_REDIS_PASSWORD', '$REDIS_PASS');"
 fi
+
+# Redis prefix = nazwa stacka (unikalna per instancja, zapobiega kolizji kluczy)
+REDIS_PREFIX="$(basename "$STACK_DIR")"
 
 # Generuj wp-config-performance.php (zawsze nadpisuje — idempotentne)
 cat <<PERFEOF | docker exec -i "$CONTAINER" tee "$PERF_CONFIG" > /dev/null
@@ -688,10 +769,11 @@ defined('AUTOSAVE_INTERVAL')  || define('AUTOSAVE_INTERVAL', 300);
 defined('DISALLOW_FILE_EDIT') || define('DISALLOW_FILE_EDIT', true);
 
 // Redis Object Cache
-defined('WP_REDIS_HOST') || define('WP_REDIS_HOST', '$WP_REDIS_ADDR');
-defined('WP_REDIS_PORT') || define('WP_REDIS_PORT', 6379);
+defined('WP_REDIS_HOST')   || define('WP_REDIS_HOST', '$WP_REDIS_ADDR');
+defined('WP_REDIS_PORT')   || define('WP_REDIS_PORT', 6379);
+defined('WP_REDIS_PREFIX') || define('WP_REDIS_PREFIX', '${REDIS_PREFIX}:');
 ${REDIS_PASS_LINE}
-defined('WP_CACHE')      || define('WP_CACHE', true);
+defined('WP_CACHE')        || define('WP_CACHE', true);
 PERFEOF
 
 docker exec "$CONTAINER" chown www-data:www-data "$PERF_CONFIG"
@@ -750,7 +832,7 @@ fi
 
 # Dodaj retry cron jeśli Redis plugin nie został zainstalowany
 if [ "$REDIS_OK" = false ] && ! crontab -l 2>/dev/null | grep -q "wp-init-retry"; then
-    RETRY="* * * * * /opt/stacks/wordpress/wp-init.sh --retry > /dev/null 2>&1 # wp-init-retry"
+    RETRY="* * * * * $STACK_DIR/wp-init.sh --retry > /dev/null 2>&1 # wp-init-retry"
     (crontab -l 2>/dev/null; echo "$RETRY") | crontab -
     log "   ⏰ Redis plugin — retry co minutę aż baza będzie gotowa"
 fi
@@ -764,7 +846,7 @@ fi
 
 # --- Część 3: Systemowy cron i cache ---
 
-CRON_CMD="*/5 * * * * docker exec \$(docker compose -f /opt/stacks/wordpress/docker-compose.yaml ps -q wordpress) php /var/www/html/wp-cron.php > /dev/null 2>&1"
+CRON_CMD="*/5 * * * * docker exec \$(docker compose -f $STACK_DIR/docker-compose.yaml ps -q wordpress) php /var/www/html/wp-cron.php > /dev/null 2>&1"
 if ! crontab -l 2>/dev/null | grep -q "wp-cron.php"; then
     (crontab -l 2>/dev/null; echo "$CRON_CMD") | crontab -
     log "   ✅ Systemowy cron dodany (co 5 min)"
@@ -772,8 +854,8 @@ else
     log "   ℹ️  Systemowy cron już istnieje"
 fi
 
-if [ -d "/opt/stacks/wordpress/nginx-cache" ]; then
-    rm -rf /opt/stacks/wordpress/nginx-cache/*
+if [ -d "$STACK_DIR/nginx-cache" ]; then
+    rm -rf "$STACK_DIR/nginx-cache"/*
     log "   ✅ FastCGI cache wyczyszczony"
 fi
 
@@ -786,8 +868,9 @@ sudo chmod +x "$STACK_DIR/wp-init.sh"
 cat <<'CACHEEOF' | sudo tee "$STACK_DIR/flush-cache.sh" > /dev/null
 #!/bin/bash
 # Wyczyść FastCGI cache Nginx (po aktualizacji treści/wtyczek)
-rm -rf /opt/stacks/wordpress/nginx-cache/*
-docker compose -f /opt/stacks/wordpress/docker-compose.yaml exec nginx nginx -s reload 2>/dev/null || true
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+rm -rf "$SCRIPT_DIR/nginx-cache"/*
+docker compose -f "$SCRIPT_DIR/docker-compose.yaml" exec nginx nginx -s reload 2>/dev/null || true
 echo "✅ FastCGI cache wyczyszczony"
 CACHEEOF
 sudo chmod +x "$STACK_DIR/flush-cache.sh"
@@ -835,6 +918,9 @@ fi
 echo ""
 echo "⚙️  Uruchamiam optymalizacje wp-config.php..."
 bash "$STACK_DIR/wp-init.sh" 2>&1 | sed 's/^/   /'
+
+# Przekaż STACK_DIR do deploy.sh (dla Cytrus placeholder update)
+echo "$STACK_DIR" > /tmp/app_stack_dir
 
 # =============================================================================
 # 10. PODSUMOWANIE

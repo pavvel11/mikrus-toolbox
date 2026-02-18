@@ -958,6 +958,10 @@ if [ -n "$INSTALLED_PORT" ]; then
     APP_PORT="$INSTALLED_PORT"
 fi
 
+# Sprawdź czy install.sh zapisał STACK_DIR (dla multi-instance apps jak WordPress)
+INSTALLED_STACK_DIR=$(server_exec "cat /tmp/app_stack_dir 2>/dev/null; rm -f /tmp/app_stack_dir" 2>/dev/null)
+APP_STACK_DIR="${INSTALLED_STACK_DIR:-/opt/stacks/$APP_NAME}"
+
 if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ]; then
     echo ""
     ORIGINAL_DOMAIN="$DOMAIN"  # Zapamiętaj czy był "-" (automatyczny)
@@ -971,7 +975,7 @@ if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ]; then
                 server_exec "sudo sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' /etc/caddy/Caddyfile && sudo systemctl reload caddy" 2>/dev/null || true
             elif [ "$APP_NAME" != "gateflow" ]; then
                 # Docker apps - update docker-compose (skip for standalone apps like GateFlow)
-                server_exec "cd /opt/stacks/$APP_NAME && sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' docker-compose.yaml && docker compose up -d" 2>/dev/null || true
+                server_exec "cd $APP_STACK_DIR && sed -i 's|$CYTRUS_PLACEHOLDER|$DOMAIN|g' docker-compose.yaml && docker compose up -d" 2>/dev/null || true
             fi
         fi
 
