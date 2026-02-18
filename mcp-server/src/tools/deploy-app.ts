@@ -6,6 +6,7 @@ import { getDefaultAlias } from "../lib/config.js";
 import { getAppsDir, getDeployShPath, resolveRepoRoot } from "../lib/repo.js";
 import { parseAppMetadata } from "../lib/app-metadata.js";
 import { checkBackupStatus } from "../lib/backup-check.js";
+import { checkServerHealth } from "../lib/resource-check.js";
 
 export const deployAppTool = {
   name: "deploy_app",
@@ -273,10 +274,14 @@ export async function handleDeployApp(
           return;
         }
 
-        // Check backup status after successful deployment
-        checkBackupStatus(alias).then((backupWarning) => {
+        // Check backup status and server health after successful deployment
+        Promise.all([
+          checkBackupStatus(alias),
+          checkServerHealth(alias),
+        ]).then(([backupWarning, healthSummary]) => {
           const text = `Deployment complete for ${appName}:\n\n${output}` +
-            (backupWarning ?? "");
+            (backupWarning ?? "") +
+            healthSummary;
           resolve({ content: [{ type: "text", text }] });
         });
       }

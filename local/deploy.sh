@@ -1148,4 +1148,89 @@ if [ "$APP_NAME" = "gateflow" ]; then
     gateflow_show_post_install_reminders "$DOMAIN" "$SSH_ALIAS" "$GATEFLOW_STRIPE_CONFIGURED" "$TURNSTILE_CONFIGURED"
 fi
 
+# =============================================================================
+# KONDYCJA SERWERA (po instalacji)
+# =============================================================================
+
+POST_RESOURCES=$(server_exec_timeout 10 "free -m | awk '/^Mem:/ {print \$2, \$7}'; df -m / | awk 'NR==2 {print \$2, \$4}'" 2>/dev/null)
+POST_RAM_LINE=$(echo "$POST_RESOURCES" | sed -n '1p')
+POST_DISK_LINE=$(echo "$POST_RESOURCES" | sed -n '2p')
+
+POST_RAM_TOTAL=$(echo "$POST_RAM_LINE" | awk '{print $1}')
+POST_RAM_AVAIL=$(echo "$POST_RAM_LINE" | awk '{print $2}')
+POST_DISK_TOTAL=$(echo "$POST_DISK_LINE" | awk '{print $1}')
+POST_DISK_AVAIL=$(echo "$POST_DISK_LINE" | awk '{print $2}')
+
+if [ -n "$POST_RAM_TOTAL" ] && [ "$POST_RAM_TOTAL" -gt 0 ] 2>/dev/null && \
+   [ -n "$POST_DISK_TOTAL" ] && [ "$POST_DISK_TOTAL" -gt 0 ] 2>/dev/null; then
+
+    RAM_USED_PCT=$(( (POST_RAM_TOTAL - POST_RAM_AVAIL) * 100 / POST_RAM_TOTAL ))
+    DISK_USED_PCT=$(( (POST_DISK_TOTAL - POST_DISK_AVAIL) * 100 / POST_DISK_TOTAL ))
+    DISK_AVAIL_GB=$(awk "BEGIN {printf \"%.1f\", $POST_DISK_AVAIL / 1024}")
+    DISK_TOTAL_GB=$(awk "BEGIN {printf \"%.1f\", $POST_DISK_TOTAL / 1024}")
+
+    # RAM label
+    if [ "$RAM_USED_PCT" -gt 80 ]; then
+        RAM_LABEL="${RED}KRYTYCZNIE${NC}"
+        RAM_LEVEL=2
+    elif [ "$RAM_USED_PCT" -gt 60 ]; then
+        RAM_LABEL="${YELLOW}CIASNO${NC}"
+        RAM_LEVEL=1
+    else
+        RAM_LABEL="${GREEN}OK${NC}"
+        RAM_LEVEL=0
+    fi
+
+    # Disk label
+    if [ "$DISK_USED_PCT" -gt 85 ]; then
+        DISK_LABEL="${RED}KRYTYCZNIE${NC}"
+        DISK_LEVEL=2
+    elif [ "$DISK_USED_PCT" -gt 60 ]; then
+        DISK_LABEL="${YELLOW}CIASNO${NC}"
+        DISK_LEVEL=1
+    else
+        DISK_LABEL="${GREEN}OK${NC}"
+        DISK_LEVEL=0
+    fi
+
+    # Worst level
+    HEALTH_LEVEL=$RAM_LEVEL
+    [ "$DISK_LEVEL" -gt "$HEALTH_LEVEL" ] && HEALTH_LEVEL=$DISK_LEVEL
+
+    echo ""
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║  📊 Kondycja serwera po instalacji                             ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+    echo ""
+    echo -e "   RAM:  ${POST_RAM_AVAIL}MB / ${POST_RAM_TOTAL}MB wolne (${RAM_USED_PCT}% zajęte) — $RAM_LABEL"
+    echo -e "   Dysk: ${DISK_AVAIL_GB}GB / ${DISK_TOTAL_GB}GB wolne (${DISK_USED_PCT}% zajęte) — $DISK_LABEL"
+    echo ""
+
+    if [ "$HEALTH_LEVEL" -eq 0 ]; then
+        echo -e "   ${GREEN}✅ Serwer w dobrej kondycji. Możesz spokojnie dodawać kolejne usługi.${NC}"
+    elif [ "$HEALTH_LEVEL" -eq 1 ]; then
+        echo -e "   ${YELLOW}⚠️  Robi się ciasno. Rozważ upgrade przed dodawaniem ciężkich usług.${NC}"
+    else
+        echo -e "   ${RED}❌ Serwer mocno obciążony! Rozważ upgrade lub usunięcie nieużywanych usług.${NC}"
+    fi
+
+    # Sugestia upgrade
+    if [ "$HEALTH_LEVEL" -ge 1 ]; then
+        UPGRADE=""
+        if [ "$POST_RAM_TOTAL" -le 1024 ]; then
+            UPGRADE="Mikrus 3.0 (2GB RAM, 130 PLN/rok)"
+        elif [ "$POST_RAM_TOTAL" -le 2048 ]; then
+            UPGRADE="Mikrus 3.5 (4GB RAM, 197 PLN/rok)"
+        elif [ "$POST_RAM_TOTAL" -le 4096 ]; then
+            UPGRADE="Mikrus 4.1 (8GB RAM, 395 PLN/rok)"
+        elif [ "$POST_RAM_TOTAL" -le 8192 ]; then
+            UPGRADE="Mikrus 4.2 (16GB RAM, 790 PLN/rok)"
+        fi
+        if [ -n "$UPGRADE" ]; then
+            echo -e "   ${YELLOW}📦 Sugerowany upgrade: $UPGRADE${NC}"
+            echo -e "   ${YELLOW}   https://mikr.us/#plans${NC}"
+        fi
+    fi
+fi
+
 echo ""

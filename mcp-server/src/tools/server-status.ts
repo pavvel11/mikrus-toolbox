@@ -131,5 +131,47 @@ export async function handleServerStatus(
     lines.push("Or install manually: curl -fsSL https://get.docker.com | sh");
   }
 
+  // Health verdict based on resource utilization
+  const ramTotalNum = parseInt(ramTotal, 10);
+  const ramAvailNum = parseInt(ramAvail, 10);
+  const diskTotalNum = parseInt(diskTotal, 10);
+  const diskAvailNum = parseInt(diskAvail, 10);
+
+  if (ramTotalNum && diskTotalNum) {
+    const ramUsedPct = Math.round(((ramTotalNum - ramAvailNum) / ramTotalNum) * 100);
+    const diskUsedPct = Math.round(((diskTotalNum - diskAvailNum) / diskTotalNum) * 100);
+
+    const ramCritical = ramUsedPct > 80;
+    const ramWarn = ramUsedPct > 60;
+    const diskCritical = diskUsedPct > 85;
+    const diskWarn = diskUsedPct > 60;
+
+    lines.push("");
+    if (ramCritical || diskCritical) {
+      lines.push("Health: CRITICAL — Server under heavy load! Consider upgrading or removing unused services.");
+    } else if (ramWarn || diskWarn) {
+      lines.push("Health: WARNING — Resources getting tight. Consider upgrading before adding heavy services.");
+    } else {
+      lines.push("Health: OK — Server in good shape. You can safely add more services.");
+    }
+
+    // Upgrade suggestion for warning/critical
+    if (ramWarn || diskWarn) {
+      const tiers = [
+        { max: 1024, name: "Mikrus 3.0", ram: "2GB", price: "130 PLN/rok" },
+        { max: 2048, name: "Mikrus 3.5", ram: "4GB", price: "197 PLN/rok" },
+        { max: 4096, name: "Mikrus 4.1", ram: "8GB", price: "395 PLN/rok" },
+        { max: 8192, name: "Mikrus 4.2", ram: "16GB", price: "790 PLN/rok" },
+      ];
+      for (const tier of tiers) {
+        if (ramTotalNum <= tier.max) {
+          lines.push(`Suggested upgrade: ${tier.name} (${tier.ram}, ${tier.price})`);
+          lines.push("Plans: https://mikr.us/#plans");
+          break;
+        }
+      }
+    }
+  }
+
   return { content: [{ type: "text", text: lines.join("\n") }] };
 }
