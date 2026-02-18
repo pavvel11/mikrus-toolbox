@@ -1014,9 +1014,10 @@ DOMAIN_EOF
                 export PATH=\"\$HOME/.bun/bin:\$PATH\"
                 cd /opt/stacks/gateflow/admin-panel/.next/standalone/admin-panel
                 pm2 delete gateflow 2>/dev/null || true
+                unset HOSTNAME
                 set -a && source .env.local && set +a
                 export PORT=\${PORT:-3333}
-                export HOSTNAME='::'
+                export HOSTNAME=\${HOSTNAME:-::}
                 pm2 start server.js --name gateflow --interpreter node
                 pm2 save
             " 2>/dev/null || true
