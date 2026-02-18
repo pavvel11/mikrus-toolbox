@@ -2,6 +2,19 @@
 
 Lekki serwer Bitwarden napisany w Rust. Twoje hasla do wszystkich uslug w jednym, bezpiecznym miejscu na Twoim serwerze.
 
+## Dlaczego Vaultwarden, a nie Bitwarden?
+
+Oficjalny serwer Bitwarden wymaga 2-4 GB RAM (8+ kontenerow: .NET, MSSQL, Nginx, Identity, API, Admin...). Na Mikrusie z 1 GB RAM nawet by nie wystartowal.
+
+| | Vaultwarden | Bitwarden oficjalny |
+|---|---|---|
+| RAM | ~50 MB | 2-4 GB |
+| Kontenery | 1 | 8+ |
+| Baza danych | SQLite | MSSQL |
+| Klienty Bitwarden | 100% kompatybilny | natywne |
+| Premium features | wszystkie za darmo | wymagana licencja |
+| Jezyk | Rust | .NET (C#) |
+
 ## Instalacja
 
 ```bash
