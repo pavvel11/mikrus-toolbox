@@ -154,12 +154,13 @@ Optymalizacje `wp-init.sh` uruchamiają się **automatycznie** po kreatorze. Nie
 
 `wp-init.sh` automatycznie:
 - Generuje `wp-config-performance.php` (HTTPS fix, limity, Redis config)
-- Instaluje i aktywuje plugin **Redis Object Cache** + włącza drop-in
-- Instaluje i aktywuje plugin **Nginx Helper** (auto-purge FastCGI cache)
-- Konfiguruje Nginx Helper: file-based purge, purge przy edycji/usunięciu/komentarzu
-- Instaluje i aktywuje plugin **Converter for Media** (auto-konwersja obrazów do WebP)
+- Instaluje, aktywuje i **konfiguruje** plugin **Redis Object Cache** — włącza drop-in (`wp redis enable`), gotowy od razu
+- Instaluje, aktywuje i **konfiguruje** plugin **Nginx Helper** — ustawia file-based purge, auto-purge przy edycji/usunięciu/komentarzu
+- Instaluje i aktywuje plugin **Converter for Media** — nowe obrazy konwertowane do WebP automatycznie, nginx serwuje WebP bez dodatkowej konfiguracji
 - Dodaje systemowy cron co 5 min (zastępuje wp-cron)
 - Czyści FastCGI cache po konfiguracji
+
+**Wszystkie pluginy działają od razu — zero konfiguracji w panelu WordPress.**
 
 Jeśli WordPress nie jest jeszcze zainicjalizowany, wp-init.sh ustawia retry cron (co minutę, max 30 prób) i dokończy konfigurację automatycznie.
 
