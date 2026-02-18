@@ -33,6 +33,10 @@ source "$REPO_ROOT/lib/domain-setup.sh"
 source "$REPO_ROOT/lib/gateflow-setup.sh" 2>/dev/null || true  # Opcjonalna dla GateFlow
 source "$REPO_ROOT/lib/port-utils.sh"
 
+# Placeholder wstawiany do docker-compose gdy DOMAIN="-" (automatyczny Cytrus).
+# Po przydzieleniu domeny przez Cytrus API, sed zamienia placeholder na prawdziwą domenę.
+CYTRUS_PLACEHOLDER="__CYTRUS_PENDING__"
+
 # =============================================================================
 # CUSTOM HELP
 # =============================================================================
@@ -784,10 +788,15 @@ fi
 DOMAIN_ENV=""
 if [ "$NEEDS_DOMAIN" = true ] && [ "$DOMAIN_TYPE" != "local" ] && [ -n "$DOMAIN" ]; then
     if [ "$DOMAIN" = "-" ]; then
-        # Dla Cytrus z automatyczną domeną, przekaż "-" jako marker
-        # install.sh rozpozna to i użyje domyślnego katalogu /opt/stacks/gateflow
-        # Po instalacji zostanie zaktualizowany prawdziwą domeną
-        DOMAIN_ENV="DOMAIN='-'"
+        if [ "$APP_NAME" = "gateflow" ]; then
+            # GateFlow ma własny mechanizm — deploy.sh aktualizuje .env.local po Cytrus
+            DOMAIN_ENV="DOMAIN='-'"
+        else
+            # Dla Cytrus z automatyczną domeną, przekaż placeholder zamiast "-".
+            # install.sh zobaczy niepustą domenę i wstawi https://__CYTRUS_PENDING__ do docker-compose.
+            # Po przydzieleniu domeny, sed zamieni placeholder na prawdziwą domenę (linia ~970).
+            DOMAIN_ENV="DOMAIN='$CYTRUS_PLACEHOLDER'"
+        fi
     else
         DOMAIN_ENV="DOMAIN='$DOMAIN'"
     fi
