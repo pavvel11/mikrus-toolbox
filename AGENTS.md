@@ -4,7 +4,7 @@ Instrukcje dla agentów AI (Claude Code, Cursor, Copilot, itp.) pracujących z t
 
 ## Projekt i rola
 
-Skrypty Bash do zarządzania serwerami [Mikrus](https://mikr.us) - tani polski VPS.
+Skrypty Bash do zarządzania serwerami [Mikrus](https://mikr.us/?r=pavvel) - tani polski VPS.
 Toolbox automatyzuje instalację aplikacji Docker, konfigurację domen, backupy i diagnostykę.
 
 Pomagasz użytkownikom zarządzać ich serwerami Mikrus. Możesz:

@@ -2,7 +2,7 @@
 
 **25 self-hosted aplikacji. Jeden serwer. Zero abonamentów.**
 
-Zamień tani polski VPS ([mikr.us](https://mikr.us)) w pełną infrastrukturę firmy - automatyzacja, mailing, analityka, CRM, sklep z produktami cyfrowymi - za ~20 zł/mies zamiast ~7000 zł/rok w SaaS-ach.
+Zamień tani polski VPS ([mikr.us](https://mikr.us/?r=pavvel)) w pełną infrastrukturę firmy - automatyzacja, mailing, analityka, CRM, sklep z produktami cyfrowymi - za ~20 zł/mies zamiast ~7000 zł/rok w SaaS-ach.
 
 ```bash
 git clone https://github.com/jurczykpawel/mikrus-toolbox.git
@@ -114,7 +114,7 @@ Wszystko na Twoim serwerze. Zero opłat za "execution". Zero limitów.
 
 ### Wymagania
 
-- **Serwer VPS** - [Mikrus](https://mikr.us) 3.0+ (1GB RAM, 10GB dysk, od 20 zł/mies)
+- **Serwer VPS** - [Mikrus](https://mikr.us/?r=pavvel) 3.0+ (1GB RAM, 10GB dysk, od 20 zł/mies)
 - **Domena** - np. z [OVH](https://www.ovhcloud.com/pl/domains/) (od ~12 zł/rok)
 - **Terminal** z dostępem SSH
 

@@ -166,7 +166,7 @@ export async function handleServerStatus(
       for (const tier of tiers) {
         if (ramTotalNum <= tier.max) {
           lines.push(`Suggested upgrade: ${tier.name} (${tier.ram}, ${tier.price})`);
-          lines.push("Plans: https://mikr.us/#plans");
+          lines.push("Plans: https://mikr.us/?r=pavvel#plans");
           break;
         }
       }

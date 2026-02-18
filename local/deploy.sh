@@ -1247,7 +1247,7 @@ if [ -n "$POST_RAM_TOTAL" ] && [ "$POST_RAM_TOTAL" -gt 0 ] 2>/dev/null && \
         fi
         if [ -n "$UPGRADE" ]; then
             echo -e "   ${YELLOW}📦 Sugerowany upgrade: $UPGRADE${NC}"
-            echo -e "   ${YELLOW}   https://mikr.us/#plans${NC}"
+            echo -e "   ${YELLOW}   https://mikr.us/?r=pavvel#plans${NC}"
         fi
     fi
 fi

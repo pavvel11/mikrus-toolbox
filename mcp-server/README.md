@@ -2,7 +2,7 @@
 
 > **Alpha** - This server is in early development. The core tools work, but expect rough edges, missing validations, and evolving APIs. Feedback and bug reports welcome via [Issues](https://github.com/jurczykpawel/mikrus-toolbox/issues).
 
-MCP (Model Context Protocol) server for deploying self-hosted apps to [Mikrus](https://mikr.us) VPS servers.
+MCP (Model Context Protocol) server for deploying self-hosted apps to [Mikrus](https://mikr.us/?r=pavvel) VPS servers.
 
 Allows AI assistants (Claude Desktop, etc.) to set up SSH connections, browse available apps, deploy applications, and even install custom Docker apps - all via natural language.
 

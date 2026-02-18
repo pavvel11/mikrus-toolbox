@@ -90,14 +90,14 @@ export async function checkServerHealth(alias: string): Promise<string> {
     const upgrade = getUpgradeSuggestion(ramTotal);
     if (upgrade) {
       out.push(`Suggested upgrade: ${upgrade}`);
-      out.push("Plans: https://mikr.us/#plans");
+      out.push("Plans: https://mikr.us/?r=pavvel#plans");
     }
   } else {
     out.push("Status: Server under heavy load! Consider upgrading or removing unused services.");
     const upgrade = getUpgradeSuggestion(ramTotal);
     if (upgrade) {
       out.push(`Suggested upgrade: ${upgrade}`);
-      out.push("Plans: https://mikr.us/#plans");
+      out.push("Plans: https://mikr.us/?r=pavvel#plans");
     }
   }
 
