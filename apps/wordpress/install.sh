@@ -57,14 +57,18 @@ STACK_DIR="/opt/stacks/$APP_NAME"
 
 # Zapobiegaj nadpisaniu istniejącej instalacji
 if [ -z "$INSTANCE_NAME" ] && [ -d "$STACK_DIR" ] && [ -f "$STACK_DIR/docker-compose.yaml" ]; then
-    echo "❌ Katalog $STACK_DIR już istnieje!"
+    echo "❌ WordPress już jest zainstalowany w $STACK_DIR"
     echo ""
-    echo "   Dla wielu stron WordPress użyj konkretnych domen:"
-    echo "   ./local/deploy.sh wordpress --domain=blog.example.com"
-    echo "   ./local/deploy.sh wordpress --domain=shop.example.com"
+    echo "   Każda dodatkowa strona WordPress wymaga własnej domeny."
+    echo "   Podaj domenę (lub subdomenę), a WordPress zainstaluje się osobno:"
     echo ""
-    echo "   Lub usuń istniejącą instalację:"
-    echo "   ssh <server> 'cd $STACK_DIR && docker compose down -v && rm -rf $STACK_DIR'"
+    echo "   Przykłady:"
+    echo "     --domain=blog.example.com    → /opt/stacks/wordpress-blog/"
+    echo "     --domain=shop.example.com    → /opt/stacks/wordpress-shop/"
+    echo "     --domain=news.mojadomena.pl  → /opt/stacks/wordpress-news/"
+    echo ""
+    echo "   Jeśli chcesz usunąć obecną instalację:"
+    echo "     cd $STACK_DIR && docker compose down -v && rm -rf $STACK_DIR"
     exit 1
 fi
 
