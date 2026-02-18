@@ -172,20 +172,36 @@ else
         fi
     else
         # Pobierz z GitHub
+        # Spróbuj /latest (wymaga oznaczonego "latest release" na GitHub)
         RELEASE_URL="https://github.com/$GITHUB_REPO/releases/latest/download/gateflow-build.tar.gz"
 
-        if ! curl -fsSL "$RELEASE_URL" | tar -xz; then
-            echo ""
-            echo "❌ Nie udało się pobrać GateFlow z GitHub"
-            echo ""
-            echo "   Możliwe przyczyny:"
-            echo "   • Repozytorium jest prywatne"
-            echo "   • Brak połączenia z internetem"
-            echo "   • GitHub jest niedostępny"
-            echo ""
-            echo "   Rozwiązanie: Pobierz plik ręcznie i użyj flagi --build-file:"
-            echo "   ./local/deploy.sh gateflow --ssh=mikrus --build-file=~/Downloads/gateflow-build.tar.gz"
-            exit 1
+        if ! curl -fsSL "$RELEASE_URL" 2>/dev/null | tar -xz 2>/dev/null; then
+            # Fallback: znajdź najnowszy release z artefaktem gateflow-build.tar.gz
+            echo "   /latest niedostępny, szukam najnowszego releasu z buildem..."
+            RELEASE_URL=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO/releases" 2>/dev/null \
+                | grep -m1 "browser_download_url.*gateflow-build" | sed 's/.*: "\(.*\)".*/\1/')
+
+            if [ -n "$RELEASE_URL" ]; then
+                LATEST_TAG=$(echo "$RELEASE_URL" | sed 's|.*/download/\([^/]*\)/.*|\1|')
+                echo "   Znaleziono: $LATEST_TAG"
+                if ! curl -fsSL "$RELEASE_URL" | tar -xz; then
+                    echo ""
+                    echo "❌ Nie udało się pobrać GateFlow ($LATEST_TAG)"
+                    exit 1
+                fi
+            else
+                echo ""
+                echo "❌ Nie udało się pobrać GateFlow z GitHub"
+                echo ""
+                echo "   Możliwe przyczyny:"
+                echo "   • Brak releasu z artefaktem gateflow-build.tar.gz"
+                echo "   • Repozytorium jest prywatne"
+                echo "   • Brak połączenia z internetem"
+                echo ""
+                echo "   Rozwiązanie: Pobierz plik ręcznie i użyj flagi --build-file:"
+                echo "   ./local/deploy.sh gateflow --ssh=mikrus --build-file=~/Downloads/gateflow-build.tar.gz"
+                exit 1
+            fi
         fi
     fi
 
