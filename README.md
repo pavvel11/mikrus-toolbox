@@ -118,6 +118,8 @@ Wszystko na Twoim serwerze. Zero opłat za "execution". Zero limitów.
 - **Domena** - np. z [OVH](https://www.ovhcloud.com/pl/domains/) (od ~12 zł/rok)
 - **Terminal** z dostępem SSH
 
+> **🎁 1 miesiąc gratis!** Kup Mikrusa przez [ten link](https://mikr.us/?r=pavvel) (reflink), wybierz ofertę (zalecamy 3.0+) i miesiąc gratis zostanie automatycznie doliczony do zamówienia.
+
 ### 1. Konfiguracja SSH
 
 ```bash
