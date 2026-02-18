@@ -95,11 +95,28 @@ ZONES_RESPONSE=$(curl -s -X GET "https://api.cloudflare.com/client/v4/zones" \
     -H "Authorization: Bearer $API_TOKEN" \
     -H "Content-Type: application/json")
 
-# Parsuj domeny
-ZONES=$(echo "$ZONES_RESPONSE" | grep -o '"name":"[^"]*"' | sed 's/"name":"//g' | sed 's/"//g')
-ZONE_IDS=$(echo "$ZONES_RESPONSE" | grep -o '"id":"[^"]*"' | head -20 | sed 's/"id":"//g' | sed 's/"//g')
+# Parsuj domeny — wyciągnij pary (id, name) z tablicy result[]
+# jq jest preferowane, fallback na grep z parsowaniem per-obiekt
+ZONE_PAIRS=""
+if command -v jq &>/dev/null; then
+    ZONE_PAIRS=$(echo "$ZONES_RESPONSE" | jq -r '.result[] | "\(.name)=\(.id)"' 2>/dev/null)
+else
+    # Fallback: wyciągnij obiekty z result array i parsuj id+name per obiekt
+    # Każdy zone obiekt ma "id" i "name" na początku — bierzemy je parami
+    ZONE_PAIRS=$(echo "$ZONES_RESPONSE" \
+        | tr '{' '\n' \
+        | grep '"name"' \
+        | while IFS= read -r obj; do
+            local_id=$(echo "$obj" | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"//')
+            local_name=$(echo "$obj" | grep -o '"name":"[^"]*"' | head -1 | sed 's/"name":"//;s/"//')
+            # Filtruj: prawdziwa domena musi mieć kropkę, bez spacji
+            if [ -n "$local_id" ] && [ -n "$local_name" ] && [[ "$local_name" == *.* ]] && [[ "$local_name" != *" "* ]]; then
+                echo "${local_name}=${local_id}"
+            fi
+        done)
+fi
 
-if [ -z "$ZONES" ]; then
+if [ -z "$ZONE_PAIRS" ]; then
     echo "❌ Nie znaleziono żadnych domen!"
     echo "   Upewnij się że token ma dostęp do przynajmniej jednej domeny."
     exit 1
@@ -107,7 +124,7 @@ fi
 
 echo ""
 echo "Znalezione domeny:"
-echo "$ZONES" | nl
+echo "$ZONE_PAIRS" | cut -d= -f1 | nl
 echo ""
 
 # 5. Zapisz konfigurację
@@ -123,13 +140,8 @@ API_TOKEN=$API_TOKEN
 # Zone mappings (domain=zone_id)
 EOF
 
-# Dodaj mapowanie domen do zone ID
-ZONE_ARRAY=($ZONE_IDS)
-i=0
-echo "$ZONES" | while read -r domain; do
-    echo "${domain}=${ZONE_ARRAY[$i]}" >> "$CONFIG_FILE"
-    ((i++)) || true
-done
+# Zapisz pary domain=zone_id
+echo "$ZONE_PAIRS" >> "$CONFIG_FILE"
 
 chmod 600 "$CONFIG_FILE"
 

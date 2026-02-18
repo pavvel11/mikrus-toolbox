@@ -100,6 +100,52 @@ server_user() {
     fi
 }
 
+# Upewnij się że toolbox jest zainstalowany na serwerze
+# Użycie: ensure_toolbox [ssh_alias]
+ensure_toolbox() {
+    local ALIAS="${1:-${SSH_ALIAS:-mikrus}}"
+
+    # Na serwerze — toolbox już jest
+    if is_on_server; then
+        return 0
+    fi
+
+    # Sprawdź czy mikrus-expose istnieje (marker toolboxa)
+    if server_exec "test -f /opt/mikrus-toolbox/local/deploy.sh" 2>/dev/null; then
+        return 0
+    fi
+
+    echo "📦 Instaluję toolbox na serwerze..."
+
+    # Użyj rsync jeśli mamy lokalne repo, inaczej git clone
+    local SCRIPT_DIR_SE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local REPO_ROOT_SE="$(cd "$SCRIPT_DIR_SE/.." && pwd)"
+
+    if [ -f "$REPO_ROOT_SE/local/deploy.sh" ] && command -v rsync &>/dev/null; then
+        rsync -az --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'mcp-server' \
+            --exclude '.claude' \
+            --exclude '*.md' \
+            "$REPO_ROOT_SE/" "$ALIAS:/opt/mikrus-toolbox/" 2>/dev/null
+    else
+        server_exec "command -v git >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq git >/dev/null 2>&1) && rm -rf /opt/mikrus-toolbox && git clone --depth 1 https://github.com/jurczykpawel/mikrus-toolbox.git /opt/mikrus-toolbox 2>&1"
+    fi
+
+    # Dodaj do PATH
+    server_exec "grep -q 'mikrus-toolbox/local' ~/.bashrc 2>/dev/null || sed -i '1i\\# Mikrus Toolbox\nexport PATH=/opt/mikrus-toolbox/local:\$PATH\n' ~/.bashrc 2>/dev/null; grep -q 'mikrus-toolbox/local' ~/.zshenv 2>/dev/null || (echo '' >> ~/.zshenv && echo '# Mikrus Toolbox' >> ~/.zshenv && echo 'export PATH=/opt/mikrus-toolbox/local:\$PATH' >> ~/.zshenv) 2>/dev/null" || true
+
+    # Weryfikacja
+    if server_exec "test -f /opt/mikrus-toolbox/local/deploy.sh" 2>/dev/null; then
+        echo -e "${GREEN:-}✅ Toolbox zainstalowany${NC:-}"
+        return 0
+    else
+        echo -e "${RED:-}❌ Nie udało się zainstalować toolboxa${NC:-}"
+        return 1
+    fi
+}
+
 export _MIKRUS_ON_SERVER
 export -f is_on_server server_exec server_exec_tty server_exec_timeout
-export -f server_copy server_pipe_to server_hostname server_user
+export -f server_copy server_pipe_to server_hostname server_user ensure_toolbox

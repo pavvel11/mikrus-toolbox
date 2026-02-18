@@ -501,7 +501,10 @@ configure_domain_cloudflare() {
             echo -e "${GREEN}✅ DNS skonfigurowany: $DOMAIN${NC}"
             DNS_OK=true
         else
-            echo -e "${YELLOW}⚠️  DNS już istnieje lub błąd - kontynuuję konfigurację Caddy${NC}"
+            # Sprawdź czy rekord już istnieje (dns-add.sh wychodzi z 0 gdy IP takie samo)
+            # Więc exit ≠ 0 oznacza prawdziwy błąd
+            echo -e "${RED}❌ Konfiguracja DNS nie powiodła się!${NC}"
+            echo "   Sprawdź ręcznie: ./local/dns-add.sh $DOMAIN $SSH_ALIAS"
         fi
     else
         echo -e "${YELLOW}⚠️  Nie znaleziono dns-add.sh${NC}"
@@ -523,48 +526,85 @@ configure_domain_cloudflare() {
     echo ""
     echo "🔒 Konfiguruję HTTPS (Caddy)..."
 
+    # Walidacja domeny (zapobieganie Caddyfile/shell injection)
+    if ! [[ "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$ ]]; then
+        echo -e "${RED}❌ Nieprawidłowa domena: $DOMAIN${NC}" >&2
+        return 1
+    fi
+
+    local CADDY_OK=false
+
+    # Upewnij się że Caddy + mikrus-expose jest na serwerze
+    if ! server_exec "command -v mikrus-expose &>/dev/null" 2>/dev/null; then
+        echo "   mikrus-expose nie znalezione — instaluję Caddy..."
+        ensure_toolbox "$SSH_ALIAS"
+        local CADDY_SCRIPT="$REPO_ROOT/system/caddy-install.sh"
+        if [ -f "$CADDY_SCRIPT" ]; then
+            server_exec "bash -s" < "$CADDY_SCRIPT" 2>&1 | tail -3
+        else
+            server_exec "bash -s" < <(curl -sL "https://raw.githubusercontent.com/jurczykpawel/mikrus-toolbox/main/system/caddy-install.sh") 2>&1 | tail -3
+        fi
+    fi
+
     # Sprawdź czy to static site (szukamy pliku /tmp/APP_webroot, nie domain_public_webroot)
     # domain_public_webroot jest dla DOMAIN_PUBLIC, obsługiwane osobno w deploy.sh
     local WEBROOT=$(server_exec "ls /tmp/*_webroot 2>/dev/null | grep -v domain_public_webroot | head -1 | xargs cat 2>/dev/null" 2>/dev/null)
 
     if [ -n "$WEBROOT" ]; then
-        # Walidacja domeny (zapobieganie Caddyfile/shell injection)
-        if ! [[ "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$ ]]; then
-            echo -e "${RED}❌ Nieprawidłowa domena: $DOMAIN${NC}" >&2
-            return 1
-        fi
-
         # Static site (littlelink, etc.) - użyj trybu file_server
         echo "   Wykryto static site: $WEBROOT"
-        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$WEBROOT' static"; then
+        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$WEBROOT' static --cloudflare" 2>/dev/null; then
             echo -e "${GREEN}✅ HTTPS skonfigurowany (file_server)${NC}"
+            CADDY_OK=true
             # Usuń marker (nie usuwaj domain_public_webroot!)
             server_exec "ls /tmp/*_webroot 2>/dev/null | grep -v domain_public_webroot | xargs rm -f" 2>/dev/null
-        else
-            echo -e "${YELLOW}⚠️  mikrus-expose niedostępny${NC}"
         fi
     else
-        # Walidacja domeny (zapobieganie Caddyfile/shell injection)
-        if ! [[ "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$ ]]; then
-            echo -e "${RED}❌ Nieprawidłowa domena: $DOMAIN${NC}" >&2
-            return 1
-        fi
-
         # Docker app - użyj reverse_proxy
-        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$PORT'" 2>/dev/null; then
+        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$PORT' proxy --cloudflare" 2>/dev/null; then
             echo -e "${GREEN}✅ HTTPS skonfigurowany (reverse_proxy)${NC}"
-        else
-            # Sprawdź czy domena już jest w Caddyfile
-            if server_exec "grep -q '$DOMAIN' /etc/caddy/Caddyfile 2>/dev/null"; then
-                echo -e "${GREEN}✅ HTTPS już skonfigurowany w Caddy${NC}"
-            else
-                echo -e "${YELLOW}⚠️  mikrus-expose niedostępny${NC}"
-            fi
+            CADDY_OK=true
         fi
     fi
 
+    # Fallback: mikrus-expose mógł odmówić bo domena już jest w Caddyfile — to OK
+    if [ "$CADDY_OK" = false ]; then
+        if server_exec "grep -q '$DOMAIN' /etc/caddy/Caddyfile 2>/dev/null"; then
+            echo -e "${GREEN}✅ HTTPS już skonfigurowany w Caddy${NC}"
+            CADDY_OK=true
+        fi
+    fi
+
+    if [ "$CADDY_OK" = false ]; then
+        if server_exec "command -v mikrus-expose &>/dev/null" 2>/dev/null; then
+            echo -e "${RED}❌ mikrus-expose nie mógł skonfigurować Caddy${NC}"
+            echo "   Sprawdź ręcznie: ssh $SSH_ALIAS 'cat /etc/caddy/Caddyfile'"
+        else
+            echo -e "${RED}❌ Caddy / mikrus-expose nie zainstalowane na serwerze${NC}"
+            echo "   Zainstaluj: ssh $SSH_ALIAS 'bash -s' < system/caddy-install.sh"
+        fi
+    fi
+
+    # Upewnij się że Caddy działa
+    if [ "$CADDY_OK" = true ]; then
+        if ! server_exec "systemctl is-active --quiet caddy" 2>/dev/null; then
+            echo "   Uruchamiam Caddy..."
+            server_exec "systemctl start caddy && systemctl enable caddy 2>/dev/null" 2>/dev/null
+        fi
+    fi
+
+    # Podsumowanie
     echo ""
-    echo -e "${GREEN}🎉 Domena skonfigurowana: https://$DOMAIN${NC}"
+    if [ "$DNS_OK" = true ] && [ "$CADDY_OK" = true ]; then
+        echo -e "${GREEN}🎉 Domena skonfigurowana: https://$DOMAIN${NC}"
+    elif [ "$CADDY_OK" = true ]; then
+        echo -e "${YELLOW}⚠️  Caddy OK, ale DNS wymaga uwagi: https://$DOMAIN${NC}"
+    elif [ "$DNS_OK" = true ]; then
+        echo -e "${YELLOW}⚠️  DNS OK, ale Caddy wymaga konfiguracji${NC}"
+    else
+        echo -e "${RED}❌ Domena nie została skonfigurowana — DNS i Caddy wymagają uwagi${NC}"
+        return 1
+    fi
 
     return 0
 }
@@ -606,37 +646,56 @@ wait_for_domain() {
             echo "🔍 Diagnostyka:"
             local DIG_RESULT=""
             if command -v dig &>/dev/null; then
-                DIG_RESULT=$(dig +short "$DOMAIN" 2>/dev/null)
+                # Sprawdź A i AAAA (Cloudflare mode używa AAAA)
+                DIG_RESULT=$(dig +short A "$DOMAIN" 2>/dev/null)
+                if [ -z "$DIG_RESULT" ]; then
+                    DIG_RESULT=$(dig +short AAAA "$DOMAIN" 2>/dev/null)
+                fi
             elif command -v nslookup &>/dev/null; then
                 DIG_RESULT=$(nslookup "$DOMAIN" 2>/dev/null | grep -A1 "Name:" | grep "Address" | awk '{print $2}')
             fi
 
-            if [ -z "$DIG_RESULT" ]; then
-                echo -e "   ${RED}✗ DNS: brak rekordu — domena nie resolwuje się${NC}"
-                echo "   Sprawdź panel Cloudflare lub uruchom ponownie: ./local/dns-add.sh $DOMAIN"
-            else
-                echo -e "   ${GREEN}✓ DNS: $DOMAIN → $DIG_RESULT${NC}"
-
-                # Porównaj z IP serwera
-                local EXPECTED_IP=""
-                if [ "$DOMAIN_TYPE" = "cloudflare" ]; then
-                    # Cloudflare proxy — dig zwraca IP Cloudflare, nie serwera. To OK.
-                    echo "   ℹ️  Cloudflare proxy — IP powyżej to edge Cloudflare (poprawne)"
-                elif [ -n "${SSH_ALIAS:-}" ]; then
-                    EXPECTED_IP=$(server_exec "curl -s4 ifconfig.me 2>/dev/null || hostname -I | awk '{print \$1}'" 2>/dev/null)
-                    if [ -n "$EXPECTED_IP" ] && ! echo "$DIG_RESULT" | grep -q "$EXPECTED_IP"; then
-                        echo -e "   ${RED}✗ IP serwera: $EXPECTED_IP — nie zgadza się z DNS!${NC}"
+            # Dla Cloudflare — sprawdź też czy rekord istnieje w API
+            local CF_RECORD_OK=false
+            if [ "$DOMAIN_TYPE" = "cloudflare" ] && [ -f "$CLOUDFLARE_CONFIG" ]; then
+                local DIAG_TOKEN=$(grep "^API_TOKEN=" "$CLOUDFLARE_CONFIG" | cut -d= -f2)
+                local DIAG_ROOT=$(echo "$DOMAIN" | rev | cut -d. -f1-2 | rev)
+                local DIAG_ZONE=$(grep "^${DIAG_ROOT}=" "$CLOUDFLARE_CONFIG" | cut -d= -f2)
+                if [ -n "$DIAG_TOKEN" ] && [ -n "$DIAG_ZONE" ]; then
+                    local CF_CHECK=$(curl -s "https://api.cloudflare.com/client/v4/zones/$DIAG_ZONE/dns_records?name=$DOMAIN" \
+                        -H "Authorization: Bearer $DIAG_TOKEN" 2>/dev/null)
+                    if echo "$CF_CHECK" | grep -q "\"name\":\"$DOMAIN\""; then
+                        CF_RECORD_OK=true
+                        local CF_TYPE=$(echo "$CF_CHECK" | grep -o '"type":"[^"]*"' | head -1 | sed 's/"type":"//;s/"//')
+                        local CF_CONTENT=$(echo "$CF_CHECK" | grep -o '"content":"[^"]*"' | head -1 | sed 's/"content":"//;s/"//')
+                        local CF_PROXIED=$(echo "$CF_CHECK" | grep -o '"proxied":[a-z]*' | head -1 | sed 's/"proxied"://')
+                        echo -e "   ${GREEN}✓ Cloudflare DNS: $CF_TYPE → $CF_CONTENT (proxy: $CF_PROXIED)${NC}"
                     fi
                 fi
+            fi
 
-                # Sprawdź HTTP
+            if [ -n "$DIG_RESULT" ]; then
+                echo -e "   ${GREEN}✓ DNS resolve: $DOMAIN → $DIG_RESULT${NC}"
+                if [ "$DOMAIN_TYPE" = "cloudflare" ]; then
+                    echo "   ℹ️  IP powyżej to Cloudflare edge (poprawne przy proxy ON)"
+                fi
+            elif [ "$CF_RECORD_OK" = true ]; then
+                echo -e "   ${YELLOW}~ DNS: rekord istnieje w Cloudflare, ale jeszcze nie propaguje się${NC}"
+                echo "   Poczekaj 2-5 minut i sprawdź: dig +short $DOMAIN"
+            else
+                echo -e "   ${RED}✗ DNS: brak rekordu — domena nie resolwuje się${NC}"
+                echo "   Sprawdź: ./local/dns-add.sh $DOMAIN ${SSH_ALIAS:-mikrus}"
+            fi
+
+            # Sprawdź HTTP (tylko gdy DNS resolwuje)
+            if [ -n "$DIG_RESULT" ]; then
                 local DIAG_HTTP=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "https://$DOMAIN" 2>/dev/null || echo "000")
                 if [ "$DIAG_HTTP" = "000" ]; then
-                    echo -e "   ${RED}✗ HTTPS: brak połączenia — certyfikat SSL może nie być jeszcze gotowy${NC}"
-                elif [ "$DIAG_HTTP" -ge 500 ]; then
-                    echo -e "   ${RED}✗ HTTPS: HTTP $DIAG_HTTP — usługa zwraca błąd${NC}"
+                    echo -e "   ${RED}✗ HTTPS: brak połączenia — SSL może nie być gotowy${NC}"
                 elif [ "$DIAG_HTTP" = "521" ] || [ "$DIAG_HTTP" = "522" ] || [ "$DIAG_HTTP" = "523" ]; then
-                    echo -e "   ${RED}✗ HTTPS: HTTP $DIAG_HTTP — Cloudflare nie może połączyć się z serwerem${NC}"
+                    echo -e "   ${RED}✗ HTTPS: HTTP $DIAG_HTTP — Cloudflare nie łączy się z serwerem (sprawdź Caddy)${NC}"
+                elif [ "$DIAG_HTTP" -ge 500 ]; then
+                    echo -e "   ${RED}✗ HTTPS: HTTP $DIAG_HTTP — błąd serwera${NC}"
                 else
                     echo -e "   ${YELLOW}~ HTTPS: HTTP $DIAG_HTTP${NC}"
                 fi
