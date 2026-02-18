@@ -1,6 +1,6 @@
 # Mikrus Toolbox MCP Server
 
-> **Alpha** - This server is in early development. The core tools work, but expect rough edges, missing validations, and evolving APIs. Feedback and bug reports welcome via [Issues](https://github.com/pavvel11/mikrus-toolbox/issues).
+> **Alpha** - This server is in early development. The core tools work, but expect rough edges, missing validations, and evolving APIs. Feedback and bug reports welcome via [Issues](https://github.com/jurczykpawel/mikrus-toolbox/issues).
 
 MCP (Model Context Protocol) server for deploying self-hosted apps to [Mikrus](https://mikr.us) VPS servers.
 

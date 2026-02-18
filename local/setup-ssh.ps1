@@ -3,7 +3,7 @@
 # Author: Paweł (Lazy Engineer)
 #
 # Użycie:
-#   iwr -useb https://raw.githubusercontent.com/pavvel11/mikrus-toolbox/main/local/setup-ssh.ps1 | iex
+#   iwr -useb https://raw.githubusercontent.com/jurczykpawel/mikrus-toolbox/main/local/setup-ssh.ps1 | iex
 
 Clear-Host
 Write-Host "=================================================" -ForegroundColor Blue

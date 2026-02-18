@@ -7,7 +7,7 @@ import { homedir } from "node:os";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const REPO_URL = "https://github.com/pavvel11/mikrus-toolbox.git";
+const REPO_URL = "https://github.com/jurczykpawel/mikrus-toolbox.git";
 const LOCAL_CLONE_DIR = join(homedir(), ".mikrus-toolbox");
 
 let cachedRoot: string | null = null;

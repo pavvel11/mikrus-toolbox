@@ -1,6 +1,6 @@
 import { sshExec } from "./ssh.js";
 
-const TOOLBOX_REPO_URL = "https://github.com/pavvel11/mikrus-toolbox.git";
+const TOOLBOX_REPO_URL = "https://github.com/jurczykpawel/mikrus-toolbox.git";
 const TOOLBOX_SERVER_PATH = "/opt/mikrus-toolbox";
 const TOOLBOX_MARKER = `${TOOLBOX_SERVER_PATH}/local/deploy.sh`;
 

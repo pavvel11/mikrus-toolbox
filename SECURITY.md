@@ -6,7 +6,7 @@
 
 Zamiast tego:
 
-1. Użyj [GitHub Security Advisories](https://github.com/pavvel11/mikrus-toolbox/security/advisories/new) (prywatne)
+1. Użyj [GitHub Security Advisories](https://github.com/jurczykpawel/mikrus-toolbox/security/advisories/new) (prywatne)
 2. Lub napisz e-mail na adres podany w profilu autora
 
 ### Co zawrzeć w zgłoszeniu

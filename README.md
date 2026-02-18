@@ -5,7 +5,7 @@
 Zamień tani polski VPS ([mikr.us](https://mikr.us)) w pełną infrastrukturę firmy - automatyzacja, mailing, analityka, CRM, sklep z produktami cyfrowymi - za ~20 zł/mies zamiast ~7000 zł/rok w SaaS-ach.
 
 ```bash
-git clone https://github.com/pavvel11/mikrus-toolbox.git
+git clone https://github.com/jurczykpawel/mikrus-toolbox.git
 cd mikrus-toolbox
 ./local/deploy.sh n8n        # → n8n działa na Twoim serwerze
 ```
@@ -122,10 +122,10 @@ Wszystko na Twoim serwerze. Zero opłat za "execution". Zero limitów.
 
 ```bash
 # Linux / macOS
-bash <(curl -s https://raw.githubusercontent.com/pavvel11/mikrus-toolbox/main/local/setup-ssh.sh)
+bash <(curl -s https://raw.githubusercontent.com/jurczykpawel/mikrus-toolbox/main/local/setup-ssh.sh)
 
 # Windows (PowerShell)
-iwr -useb https://raw.githubusercontent.com/pavvel11/mikrus-toolbox/main/local/setup-ssh.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/jurczykpawel/mikrus-toolbox/main/local/setup-ssh.ps1 | iex
 ```
 
 Skrypt zapyta o dane z maila od Mikrusa (host, port, hasło) i skonfiguruje klucz SSH + alias.
@@ -133,7 +133,7 @@ Skrypt zapyta o dane z maila od Mikrusa (host, port, hasło) i skonfiguruje kluc
 ### 2. Pobierz toolbox
 
 ```bash
-git clone https://github.com/pavvel11/mikrus-toolbox.git
+git clone https://github.com/jurczykpawel/mikrus-toolbox.git
 cd mikrus-toolbox
 ```
 
@@ -346,11 +346,11 @@ tests/           → Testy automatyczne
 
 ## Autor
 
-**Paweł** ([@pavvel11](https://github.com/pavvel11)) - Lazy Engineer
+**Paweł** ([@jurczykpawel](https://github.com/jurczykpawel)) - Lazy Engineer
 
 Buduję narzędzia dla solopreneurów, którzy wolą automatyzować niż klikać. Mikrus Toolbox to zestaw, którego sam używam do prowadzenia biznesu.
 
-- [GateFlow](https://github.com/pavvel11/gateflow) - open-source sklep z produktami cyfrowymi
+- [GateFlow](https://github.com/jurczykpawel/gateflow) - open-source sklep z produktami cyfrowymi
 - [Mikrus n8n Manager](https://manager.cytr.us/) - GUI do instalacji n8n na Mikrusie
 
 ---

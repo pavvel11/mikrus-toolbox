@@ -20,7 +20,7 @@
 set -e
 
 APP_NAME="gateflow"
-GITHUB_REPO="pavvel11/gateflow"
+GITHUB_REPO="jurczykpawel/gateflow"
 
 # =============================================================================
 # MULTI-INSTANCE: nazwa instancji z domeny

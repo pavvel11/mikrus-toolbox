@@ -9,13 +9,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/pavvel11/mikrus-toolbox.git",
+    "url": "https://github.com/jurczykpawel/mikrus-toolbox.git",
     "directory": "mcp-server"
   },
   "author": "Paweł (Lazy Engineer)",
   "keywords": ["mcp", "server", "mikrus", "vps", "docker", "self-hosted", "deployment"],
-  "homepage": "https://github.com/pavvel11/mikrus-toolbox#mcp-server",
-  "bugs": "https://github.com/pavvel11/mikrus-toolbox/issues",
+  "homepage": "https://github.com/jurczykpawel/mikrus-toolbox#mcp-server",
+  "bugs": "https://github.com/jurczykpawel/mikrus-toolbox/issues",
   "engines": {
     "node": ">=18.0.0"
   },

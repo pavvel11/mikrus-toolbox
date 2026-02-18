@@ -14,7 +14,7 @@
 set -e
 
 SSH_ALIAS="${1:-}"
-GITHUB_REPO="pavvel11/gateflow"
+GITHUB_REPO="jurczykpawel/gateflow"
 MIGRATIONS_PATH="supabase/migrations"
 
 # Kolory

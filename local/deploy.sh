@@ -169,7 +169,7 @@ if ! is_on_server; then
             fi
         else
             echo "   Skonfiguruj SSH:"
-            echo -e "   ${BLUE}bash <(curl -s https://raw.githubusercontent.com/pavvel11/mikrus-toolbox/main/local/setup-ssh.sh)${NC}"
+            echo -e "   ${BLUE}bash <(curl -s https://raw.githubusercontent.com/jurczykpawel/mikrus-toolbox/main/local/setup-ssh.sh)${NC}"
             exit 1
         fi
     else

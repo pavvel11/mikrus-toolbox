@@ -108,7 +108,7 @@ Dodaj swoją appkę do listy w sekcji "Dostępne aplikacje" w `AGENTS.md`.
 
 ## Zgłaszanie bugów
 
-Otwórz [Issue](https://github.com/pavvel11/mikrus-toolbox/issues) z:
+Otwórz [Issue](https://github.com/jurczykpawel/mikrus-toolbox/issues) z:
 - Nazwa aplikacji
 - Serwer (plan Mikrusa, RAM)
 - Logi błędu (`docker compose logs --tail 30`)
@@ -145,7 +145,7 @@ SSH_HOST=twoj-serwer ./tests/test-apps.sh
 
 Znalazles podatnosc? **Nie twórz publicznego Issue!**
 
-Zamiast tego uzyj [GitHub Security Advisories](https://github.com/pavvel11/mikrus-toolbox/security/advisories/new)
+Zamiast tego uzyj [GitHub Security Advisories](https://github.com/jurczykpawel/mikrus-toolbox/security/advisories/new)
 lub napisz prywatnie do autora. Szczegoly w [SECURITY.md](SECURITY.md).
 
 ---

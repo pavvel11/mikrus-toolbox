@@ -19,7 +19,7 @@
 
 set -e
 
-GITHUB_REPO="pavvel11/gateflow"
+GITHUB_REPO="jurczykpawel/gateflow"
 RESTART_ONLY=false
 
 # Parse arguments

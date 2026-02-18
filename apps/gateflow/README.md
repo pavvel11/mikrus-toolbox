@@ -581,4 +581,4 @@ A: `ssh mikrus "pm2 list"` - pokaże wszystkie procesy GateFlow z ich statusem.
 
 ---
 
-> GateFlow: https://github.com/pavvel11/gateflow
+> GateFlow: https://github.com/jurczykpawel/gateflow

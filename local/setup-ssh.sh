@@ -6,7 +6,7 @@
 #
 # Użycie:
 #   bash local/setup-ssh.sh
-#   bash <(curl -s https://raw.githubusercontent.com/pavvel11/mikrus-toolbox/main/local/setup-ssh.sh)
+#   bash <(curl -s https://raw.githubusercontent.com/jurczykpawel/mikrus-toolbox/main/local/setup-ssh.sh)
 
 # Ten skrypt działa tylko na komputerze lokalnym (konfiguruje SSH DO serwera)
 if [ -f /klucz_api ]; then

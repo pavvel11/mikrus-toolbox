@@ -19,7 +19,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../lib/server-exec.sh"
 
-GITHUB_REPO="pavvel11/gateflow"
+GITHUB_REPO="jurczykpawel/gateflow"
 MIGRATIONS_PATH="supabase/migrations"
 
 # Kolory
