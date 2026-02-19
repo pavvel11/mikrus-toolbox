@@ -5,7 +5,7 @@
 # Author: Paweł (Lazy Engineer)
 #
 # Ustawienia zone (uniwersalne):
-#   - SSL: Flexible (Mikrus nie ma własnego certyfikatu)
+#   - SSL: Full (Caddy na Mikrusie auto-generuje certyfikat)
 #   - Brotli: ON
 #   - Always HTTPS: ON
 #   - Minimum TLS: 1.2
@@ -45,7 +45,7 @@ if [ -z "$FULL_DOMAIN" ]; then
     echo "Użycie: $0 <domena> [--app=wordpress|nextjs]"
     echo ""
     echo "Optymalizuje ustawienia Cloudflare dla domeny:"
-    echo "  - SSL Flexible (wymagane dla Mikrus)"
+    echo "  - SSL Full (Caddy auto-cert)"
     echo "  - Kompresja Brotli"
     echo "  - Always HTTPS, HTTP/2, HTTP/3"
     echo "  - Early Hints"
@@ -149,8 +149,9 @@ set_zone_setting() {
 
 echo "⚙️  Ustawienia zone..."
 
-# SSL Flexible - WYMAGANE dla Mikrus (brak certyfikatu na serwerze)
-set_zone_setting "ssl" '"flexible"' "SSL Flexible"
+# SSL Full - Caddy na Mikrusie auto-generuje certyfikat (Let's Encrypt)
+# Nie używamy Flexible, bo psuje inne subdomeny/serwery w tej samej strefie
+set_zone_setting "ssl" '"full"' "SSL Full"
 
 # Brotli - lepsza kompresja
 set_zone_setting "brotli" '"on"' "Brotli"
@@ -370,14 +371,14 @@ if [ "$PERMISSION_ERRORS" -gt 0 ]; then
     echo ""
     echo "   Utwórz token: https://dash.cloudflare.com/profile/api-tokens"
     echo "   Lub ustaw ręcznie w panelu Cloudflare:"
-    echo "   → SSL/TLS: Flexible"
+    echo "   → SSL/TLS: Full"
     echo "   → Speed → Optimization: włącz Brotli"
     echo ""
 else
     echo -e "${GREEN}🎉 Optymalizacja zakończona!${NC}"
     echo ""
     echo "📋 Ustawione:"
-    echo "   • SSL: Flexible (wymagane dla Mikrus)"
+    echo "   • SSL: Full (Caddy auto-cert)"
     echo "   • Kompresja: Brotli"
     echo "   • HTTPS: wymuszony"
     echo "   • TLS: minimum 1.2"

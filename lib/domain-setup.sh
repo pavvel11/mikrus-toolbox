@@ -510,7 +510,7 @@ configure_domain_cloudflare() {
         echo -e "${YELLOW}⚠️  Nie znaleziono dns-add.sh${NC}"
     fi
 
-    # Optymalizacja ustawień Cloudflare (SSL Flexible, cache, kompresja)
+    # Optymalizacja ustawień Cloudflare (SSL Full, cache, kompresja)
     if [ -f "$OPTIMIZE_SCRIPT" ]; then
         echo ""
         # Mapuj APP_NAME na --app preset (jeśli znany)
@@ -553,7 +553,7 @@ configure_domain_cloudflare() {
     if [ -n "$WEBROOT" ]; then
         # Static site (littlelink, etc.) - użyj trybu file_server
         echo "   Wykryto static site: $WEBROOT"
-        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$WEBROOT' static --cloudflare" 2>/dev/null; then
+        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$WEBROOT' static" 2>/dev/null; then
             echo -e "${GREEN}✅ HTTPS skonfigurowany (file_server)${NC}"
             CADDY_OK=true
             # Usuń marker (nie usuwaj domain_public_webroot!)
@@ -561,7 +561,7 @@ configure_domain_cloudflare() {
         fi
     else
         # Docker app - użyj reverse_proxy
-        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$PORT' proxy --cloudflare" 2>/dev/null; then
+        if server_exec "command -v mikrus-expose &>/dev/null && mikrus-expose '$DOMAIN' '$PORT' proxy" 2>/dev/null; then
             echo -e "${GREEN}✅ HTTPS skonfigurowany (reverse_proxy)${NC}"
             CADDY_OK=true
         fi
