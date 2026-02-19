@@ -61,7 +61,7 @@ Dla **solopreneurów, freelancerów i małych firm**, które:
 | [**GateFlow**](apps/gateflow/) | Gumroad / EasyCart | Sklep z produktami cyfrowymi. 0 zł/mies, 0% prowizji. Lejki, kupony, Omnibus EU. |
 | [**Listmonk**](apps/listmonk/) | Mailchimp | Newsletter na miliony maili za grosze (przez Amazon SES lub SMTP). |
 | [**Typebot**](apps/typebot/) | Typeform | Chatboty i formularze. Zbieraj leady, rób ankiety, sprzedawaj w rozmowie. |
-| [**Postiz**](apps/postiz/) | Buffer / Hootsuite | Planuj posty na X, LinkedIn, Instagram, Facebook, TikTok. |
+| [**Postiz**](apps/postiz/) | Buffer / Hootsuite | Planuj posty na X, LinkedIn, Instagram, Facebook, TikTok. ⚠️ Wymaga dedykowanego serwera (4GB+). |
 | [**Cap**](apps/cap/) | Loom | Nagrywaj ekran i udostępniaj wideo. Tutoriale, async communication. |
 | [**Umami**](apps/umami/) | Google Analytics | Analityka bez cookies, bez RODO-paniki, z szacunkiem do prywatności. |
 | [**Cookie Hub**](apps/cookie-hub/) | Cookiebot | Centralny serwer zgód RODO dla wszystkich Twoich stron. |

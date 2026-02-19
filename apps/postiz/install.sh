@@ -5,21 +5,30 @@
 # https://github.com/gitroomhq/postiz-app
 # Author: Paweł (Lazy Engineer)
 #
-# IMAGE_SIZE_MB=3000  # ghcr.io/gitroomhq/postiz-app:v2.11.3 (1.2GB compressed → ~3GB on disk)
+# IMAGE_SIZE_MB=5000  # Postiz + Temporal + Elasticsearch + 2x PostgreSQL + Redis
 #
-# ⚠️  UWAGA: Ta aplikacja wymaga minimum 1.5GB RAM (Mikrus 3.0+)!
-#     Postiz (Next.js + Nest.js + nginx + workers + cron) = ~800MB-1.2GB RAM
-#     Limit 1024M jest za mało — backend wpada w restart loop (OOM)!
+# ⚠️  UWAGA: Postiz wymaga DEDYKOWANEGO serwera (Mikrus 3.5+, min. 4GB RAM)!
+#     Postiz (Next.js + Nest.js + nginx + workers + cron) = ~1-1.5GB
+#     Temporal + Elasticsearch + PostgreSQL = ~1-1.5GB
+#     Razem: ~2.5-3GB RAM
+#     Nie instaluj obok innych ciężkich usług!
 #
-# Pinujemy v2.11.3 (pre-Temporal). Od v2.12+ Postiz wymaga Temporal + Elasticsearch
-# + drugi PostgreSQL = 7 kontenerów, minimum 4GB RAM. Zbyt ciężkie na Mikrus.
-# https://github.com/gitroomhq/postiz-app/releases/tag/v2.11.3
+# Stack: 7 kontenerów
+#   - postiz (aplikacja)
+#   - postiz-postgres (baza danych Postiz)
+#   - postiz-redis (cache + queues)
+#   - temporal (workflow engine)
+#   - temporal-elasticsearch (wyszukiwanie Temporal)
+#   - temporal-postgresql (baza danych Temporal)
+#   - temporal-ui (panel Temporal, opcjonalny)
+#
+# Baza danych PostgreSQL:
+#   Domyślnie bundlowana (postgres:17-alpine w compose).
+#   Jeśli deploy.sh przekaże DB_HOST/DB_USER/DB_PASS — używa external DB.
 #
 # Wymagane zmienne środowiskowe (przekazywane przez deploy.sh):
-#   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS - baza PostgreSQL
 #   DOMAIN (opcjonalne)
-#   POSTIZ_REDIS (opcjonalne): auto|external|bundled (domyślnie: auto)
-#   REDIS_PASS (opcjonalne): hasło do external Redis
+#   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS (opcjonalne — jeśli external DB)
 
 set -e
 
@@ -28,7 +37,7 @@ STACK_DIR="/opt/stacks/$APP_NAME"
 PORT=${PORT:-5000}
 
 echo "--- 📱 Postiz Setup ---"
-echo "AI-powered social media scheduler."
+echo "AI-powered social media scheduler (latest + Temporal)."
 echo ""
 
 # Port binding: Cytrus wymaga 0.0.0.0, Cloudflare/local → 127.0.0.1
@@ -38,30 +47,46 @@ else
     BIND_ADDR="127.0.0.1:"
 fi
 
-# RAM check - soft warning (nie blokujemy, ale ostrzegamy)
+# RAM check - Postiz z Temporal potrzebuje ~3GB
 TOTAL_RAM=$(free -m 2>/dev/null | awk '/^Mem:/ {print $2}' || echo "0")
 
-if [ "$TOTAL_RAM" -gt 0 ] && [ "$TOTAL_RAM" -lt 1800 ]; then
+if [ "$TOTAL_RAM" -gt 0 ] && [ "$TOTAL_RAM" -lt 3500 ]; then
     echo ""
     echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║  ⚠️  UWAGA: Postiz zaleca minimum 2GB RAM!                   ║"
+    echo "║  ⚠️  UWAGA: Postiz + Temporal zaleca minimum 4GB RAM!        ║"
     echo "╠════════════════════════════════════════════════════════════════╣"
     echo "║  Twój serwer: ${TOTAL_RAM}MB RAM                             ║"
-    echo "║  Zalecane:    2048MB RAM (Mikrus 3.0+)                       ║"
+    echo "║  Zalecane:    4096MB RAM (Mikrus 3.5+)                       ║"
     echo "║                                                              ║"
-    echo "║  Postiz + Redis = ~1-1.5GB RAM                               ║"
-    echo "║  Na małym serwerze może być wolny.                           ║"
+    echo "║  Postiz + Temporal + ES + 2x PG + Redis = ~2.5-3GB RAM      ║"
+    echo "║  Na serwerze <4GB mogą być problemy ze stabilnością.         ║"
     echo "╚════════════════════════════════════════════════════════════════╝"
     echo ""
 fi
 
 # =============================================================================
-# DETEKCJA REDIS (external vs bundled)
+# BAZA DANYCH — BUNDLED vs EXTERNAL
 # =============================================================================
-# POSTIZ_REDIS=external  → użyj istniejącego na hoście (localhost:6379)
-# POSTIZ_REDIS=bundled   → zawsze bundluj redis:7.2-alpine w compose
-# POSTIZ_REDIS=auto      → auto-detekcja (domyślne)
+JWT_SECRET=$(openssl rand -hex 32)
 
+if [ -n "${DB_HOST:-}" ] && [ -n "${DB_USER:-}" ] && [ -n "${DB_PASS:-}" ]; then
+    # External DB — przekazana przez deploy.sh (--db=custom)
+    USE_BUNDLED_PG=false
+    DB_PORT=${DB_PORT:-5432}
+    DB_NAME=${DB_NAME:-postiz}
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
+    echo "✅ Baza PostgreSQL: external ($DB_HOST:$DB_PORT/$DB_NAME)"
+else
+    # Bundled DB — postgres:17-alpine w compose
+    USE_BUNDLED_PG=true
+    PG_POSTIZ_PASS=$(openssl rand -hex 16)
+    DATABASE_URL="postgresql://postiz:${PG_POSTIZ_PASS}@postiz-postgres:5432/postiz"
+    echo "✅ Baza PostgreSQL: bundled (postgres:17-alpine)"
+fi
+
+# =============================================================================
+# REDIS — BUNDLED vs EXTERNAL (auto-detekcja)
+# =============================================================================
 source /opt/mikrus-toolbox/lib/redis-detect.sh 2>/dev/null || true
 if type detect_redis &>/dev/null; then
     detect_redis "${POSTIZ_REDIS:-auto}" "postiz-redis"
@@ -70,65 +95,18 @@ else
     echo "✅ Redis: bundled (lib/redis-detect.sh niedostępne)"
 fi
 
-# Hasło Redis (user podaje przez REDIS_PASS env var)
 REDIS_PASS="${REDIS_PASS:-}"
-if [ -n "$REDIS_PASS" ] && [ "$REDIS_HOST" = "host-gateway" ]; then
-    echo "   🔑 Hasło Redis: ustawione"
-fi
-
-# Buduj REDIS_URL
 if [ "$REDIS_HOST" = "host-gateway" ]; then
+    USE_BUNDLED_REDIS=false
     if [ -n "$REDIS_PASS" ]; then
         REDIS_URL="redis://:${REDIS_PASS}@host-gateway:6379"
     else
         REDIS_URL="redis://host-gateway:6379"
     fi
 else
+    USE_BUNDLED_REDIS=true
     REDIS_URL="redis://postiz-redis:6379"
 fi
-
-# Check for shared Mikrus DB (doesn't support gen_random_uuid on PG 12)
-if [[ "$DB_HOST" == psql*.mikr.us ]]; then
-    echo ""
-    echo "╔════════════════════════════════════════════════════════════════╗"
-    echo "║  ❌ BŁĄD: Postiz NIE działa ze współdzieloną bazą Mikrusa!    ║"
-    echo "╠════════════════════════════════════════════════════════════════╣"
-    echo "║  Postiz (Prisma) wymaga gen_random_uuid(), które nie jest      ║"
-    echo "║  dostępne w PostgreSQL 12 (shared Mikrus).                     ║"
-    echo "║                                                                ║"
-    echo "║  Rozwiązanie: Kup dedykowany PostgreSQL                        ║"
-    echo "║  https://mikr.us/panel/?a=cloud                                ║"
-    echo "╚════════════════════════════════════════════════════════════════╝"
-    echo ""
-    exit 1
-fi
-
-# Sprawdź dane bazy PostgreSQL
-if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASS" ]; then
-    echo "❌ Brak danych bazy PostgreSQL!"
-    echo "   Wymagane: DB_HOST, DB_USER, DB_PASS, DB_NAME"
-    echo ""
-    echo "   Użyj deploy.sh - automatycznie skonfiguruje bazę:"
-    echo "   ./local/deploy.sh postiz --ssh=mikrus"
-    exit 1
-fi
-
-DB_PORT=${DB_PORT:-5432}
-DB_NAME=${DB_NAME:-postiz}
-
-echo "✅ Baza PostgreSQL: $DB_HOST:$DB_PORT/$DB_NAME (user: $DB_USER)"
-
-# Buduj DATABASE_URL (z obsługą schematu — izolacja danych na współdzielonej bazie)
-DB_SCHEMA=${DB_SCHEMA:-postiz}
-if [ "$DB_SCHEMA" != "public" ]; then
-    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?schema=$DB_SCHEMA"
-    echo "   Schemat: $DB_SCHEMA"
-else
-    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
-fi
-
-# Generuj sekrety
-JWT_SECRET=$(openssl rand -hex 32)
 
 # Domain / URLs
 if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
@@ -151,23 +129,99 @@ fi
 sudo mkdir -p "$STACK_DIR"
 cd "$STACK_DIR"
 
-# --- Docker Compose: warunkowe bloki Redis ---
-POSTIZ_DEPENDS=""
-POSTIZ_EXTRA_HOSTS=""
-REDIS_SERVICE=""
+# =============================================================================
+# PLIK .env — OFICJALNY TEMPLATE Z REPOZYTORIUM POSTIZ
+# =============================================================================
+# Pobieramy .env.example tylko przy pierwszej instalacji (nie nadpisujemy uzupełnionych kluczy)
+if [ ! -f .env ]; then
+    ENV_URL="https://raw.githubusercontent.com/gitroomhq/postiz-app/main/.env.example"
+    if curl -sf "$ENV_URL" -o /tmp/postiz-env-example 2>/dev/null; then
+        # Dodaj nagłówek z instrukcją
+        {
+            echo "# ╔════════════════════════════════════════════════════════════════╗"
+            echo "# ║  Postiz — klucze API platform social media                    ║"
+            echo "# ║  Uzupełnij tylko te platformy, z których chcesz korzystać.    ║"
+            echo "# ║  Docs: https://docs.postiz.com/providers                      ║"
+            echo "# ╚════════════════════════════════════════════════════════════════╝"
+            echo ""
+            cat /tmp/postiz-env-example
+        } | sudo tee .env > /dev/null
+        rm -f /tmp/postiz-env-example
+        sudo chmod 600 .env
+        echo "✅ Plik .env pobrany z repozytorium Postiz: $STACK_DIR/.env"
+    else
+        echo "⚠️  Nie udało się pobrać .env.example — utwórz plik ręcznie"
+        echo "   $ENV_URL"
+    fi
+else
+    echo "✅ Plik .env już istnieje — nie nadpisuję"
+fi
 
-if [ "$REDIS_HOST" = "postiz-redis" ]; then
-    # Bundled Redis
-    POSTIZ_DEPENDS="    depends_on:
+# =============================================================================
+# TEMPORAL DYNAMIC CONFIG
+# =============================================================================
+sudo mkdir -p "$STACK_DIR/dynamicconfig"
+cat <<'DYNEOF' | sudo tee "$STACK_DIR/dynamicconfig/development-sql.yaml" > /dev/null
+limit.maxIDLength:
+  - value: 255
+    constraints: {}
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+    constraints: {}
+DYNEOF
+
+# =============================================================================
+# DOCKER COMPOSE — PEŁNY STACK Z TEMPORAL
+# =============================================================================
+
+# Warunkowe bloki: bundled vs external PostgreSQL / Redis
+POSTIZ_DEPENDS_LIST=""
+POSTIZ_EXTRA_HOSTS=""
+POSTIZ_PG_SERVICE=""
+POSTIZ_REDIS_SERVICE=""
+
+if [ "$USE_BUNDLED_PG" = true ]; then
+    POSTIZ_DEPENDS_LIST="${POSTIZ_DEPENDS_LIST}
+      postiz-postgres:
+        condition: service_healthy"
+    POSTIZ_PG_SERVICE="
+  # --- PostgreSQL (baza Postiz) ---
+  postiz-postgres:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=postiz
+      - POSTGRES_PASSWORD=${PG_POSTIZ_PASS}
+      - POSTGRES_DB=postiz
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    networks:
+      - postiz-network
+    healthcheck:
+      test: [\"CMD\", \"pg_isready\", \"-U\", \"postiz\", \"-d\", \"postiz\"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M"
+fi
+
+if [ "$USE_BUNDLED_REDIS" = true ]; then
+    POSTIZ_DEPENDS_LIST="${POSTIZ_DEPENDS_LIST}
       postiz-redis:
         condition: service_healthy"
-    REDIS_SERVICE="
+    POSTIZ_REDIS_SERVICE="
+  # --- Redis ---
   postiz-redis:
     image: redis:7.2-alpine
     restart: always
     command: redis-server --save 60 1 --loglevel warning
     volumes:
       - ./redis-data:/data
+    networks:
+      - postiz-network
     healthcheck:
       test: [\"CMD\", \"redis-cli\", \"ping\"]
       interval: 10s
@@ -177,17 +231,28 @@ if [ "$REDIS_HOST" = "postiz-redis" ]; then
       resources:
         limits:
           memory: 128M"
-else
-    # External Redis - łącz z hostem
+fi
+
+# Extra hosts dla external DB/Redis
+if [ "$USE_BUNDLED_PG" = false ] || [ "$USE_BUNDLED_REDIS" = false ]; then
     POSTIZ_EXTRA_HOSTS="    extra_hosts:
       - \"host-gateway:host-gateway\""
 fi
 
+# Buduj depends_on
+if [ -n "$POSTIZ_DEPENDS_LIST" ]; then
+    POSTIZ_DEPENDS="    depends_on:${POSTIZ_DEPENDS_LIST}"
+else
+    POSTIZ_DEPENDS=""
+fi
+
 cat <<EOF | sudo tee docker-compose.yaml > /dev/null
 services:
+  # --- Postiz (aplikacja główna) ---
   postiz:
-    image: ghcr.io/gitroomhq/postiz-app:v2.11.3
+    image: ghcr.io/gitroomhq/postiz-app:latest
     restart: always
+    env_file: .env
     ports:
       - "${BIND_ADDR}$PORT:5000"
     environment:
@@ -197,6 +262,7 @@ services:
       - BACKEND_INTERNAL_URL=http://localhost:3000
       - DATABASE_URL=$DATABASE_URL
       - REDIS_URL=$REDIS_URL
+      - TEMPORAL_ADDRESS=temporal:7233
       - JWT_SECRET=$JWT_SECRET
       - IS_GENERAL=true
       - STORAGE_PROVIDER=local
@@ -206,6 +272,9 @@ services:
     volumes:
       - ./config:/config
       - ./uploads:/uploads
+    networks:
+      - postiz-network
+      - temporal-network
 $POSTIZ_DEPENDS
 $POSTIZ_EXTRA_HOSTS
     healthcheck:
@@ -213,31 +282,126 @@ $POSTIZ_EXTRA_HOSTS
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 90s
     deploy:
       resources:
         limits:
           memory: 1536M
-$REDIS_SERVICE
+$POSTIZ_PG_SERVICE
+$POSTIZ_REDIS_SERVICE
+
+  # --- Temporal (workflow engine) ---
+  temporal:
+    image: temporalio/auto-setup:1.28.1
+    restart: always
+    depends_on:
+      - temporal-postgresql
+      - temporal-elasticsearch
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=true
+      - ES_SEEDS=temporal-elasticsearch
+      - ES_VERSION=v7
+      - TEMPORAL_NAMESPACE=default
+    networks:
+      - temporal-network
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # --- Elasticsearch (wymagany przez Temporal) ---
+  temporal-elasticsearch:
+    image: elasticsearch:7.17.27
+    restart: always
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+    networks:
+      - temporal-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # --- PostgreSQL (baza Temporal) ---
+  temporal-postgresql:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=temporal
+      - POSTGRES_PASSWORD=temporal
+    volumes:
+      - ./temporal-postgres-data:/var/lib/postgresql/data
+    networks:
+      - temporal-network
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # --- Temporal UI (panel zarządzania workflow) ---
+  temporal-ui:
+    image: temporalio/ui:2.34.0
+    restart: always
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://127.0.0.1:3000
+    networks:
+      - temporal-network
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      - temporal
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  postiz-network:
+  temporal-network:
 EOF
+
+# Policz kontenery
+CONTAINER_COUNT=5  # postiz + temporal + temporal-es + temporal-pg + temporal-ui
+[ "$USE_BUNDLED_PG" = true ] && CONTAINER_COUNT=$((CONTAINER_COUNT + 1))
+[ "$USE_BUNDLED_REDIS" = true ] && CONTAINER_COUNT=$((CONTAINER_COUNT + 1))
+
+echo ""
+echo "✅ Docker Compose wygenerowany ($CONTAINER_COUNT kontenerów)"
+echo "   Uruchamiam stack..."
+echo ""
 
 sudo docker compose up -d
 
-# Health check - Next.js potrzebuje ~60-90s na start
-echo "⏳ Czekam na uruchomienie Postiz (~60-90s, Next.js)..."
+# Health check - Temporal + Postiz potrzebują więcej czasu na start
+echo "⏳ Czekam na uruchomienie Postiz (~90-120s, Temporal + Next.js)..."
 source /opt/mikrus-toolbox/lib/health-check.sh 2>/dev/null || true
 if type wait_for_healthy &>/dev/null; then
-    wait_for_healthy "$APP_NAME" "$PORT" 90 || { echo "❌ Instalacja nie powiodła się!"; exit 1; }
+    wait_for_healthy "$APP_NAME" "$PORT" 120 || { echo "❌ Instalacja nie powiodła się!"; exit 1; }
 else
-    for i in $(seq 1 9); do
+    for i in $(seq 1 12); do
         sleep 10
         if curl -sf "http://localhost:$PORT" > /dev/null 2>&1; then
             echo "✅ Postiz działa (po $((i*10))s)"
             break
         fi
         echo "   ... $((i*10))s"
-        if [ "$i" -eq 9 ]; then
-            echo "❌ Kontener nie wystartował w 90s!"
+        if [ "$i" -eq 12 ]; then
+            echo "❌ Kontener nie wystartował w 120s!"
             sudo docker compose logs --tail 30
             exit 1
         fi
@@ -247,16 +411,10 @@ fi
 # =============================================================================
 # WERYFIKACJA UPLOADSÓW (wymagane dla TikTok, Instagram media)
 # =============================================================================
-# TikTok pobiera media przez pull_from_url — pliki muszą być dostępne publicznie
-# po HTTPS. Postiz serwuje /uploads przez wewnętrzny nginx, więc jeśli jest domena
-# to uploady są dostępne automatycznie (reverse_proxy/Cytrus przekazuje ruch).
-
 UPLOADS_OK=false
 if [ -n "$DOMAIN" ] && [ "$DOMAIN" != "-" ]; then
-    # Poczekaj aż domena zacznie odpowiadać (cert SSL może potrzebować chwili)
     for i in $(seq 1 6); do
         UPLOAD_CHECK=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "https://${DOMAIN}/uploads/" 2>/dev/null || echo "000")
-        # 404/403 = serwer odpowiada (katalog pusty, ale endpoint działa)
         if [ "$UPLOAD_CHECK" -ge 200 ] && [ "$UPLOAD_CHECK" -lt 500 ]; then
             UPLOADS_OK=true
             break
@@ -288,15 +446,19 @@ else
     echo "   TikTok pobiera media przez URL — pliki muszą być dostępne po HTTPS."
     echo "   Sprawdź: https://<twoja-domena>/uploads/"
     echo "   Alternatywa: Cloudflare R2 (STORAGE_PROVIDER=cloudflare-r2)"
-    echo "   Docs: https://docs.postiz.com/providers/tiktok"
 fi
 
 echo ""
 echo "📝 Następne kroki:"
 echo "   1. Utwórz konto administratora w przeglądarce"
 echo "   2. Wyłącz rejestrację (komenda poniżej!)"
-echo "   3. Skonfiguruj klucze API dla platform social media:"
-echo "      https://docs.postiz.com/providers"
+echo "   3. Uzupełnij klucze API w pliku .env:"
+echo ""
+echo "      ssh ${SSH_ALIAS:-mikrus} 'nano $STACK_DIR/.env'"
+echo ""
+echo "      Uzupełnij pary KEY/SECRET tylko dla platform, z których korzystasz."
+echo "      Po zapisaniu: ssh ${SSH_ALIAS:-mikrus} 'cd $STACK_DIR && docker compose up -d'"
+echo "      Docs: https://docs.postiz.com/providers"
 echo ""
 echo "   ⚠️  Ważne uwagi przy konfiguracji providerów:"
 echo "   • Facebook: przełącz app z Development → Live (inaczej posty widoczne tylko dla Ciebie!)"

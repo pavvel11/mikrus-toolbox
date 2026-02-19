@@ -2,99 +2,131 @@
 
 Alternatywa dla Buffer/Hootsuite. Planuj posty na Twitter/X, LinkedIn, Instagram, Facebook, TikTok i więcej.
 
+## Wymagania
+
+- **Dedykowany serwer** — Postiz wymaga osobnego Mikrusa (nie instaluj obok innych ciężkich usług!)
+- **RAM:** minimum 4GB (Mikrus 3.5+), zużycie ~2.5-3GB (7 kontenerów)
+- **Dysk:** ~5GB (obrazy Docker)
+- **Domena:** wymagana (HTTPS dla OAuth callback)
+
+> Postiz od v2.12 wymaga Temporal (workflow engine) + Elasticsearch + osobny PostgreSQL.
+> To 7 kontenerów — zbyt dużo żeby współdzielić serwer z innymi usługami.
+
 ## Instalacja
 
 ```bash
-./local/deploy.sh postiz --ssh=mikrus --domain-type=cytrus --domain=auto
+# Domyślnie — bundluje PostgreSQL + Redis (zero konfiguracji)
+./local/deploy.sh postiz --ssh=<alias> --domain-type=cytrus --domain=auto
+
+# Z własną bazą danych (jeśli masz kupiony dedykowany PostgreSQL)
+./local/deploy.sh postiz --ssh=<alias> --db=custom --domain-type=cytrus --domain=auto
+
+# Z istniejącym Redis na serwerze
+POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=<alias> --domain-type=cytrus --domain=auto
 ```
 
-Deploy.sh automatycznie skonfiguruje bazę PostgreSQL (wymagana dedykowana).
+Domyślnie PostgreSQL, Redis i Temporal są bundlowane automatycznie — nie trzeba kupować zewnętrznej bazy. Jeśli masz już wykupiony PostgreSQL lub Redis na serwerze, możesz je reużyć.
 
-## Wymagania
+## Stack (5-7 kontenerów)
 
-- **RAM:** zalecane 2GB (Mikrus 3.0+), ~1-1.5GB zużycia (Postiz + Redis)
-- **Dysk:** ~3GB (obraz Docker)
-- **Baza danych:** PostgreSQL (dedykowana — shared Mikrus nie działa, PG 12 nie ma `gen_random_uuid()`)
-- **Redis:** Auto-detekcja external lub bundled (patrz niżej)
-
-## Wersja
-
-Pinujemy **v2.11.3** (pre-Temporal). Od v2.12+ Postiz wymaga Temporal + Elasticsearch + drugi PostgreSQL = 7 kontenerów, minimum 4GB RAM. Zbyt ciężkie na Mikrus.
+| Kontener | Obraz | RAM | Rola | Bundled? |
+|----------|-------|-----|------|----------|
+| postiz | ghcr.io/gitroomhq/postiz-app:latest | ~1.5GB | Aplikacja (Next.js + Nest.js + nginx) | zawsze |
+| postiz-postgres | postgres:17-alpine | ~256MB | Baza danych Postiz | domyślnie (pomijany z `--db=custom`) |
+| postiz-redis | redis:7.2-alpine | ~128MB | Cache + queues | domyślnie (pomijany z `POSTIZ_REDIS=external`) |
+| temporal | temporalio/auto-setup:1.28.1 | ~512MB | Workflow engine | zawsze |
+| temporal-elasticsearch | elasticsearch:7.17.27 | ~512MB | Wyszukiwanie Temporal | zawsze |
+| temporal-postgresql | postgres:16-alpine | ~128MB | Baza danych Temporal | zawsze |
+| temporal-ui | temporalio/ui:2.34.0 | ~128MB | Panel Temporal (localhost:8080) | zawsze |
 
 ## Po instalacji
 
 1. Otwórz stronę w przeglądarce → utwórz konto administratora
 2. **Wyłącz rejestrację** po utworzeniu konta:
    ```bash
-   ssh mikrus 'cd /opt/stacks/postiz && grep -q DISABLE_REGISTRATION docker-compose.yaml || sed -i "/IS_GENERAL/a\      - DISABLE_REGISTRATION=true" docker-compose.yaml && docker compose up -d'
+   ssh <alias> 'cd /opt/stacks/postiz && sed -i "/IS_GENERAL/a\      - DISABLE_REGISTRATION=true" docker-compose.yaml && docker compose up -d'
    ```
-3. Podłącz konta social media (Settings → Integrations)
-4. Zaplanuj pierwsze posty
+3. Uzupełnij klucze API providerów w pliku `.env`:
+   ```bash
+   ssh <alias> 'nano /opt/stacks/postiz/.env'
+   # po zapisaniu:
+   ssh <alias> 'cd /opt/stacks/postiz && docker compose up -d'
+   ```
 
-## Zmienne środowiskowe
-
-Install.sh ustawia automatycznie:
-
-| Zmienna | Opis |
-|---------|------|
-| `MAIN_URL` | Główny URL aplikacji |
-| `FRONTEND_URL` | URL frontendu |
-| `NEXT_PUBLIC_BACKEND_URL` | Publiczny URL backendu API |
-| `DATABASE_URL` | Connection string PostgreSQL |
-| `REDIS_URL` | Connection string Redis |
-| `JWT_SECRET` | Sekret JWT (generowany automatycznie) |
-| `IS_GENERAL` | Tryb ogólny (true) |
-| `STORAGE_PROVIDER` | local (pliki na dysku) |
-
-Dodatkowe (dodaj ręcznie do docker-compose dla integracji):
-
-| Zmienna | Opis |
-|---------|------|
-| `X_API_KEY`, `X_API_SECRET` | Twitter/X API |
-| `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET` | LinkedIn |
-| `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | Facebook/Instagram |
-| `OPENAI_API_KEY` | AI-generowanie treści postów |
-| `DISABLE_REGISTRATION` | Wyłącz rejestrację (true po setup) |
-
-Pełna lista: [docs.postiz.com/configuration/reference](https://docs.postiz.com/configuration/reference)
+Plik `.env` jest pobierany automatycznie z oficjalnego repozytorium Postiz przy instalacji.
 
 ## Obsługiwane platformy
 
 Twitter/X, LinkedIn, Instagram, Facebook, TikTok, YouTube, Pinterest, Reddit, Mastodon, Bluesky, Threads, Discord, Slack, Telegram i więcej (20+).
 
-Każda platforma wymaga własnych kluczy API - konfiguracja w Settings → Integrations.
+Każda platforma wymaga własnych kluczy API — konfiguracja w pliku `.env`.
 
-### Redis (external vs bundled)
+Ważne uwagi przy konfiguracji providerów:
 
-Domyślnie auto-detekcja: jeśli port 6379 nasłuchuje na serwerze, Postiz łączy się z istniejącym Redis. W przeciwnym razie bundluje `redis:7.2-alpine`.
+- **Facebook/Instagram:** przełącz app z Development → Live (inaczej posty widoczne tylko dla Ciebie!)
+- **LinkedIn:** dodaj produkt "Advertising API" (bez tego tokeny nie odświeżają się!)
+- **TikTok:** domena z uploadami musi być zweryfikowana w TikTok Developer Account
+- **YouTube:** po konfiguracji Brand Account poczekaj ~5h na propagację
+- **Threads:** złożona konfiguracja — [docs.postiz.com/providers/threads](https://docs.postiz.com/providers/threads)
+- **Discord/Slack:** ikona aplikacji jest wymagana (bez niej błąd 404)
 
-```bash
-# Wymuś bundled Redis (nawet gdy istnieje external)
-POSTIZ_REDIS=bundled ./local/deploy.sh postiz --ssh=mikrus
+Docs: [docs.postiz.com/providers](https://docs.postiz.com/providers)
 
-# Wymuś external Redis (host)
-POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=mikrus
+## Wiele kont / zespoły
 
-# External Redis z hasłem
-REDIS_PASS=tajneHaslo POSTIZ_REDIS=external ./local/deploy.sh postiz --ssh=mikrus
+**Wiele kanałów na jednej platformie** — tak, możesz podłączyć np. 2 strony Facebook + 3 konta Instagram Business + 1 LinkedIn. Przy tworzeniu posta wybierasz, na które kanały opublikować i piszesz osobną wersję treści dla każdego kanału.
+
+**Ograniczenia:**
+
+- **YouTube:** jedno `YOUTUBE_CLIENT_ID/SECRET` w `.env` = wszystkie kanały muszą być pod tą samą aplikacją Google OAuth. Wiele kanałów z różnych kont Google to [otwarty feature request](https://github.com/gitroomhq/postiz-app/issues/1049)
+- **Jeden user = jedna organizacja.** Nie da się być w wielu teamach ([#608, zamknięte jako "not planned"](https://github.com/gitroomhq/postiz-app/issues/608))
+- **Brak granularnych uprawnień per kanał.** Każdy członek organizacji widzi wszystkie podłączone kanały — nie da się dać komuś dostępu tylko do jednego z kilku kont Instagram
+- **Brak synchronizacji kalendarza z platformami.** Postiz tylko wypycha posty — nie widzi postów zaplanowanych w Meta Business Suite, LinkedIn Campaign Manager itp. Jeśli planujesz posty z wielu miejsc, Postiz musi być jedynym źródłem prawdy
+
+**Workaround na oddzielne dostępy:** osobne konto (inny email) z własną organizacją. Obie organizacje mogą podłączyć to samo konto social media (osobna autoryzacja OAuth), ale nie widzą nawzajem swoich kalendarzy.
+
+## API, MCP i automatyzacja
+
+Postiz ma publiczne API, wbudowany MCP server i CLI do integracji z AI:
+
+- **API:** `https://<domena>/api/public/v1` — scheduling, upload mediów, lista kanałów, find-slot
+- **Auth:** klucz API z Settings, header `Authorization`
+- **Rate limit:** 30 req/h (ale jeden request = wiele postów)
+- **SDK:** `@postiz/node` (npm), integracja z n8n
+- **MCP (wbudowany):** endpoint `https://<domena>/mcp/<API-KEY>/sse` — działa z Claude Desktop, Claude Code, Cursor
+- **[Postiz Agent](https://postiz.com/agent)** — CLI dla agentów AI, structured JSON output
+
+Konfiguracja MCP w Claude Desktop / Claude Code:
+```json
+{
+  "mcpServers": {
+    "postiz": {
+      "url": "https://<domena>/mcp/<API-KEY>/sse"
+    }
+  }
+}
 ```
+
+Docs: [docs.postiz.com/public-api](https://docs.postiz.com/public-api/introduction)
 
 ## Ograniczenia
 
-- **Pinowana wersja** - v2.11.3 (nowsze wymagają Temporal, za ciężkie na Mikrus)
-- **Wolny start** - Next.js startuje ~60-90s
-- **OAuth wymaga HTTPS** - większość platform wymaga HTTPS dla callback URL
-- **SSH tunnel bez domeny** - Postiz ustawia secure cookies, logowanie przez HTTP nie zadziała. Dodaj `NOT_SECURED=true` do docker-compose (tylko dev/tunnel!)
-- **Duży obraz** - ~3GB na dysku
+- **Dedykowany serwer** — 7 kontenerów, ~2.5-3GB RAM, nie współdziel z innymi usługami
+- **Wolny start** — Temporal + Next.js startują ~90-120s
+- **OAuth wymaga HTTPS** — większość platform wymaga HTTPS dla callback URL
+- **SSH tunnel bez domeny** — Postiz ustawia secure cookies, logowanie przez HTTP nie zadziała. Dodaj `NOT_SECURED=true` do docker-compose (tylko dev/tunnel!)
+- **Duże obrazy** — ~5GB na dysku (7 kontenerów)
 
 ## Backup
 
 ```bash
-./local/setup-backup.sh mikrus
+./local/setup-backup.sh <alias>
 ```
 
 Dane w `/opt/stacks/postiz/`:
-- `config/` - konfiguracja (.env)
+- `config/` - konfiguracja
 - `uploads/` - przesłane pliki
+- `postgres-data/` - baza danych Postiz
 - `redis-data/` - cache Redis
-- Baza PostgreSQL - backup przez Mikrus panel lub pg_dump
+- `temporal-postgres-data/` - baza danych Temporal
+- `.env` - klucze API providerów
