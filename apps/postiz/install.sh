@@ -117,8 +117,14 @@ DB_NAME=${DB_NAME:-postiz}
 
 echo "✅ Baza PostgreSQL: $DB_HOST:$DB_PORT/$DB_NAME (user: $DB_USER)"
 
-# Buduj DATABASE_URL
-DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
+# Buduj DATABASE_URL (z obsługą schematu — izolacja danych na współdzielonej bazie)
+DB_SCHEMA=${DB_SCHEMA:-postiz}
+if [ "$DB_SCHEMA" != "public" ]; then
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME?schema=$DB_SCHEMA"
+    echo "   Schemat: $DB_SCHEMA"
+else
+    DATABASE_URL="postgresql://$DB_USER:$DB_PASS@$DB_HOST:$DB_PORT/$DB_NAME"
+fi
 
 # Generuj sekrety
 JWT_SECRET=$(openssl rand -hex 32)

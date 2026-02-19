@@ -37,6 +37,10 @@ echo "   Host: $DB_HOST | User: $DB_USER | DB: $DB_NAME"
 
 DB_PORT=${DB_PORT:-5432}
 
+# UWAGA: Listmonk nie obsługuje custom schema (zawsze używa public).
+# Jeśli współdzielisz bazę z innymi apkami, listmonk tworzy tabele w schemacie public.
+# Bezpieczne — nazwy tabel listmonka (campaigns, subscribers, lists, etc.) są unikalne.
+
 # Check for shared Mikrus DB (doesn't support pgcrypto)
 if [[ "$DB_HOST" == psql*.mikr.us ]]; then
     echo ""
