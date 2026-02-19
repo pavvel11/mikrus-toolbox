@@ -32,21 +32,37 @@ cd "$STACK_DIR"
 echo "$REDIS_PASS" | sudo tee .redis_password > /dev/null
 sudo chmod 600 .redis_password
 
+# Docker network — żeby inne kontenery (n8n itp.) widziały Redis po nazwie
+DOCKER_NETWORK="${REDIS_NETWORK:-docker_network}"
+if ! sudo docker network inspect "$DOCKER_NETWORK" &>/dev/null; then
+    sudo docker network create "$DOCKER_NETWORK"
+    echo "✅ Utworzono sieć Docker: $DOCKER_NETWORK"
+else
+    echo "✅ Sieć Docker: $DOCKER_NETWORK (istnieje)"
+fi
+
 cat <<EOF | sudo tee docker-compose.yaml > /dev/null
 
 services:
   redis:
     image: redis:alpine
+    container_name: redis
     restart: always
-    command: redis-server --requirepass $REDIS_PASS --save 60 1 --loglevel warning
+    command: redis-server --requirepass $REDIS_PASS --save 60 1 --loglevel warning --appendonly yes
     ports:
       - "127.0.0.1:$PORT:6379"
     volumes:
       - ./data:/data
+    networks:
+      - $DOCKER_NETWORK
     deploy:
       resources:
         limits:
           memory: 128M
+
+networks:
+  $DOCKER_NETWORK:
+    external: true
 
 EOF
 
@@ -68,6 +84,8 @@ fi
 echo ""
 echo "✅ Redis zainstalowany!"
 echo "   Port: 127.0.0.1:$PORT (tylko lokalnie)"
+echo "   Sieć Docker: $DOCKER_NETWORK (inne kontenery łączą się hostem: redis)"
 echo "   Hasło zapisane w: $STACK_DIR/.redis_password"
 echo ""
-echo "   Połączenie: redis-cli -h 127.0.0.1 -p $PORT -a \$(cat $STACK_DIR/.redis_password)"
+echo "   Z hosta:     redis-cli -h 127.0.0.1 -p $PORT -a \$(cat $STACK_DIR/.redis_password)"
+echo "   Z kontenera: host=redis, port=6379, hasło z pliku powyżej"
