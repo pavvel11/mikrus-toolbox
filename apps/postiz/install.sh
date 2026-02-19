@@ -7,8 +7,9 @@
 #
 # IMAGE_SIZE_MB=3000  # ghcr.io/gitroomhq/postiz-app:v2.11.3 (1.2GB compressed → ~3GB on disk)
 #
-# ⚠️  UWAGA: Ta aplikacja zaleca minimum 2GB RAM (Mikrus 3.0+)!
-#     Postiz (Next.js) + Redis = ~1-1.5GB RAM
+# ⚠️  UWAGA: Ta aplikacja wymaga minimum 1.5GB RAM (Mikrus 3.0+)!
+#     Postiz (Next.js + Nest.js + nginx + workers + cron) = ~800MB-1.2GB RAM
+#     Limit 1024M jest za mało — backend wpada w restart loop (OOM)!
 #
 # Pinujemy v2.11.3 (pre-Temporal). Od v2.12+ Postiz wymaga Temporal + Elasticsearch
 # + drugi PostgreSQL = 7 kontenerów, minimum 4GB RAM. Zbyt ciężkie na Mikrus.
@@ -216,7 +217,7 @@ $POSTIZ_EXTRA_HOSTS
     deploy:
       resources:
         limits:
-          memory: 1024M
+          memory: 1536M
 $REDIS_SERVICE
 EOF
 
