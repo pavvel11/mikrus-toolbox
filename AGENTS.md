@@ -196,7 +196,7 @@ Dwa tryby w zależności od domeny:
 
 MCP: `deploy_site` z projektem PHP (wykrywa `index.php` lub pliki `.php`).
 
-## Aplikacje (27)
+## Aplikacje (28)
 
 Wszystkie w `apps/<nazwa>/install.sh`. Uruchamiane przez `deploy.sh`, nie ręcznie.
 
