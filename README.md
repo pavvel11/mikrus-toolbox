@@ -1,9 +1,9 @@
 # 🧰 Mikrus Toolbox
 
-**25 self-hosted aplikacji. Jeden serwer. Zero abonamentów.**
+**26 self-hosted aplikacji. Jeden serwer. Zero abonamentów.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Apps: 25+](https://img.shields.io/badge/Apps-25%2B-blue.svg)](#-25-aplikacji-w-arsenale)
+[![Apps: 26+](https://img.shields.io/badge/Apps-26%2B-blue.svg)](#-26-aplikacji-w-arsenale)
 [![Works on any VPS](https://img.shields.io/badge/Works%20on-any%20VPS-orange.svg)](#mogę-to-postawić-na-innym-vps)
 [![GitHub Stars](https://img.shields.io/github/stars/jurczykpawel/mikrus-toolbox?style=social)](https://github.com/jurczykpawel/mikrus-toolbox)
 
@@ -27,7 +27,7 @@ Każda aplikacja to jeden `deploy.sh` — skrypt pyta o domenę, bazę danych, s
 - **Integracja z AI / MCP** — powiedz Claude'owi *"Zainstaluj n8n na serwerze"* i patrz jak sam deployuje, konfiguruje DNS i sprawdza logi
 - **Konfiguracje zoptymalizowane pod produkcję** — memory limity, health checki, auto-restart, logi bez zapychania dysku
 - **Zero platform overhead** — żadnego Kubernetes, Terraform ani panelu za $20/mies. Czysty Docker Compose + Bash
-- **25 przetestowanych aplikacji** — od automatyzacji (n8n) przez newsletter (Listmonk) po sklep z produktami cyfrowymi (GateFlow)
+- **26 przetestowanych aplikacji** — od automatyzacji (n8n) przez newsletter (Listmonk) po sklep z produktami cyfrowymi (GateFlow)
 
 ---
 
@@ -48,7 +48,7 @@ Dla **solopreneurów, freelancerów i małych firm**, które:
 
 - [Dlaczego Mikrus Toolbox?](#-dlaczego-mikrus-toolbox)
 - [Dla kogo?](#-dla-kogo)
-- [25 aplikacji](#-25-aplikacji-w-arsenale)
+- [26 aplikacji](#-26-aplikacji-w-arsenale)
 - [Jak to działa razem](#-jak-to-działa-razem)
 - [Szybki start](#-szybki-start)
 - [Opcja AI / MCP](#-opcja-ai--mcp)
@@ -67,7 +67,7 @@ Dla **solopreneurów, freelancerów i małych firm**, które:
 
 ---
 
-## 🛠️ 25 aplikacji w arsenale
+## 🛠️ 26 aplikacji w arsenale
 
 ### Automatyzacja i operacje
 
@@ -79,6 +79,7 @@ Dla **solopreneurów, freelancerów i małych firm**, które:
 | [**ntfy**](apps/ntfy/) | Pushover | **Serwer powiadomień push.** Wysyłaj alerty z n8n na telefon. |
 | [**Redis**](apps/redis/) | - | **Cache.** Przyspiesza n8n, WordPress i inne aplikacje. |
 | [**Crawl4AI**](apps/crawl4ai/) | ScrapingBee | **AI web scraper** z REST API. Markdown, LLM extraction, JS rendering. |
+| [**PicoClaw**](apps/picoclaw/) | OpenClaw | **Osobisty asystent AI** (Telegram/Discord/Slack). Ultra-lekki (~10MB, 64MB RAM). 🔒 Max izolacja. |
 | [**MCP Docker**](apps/mcp-docker/) | - | **Most AI-serwer.** Pozwól Claude/Cursor zarządzać kontenerami. |
 | [**MinIO**](apps/minio/) | AWS S3 | **Self-hosted object storage** (S3-compatible). |
 
@@ -243,14 +244,14 @@ claude
 | *"Sprawdź czy wszystkie kontenery działają"* | Łączy się po SSH, sprawdza `docker ps`, raportuje problemy |
 | *"Wystaw Dockge pod domeną panel.mojafirma.pl"* | Konfiguruje DNS przez Cloudflare, ustawia HTTPS przez Caddy |
 | *"Postaw mi sklep z produktami cyfrowymi"* | Prowadzi przez konfigurację Supabase, deployuje GateFlow |
-| *"Co mogę zainstalować?"* | Wyświetla 25+ aplikacji z opisami i wymaganiami |
+| *"Co mogę zainstalować?"* | Wyświetla 26+ aplikacji z opisami i wymaganiami |
 
 ### 8 narzędzi MCP
 
 | Narzędzie | Opis |
 | :--- | :--- |
 | `setup_server` | Konfiguracja SSH lub test połączenia |
-| `list_apps` | Lista 25+ aplikacji z metadanymi (RAM, DB, porty) |
+| `list_apps` | Lista 26+ aplikacji z metadanymi (RAM, DB, porty) |
 | `deploy_app` | Deploy przetestowanej aplikacji z toolboxa |
 | `deploy_custom_app` | Deploy **dowolnej** aplikacji Docker (AI generuje compose) |
 | `deploy_site` | Deploy lokalnego projektu (strona, Node.js, Python) |
@@ -417,7 +418,7 @@ Uruchom `deploy.sh` ponownie — skrypt wykryje istniejącą instalację i zaktu
 
 ### Zrobione
 
-- [x] **25 przetestowanych aplikacji** — od n8n po GateFlow
+- [x] **26 przetestowanych aplikacji** — od n8n po GateFlow
 - [x] **Serwer MCP** — zarządzanie serwerem przez AI (Claude Desktop, Claude Code, Cursor)
 - [x] **Integracja z Cloudflare** — automatyczna konfiguracja DNS
 - [x] **Bundled bazy danych** — Redis i SQLite wbudowane w kontenery
@@ -493,4 +494,4 @@ MIT — zobacz [LICENSE](LICENSE)
 
 ---
 
-*Self-hosted infrastructure toolkit for solopreneurs. Deploy 25 open-source apps (n8n, WordPress, Listmonk, Typebot, NocoDB, Vaultwarden and more) on a cheap VPS with one command. Replace $300+/month in SaaS subscriptions with a $5/month server.*
+*Self-hosted infrastructure toolkit for solopreneurs. Deploy 26 open-source apps (n8n, WordPress, Listmonk, Typebot, NocoDB, Vaultwarden and more) on a cheap VPS with one command. Replace $300+/month in SaaS subscriptions with a $5/month server.*
