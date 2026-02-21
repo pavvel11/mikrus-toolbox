@@ -132,6 +132,7 @@ Aplikacje znajdują się w `apps/<nazwa>/install.sh`:
 | **gotenberg** | API do konwersji dokumentów (PDF) | - | 3000 |
 | **cookie-hub** | Consent management (GDPR) | - | 8091 |
 | **littlelink** | Strona z linkami (prostsza alt.) | - | 8090 |
+| **social-media-generator** | Grafiki social media z szablonów | PostgreSQL | 8000 |
 | **mcp-docker** | MCP server do zarządzania Docker | - | - |
 
 *PostgreSQL z gwiazdką wymaga `gen_random_uuid()` (PG 13+) — NIE działa ze współdzieloną bazą Mikrusa (PG 12). Dotyczy: n8n, umami, listmonk, typebot, postiz. Wymagana dedykowana baza.
