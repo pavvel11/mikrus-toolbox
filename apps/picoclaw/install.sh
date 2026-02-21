@@ -24,7 +24,7 @@
 #   - Siec ograniczona (internal network + egress proxy opcjonalnie)
 #   - Limity zasobow (128MB RAM, 1 CPU)
 #   - Non-root user
-#   - Niestandardowy profil seccomp
+#   - Domyslny profil seccomp Dockera
 #   - Brak montowania Docker socket
 
 set -e
@@ -240,151 +240,12 @@ CONFIGEOF
 fi
 
 # =============================================================================
-# 2. PROFIL SECCOMP — restrykcyjna lista dozwolonych syscalli
+# 2. DOCKER COMPOSE — maksymalne zabezpieczenia
 # =============================================================================
-
-echo "🔒 Tworzę profil seccomp..."
-
-cat <<'SECCOMPEOF' | sudo tee "$STACK_DIR/seccomp-profile.json" > /dev/null
-{
-  "defaultAction": "SCMP_ACT_ERRNO",
-  "defaultErrnoRet": 1,
-  "archMap": [
-    {
-      "architecture": "SCMP_ARCH_X86_64",
-      "subArchitectures": [
-        "SCMP_ARCH_X86",
-        "SCMP_ARCH_X32"
-      ]
-    },
-    {
-      "architecture": "SCMP_ARCH_AARCH64",
-      "subArchitectures": [
-        "SCMP_ARCH_ARM"
-      ]
-    }
-  ],
-  "syscalls": [
-    {
-      "names": [
-        "accept",
-        "accept4",
-        "access",
-        "arch_prctl",
-        "bind",
-        "brk",
-        "capget",
-        "capset",
-        "clone",
-        "clone3",
-        "close",
-        "connect",
-        "dup",
-        "dup2",
-        "dup3",
-        "epoll_create",
-        "epoll_create1",
-        "epoll_ctl",
-        "epoll_pwait",
-        "epoll_wait",
-        "exit",
-        "exit_group",
-        "faccessat",
-        "faccessat2",
-        "fchmod",
-        "fchmodat",
-        "fchown",
-        "fchownat",
-        "fcntl",
-        "fdatasync",
-        "flock",
-        "fstat",
-        "fstatfs",
-        "fsync",
-        "ftruncate",
-        "futex",
-        "getcwd",
-        "getdents",
-        "getdents64",
-        "getegid",
-        "geteuid",
-        "getgid",
-        "getpeername",
-        "getpid",
-        "getppid",
-        "getrandom",
-        "getrlimit",
-        "getsockname",
-        "getsockopt",
-        "gettid",
-        "gettimeofday",
-        "getuid",
-        "ioctl",
-        "listen",
-        "lseek",
-        "lstat",
-        "madvise",
-        "membarrier",
-        "mincore",
-        "mkdirat",
-        "mmap",
-        "mprotect",
-        "mremap",
-        "munmap",
-        "nanosleep",
-        "newfstatat",
-        "open",
-        "openat",
-        "pipe",
-        "pipe2",
-        "poll",
-        "ppoll",
-        "pread64",
-        "prlimit64",
-        "pwrite64",
-        "read",
-        "readlink",
-        "readlinkat",
-        "recvfrom",
-        "recvmsg",
-        "restart_syscall",
-        "rseq",
-        "rt_sigaction",
-        "rt_sigprocmask",
-        "rt_sigreturn",
-        "sched_getaffinity",
-        "sched_yield",
-        "sendfile",
-        "sendmsg",
-        "sendto",
-        "set_robust_list",
-        "set_tid_address",
-        "setsockopt",
-        "shutdown",
-        "sigaltstack",
-        "socket",
-        "stat",
-        "statfs",
-        "statx",
-        "tgkill",
-        "uname",
-        "unlinkat",
-        "utimensat",
-        "wait4",
-        "write",
-        "writev"
-      ],
-      "action": "SCMP_ACT_ALLOW"
-    }
-  ]
-}
-SECCOMPEOF
-
-echo "✅ Profil seccomp utworzony"
-
-# =============================================================================
-# 3. DOCKER COMPOSE — maksymalne zabezpieczenia
-# =============================================================================
+# UWAGA: Używamy domyślnego profilu seccomp Dockera (blokuje ~44 niebezpieczne
+# syscalls: reboot, mount, swapon, ptrace itp.). Profil niestandardowy wymaga
+# utrzymania listy syscalli per-kernel i łamie kompatybilność z nowszymi jądrami.
+# W połączeniu z cap_drop ALL + no-new-privileges izolacja jest wystarczająca.
 
 echo "🐳 Tworzę docker-compose.yaml..."
 
@@ -420,7 +281,6 @@ services:
     # --- BEZPIECZENSTWO: blokada eskalacji uprawnien ---
     security_opt:
       - no-new-privileges:true
-      - seccomp=./seccomp-profile.json
 
     # --- BEZPIECZENSTWO: limity zasobow ---
     deploy:
@@ -526,7 +386,7 @@ echo "🔒 Zabezpieczenia:"
 echo "   • Read-only filesystem"
 echo "   • Wszystkie capabilities usunięte (cap_drop: ALL)"
 echo "   • no-new-privileges"
-echo "   • Niestandardowy profil seccomp"
+echo "   • Domyślny profil seccomp Dockera (blokuje ~44 niebezpieczne syscalls)"
 echo "   • Non-root user (UID 1000)"
 echo "   • Limity zasobów: 128MB RAM, 1 CPU"
 echo "   • Limity procesów: 64 nproc, 2048 nofile"
